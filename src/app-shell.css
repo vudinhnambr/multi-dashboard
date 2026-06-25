@@ -80,5 +80,39 @@
   height: calc(100vh - 57px);
   border: 0;
   display: block;
-  background: #fff;
+  background: #0b0f1a;
+}
+
+/* Mobile: thanh nav xuống dòng/cuộn, iframe cao linh hoạt */
+@media (max-width: 768px) {
+  .shell-nav {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: 10px 12px;
+  }
+
+  .shell-brand {
+    width: 100%;
+    font-size: 14px;
+  }
+
+  .shell-tabs {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+
+  .shell-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 7px 11px;
+    font-size: 12.5px;
+  }
+
+  /* Nav cao hơn trên mobile → iframe dùng chiều cao còn lại linh hoạt */
+  .shell-frame {
+    height: calc(100dvh - 110px);
+  }
 }

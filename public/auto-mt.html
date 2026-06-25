@@ -111,15 +111,22 @@
       }
 
       .sidebar {
-        position: static;
-        width: 100%;
-        min-height: auto;
+        position: static !important;
+        width: 100% !important;
+        min-height: auto !important;
         border-right: 0;
         border-bottom: 1px solid #1e293b;
       }
 
       .main-content {
-        margin-left: 0;
+        margin-left: 0 !important;
+        padding: 16px !important;
+      }
+
+      /* Chặn tràn ngang trên mobile */
+      html, body {
+        overflow-x: hidden;
+        max-width: 100vw;
       }
     }
   </style>
