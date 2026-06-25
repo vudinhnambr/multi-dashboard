@@ -412,7 +412,8 @@
             <span>
               <span class="text-2xl font-bold">Recent records</span>
               <span id="recentCount" class="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-sm font-bold text-blue-300"></span>
-              <span class="mt-1 block text-sm text-slate-400">Dòng mới nhất theo thời điểm ghi — xóa được dòng lỡ nhập.</span>
+              <span id="recentCountSub" class="ml-1 text-xs text-slate-500"></span>
+              <span class="mt-1 block text-sm text-slate-400">Số bản ghi của ngày nhập gần nhất. Bảng bên dưới liệt kê 25 dòng mới nhất để xóa dòng lỡ nhập.</span>
             </span>
           </button>
           <div class="flex items-center gap-3">
@@ -687,6 +688,10 @@
       if (activeDrilldown.field === 'partDisplay') return row.partDisplay === activeDrilldown.value
       if (activeDrilldown.field === 'personDisplay') return row.personDisplay === activeDrilldown.value
       if (activeDrilldown.field === 'machineDisplay') return row.machineDisplay === activeDrilldown.value
+      if (activeDrilldown.field === 'personLastDay') {
+        return row.personDisplay === activeDrilldown.value &&
+               row.dateValue === activeDrilldown.dateValue
+      }
 
       return true
     }
@@ -727,13 +732,13 @@
       }
     }
 
-    function setDrilldown(field, value, label) {
+    function setDrilldown(field, value, label, extra) {
       const isSameSelection =
         activeDrilldown &&
         activeDrilldown.field === field &&
         String(activeDrilldown.value) === String(value)
 
-      activeDrilldown = isSameSelection ? null : { field, value, label }
+      activeDrilldown = isSameSelection ? null : { field, value, label, ...(extra || {}) }
       refreshDashboard()
     }
 
@@ -971,7 +976,7 @@
 
           const value = item[0]
           const label = options.drillLabel ? options.drillLabel(value) : `${value}`
-          setDrilldown(options.drillField, value, label)
+          setDrilldown(options.drillField, value, label, options.drillExtra)
         })
       }
     }
@@ -1032,18 +1037,20 @@
         drillLabel: value => `Part: ${value}`
       })
 
-      // By Person — Last Day: chỉ các bản ghi của ngày có dữ liệu mới nhất.
+      // By Person — Last Day: tính trên baseFilteredData (theo bộ lọc bên trái, bỏ qua drilldown)
+      // để chart luôn ổn định ở ngày nhập gần nhất, không bị co lại khi đang drilldown.
       const lastDayLabel = document.getElementById('personLastDayLabel')
-      if (filteredData.length) {
-        const maxDateValue = Math.max(...filteredData.map(x => x.dateValue))
-        const lastDayRows = filteredData.filter(x => x.dateValue === maxDateValue)
+      if (baseFilteredData.length) {
+        const maxDateValue = Math.max(...baseFilteredData.map(x => x.dateValue))
+        const lastDayRows = baseFilteredData.filter(x => x.dateValue === maxDateValue)
         const lastDayDate = lastDayRows.length ? lastDayRows[0].date : '-'
         const personLastDay = sumBy(lastDayRows, 'personDisplay', 'qty')
         if (lastDayLabel) lastDayLabel.textContent = `Ngày gần nhất: ${lastDayDate} · ${lastDayRows.length} bản ghi`
         renderBarChart('personLastDayChart', personLastDay, false, {
           color: '#34d399',
-          drillField: 'personDisplay',
-          drillLabel: value => `Person (last day): ${value}`
+          drillField: 'personLastDay',
+          drillExtra: { dateValue: maxDateValue, dayDate: lastDayDate },
+          drillLabel: value => `${value} — ngày ${lastDayDate}`
         })
       } else {
         if (lastDayLabel) lastDayLabel.textContent = 'Không có dữ liệu.'
@@ -1439,10 +1446,14 @@
     }
 
     // Set serial đã có trong dữ liệu đang xem (cảnh báo trùng, không chặn).
-    function existingSerialSet() {
-      const set = new Set()
-      allData.forEach(r => { if (r.serialUpper) set.add(r.serialUpper) })
-      return set
+    // Đếm số bản ghi đã tồn tại trong DB theo serial (chuẩn hoá hoa).
+    // Dùng để tính số lần tái kiểm: bản gốc = 0, lần nhập lại thứ k = k.
+    function existingSerialCount() {
+      const map = new Map()
+      allData.forEach(r => {
+        if (r.serialUpper) map.set(r.serialUpper, (map.get(r.serialUpper) || 0) + 1)
+      })
+      return map
     }
 
     const PREVIEW_COLS = [
@@ -1464,8 +1475,9 @@
       }
       wrap.classList.remove('hidden')
 
-      const serials = existingSerialSet()
-      let invalid = 0, dups = 0
+      const dbCount = existingSerialCount()
+      let invalid = 0, reChecks = 0
+      const batchSeen = new Map()   // serial -> số lần đã gặp trong lô (trước dòng hiện tại)
 
       const head = '<thead><tr>' +
         PREVIEW_COLS.map(c => `<th class="px-2 py-2 text-slate-400">${c[1]}</th>`).join('') +
@@ -1473,11 +1485,22 @@
 
       const bodyRows = pendingRows.map((row, i) => {
         const errs = validateCanonical(row)
-        const isDup = row.serial_no && serials.has(String(row.serial_no).toUpperCase())
-        if (errs.length) invalid++
-        if (isDup) dups++
+        const su = row.serial_no ? String(row.serial_no).toUpperCase() : ''
 
-        const rowClass = errs.length ? 'preview-bad' : (isDup ? 'preview-warn' : '')
+        // Số lần tái kiểm = số bản ghi đã có (DB) + số dòng cùng serial đứng trước trong lô.
+        // Bản gốc = 0, lần nhập lại đầu tiên = 1, tiếp = 2...
+        let reCount = 0
+        if (su) {
+          reCount = (dbCount.get(su) || 0) + (batchSeen.get(su) || 0)
+          batchSeen.set(su, (batchSeen.get(su) || 0) + 1)
+        }
+        // Ghi đè cột re_inspection bằng giá trị tự tính.
+        row.re_inspection = reCount
+
+        if (errs.length) invalid++
+        if (reCount > 0) reChecks++
+
+        const rowClass = errs.length ? 'preview-bad' : (reCount > 0 ? 'preview-warn' : '')
         const cells = PREVIEW_COLS.map(([key]) => {
           const v = row[key]
           return `<td class="px-2 py-1.5 text-slate-200">${escapeHtml(v == null ? '' : String(v))}</td>`
@@ -1485,7 +1508,7 @@
 
         let status
         if (errs.length) status = `<span class="text-red-300">${escapeHtml(errs.join('; '))}</span>`
-        else if (isDup) status = '<span class="text-amber-300">Serial đã tồn tại</span>'
+        else if (reCount > 0) status = `<span class="text-amber-300">Tái kiểm ${reCount}</span>`
         else status = '<span class="text-emerald-300">OK</span>'
 
         return `<tr class="${rowClass} border-t border-slate-800">${cells}` +
@@ -1497,7 +1520,7 @@
 
       const parts = [`${pendingRows.length} dòng`]
       if (invalid) parts.push(`<span class="text-red-300">${invalid} lỗi</span>`)
-      if (dups) parts.push(`<span class="text-amber-300">${dups} serial trùng</span>`)
+      if (reChecks) parts.push(`<span class="text-amber-300">${reChecks} dòng tái kiểm</span>`)
       summary.innerHTML = parts.join(' · ')
 
       submitBtn.disabled = invalid > 0
@@ -1592,6 +1615,22 @@
         setInputMsg('Còn dòng lỗi, hãy sửa trước khi lưu.', 'err')
         return
       }
+
+      // Chốt lại số tái kiểm ngay lúc Save, dựa trên DB hiện tại (phòng dữ liệu đổi sau khi parse).
+      const dbCount = existingSerialCount()
+      const batchSeen = new Map()
+      let reChecks = 0
+      const rowsToSave = pendingRows.map(row => {
+        const su = row.serial_no ? String(row.serial_no).toUpperCase() : ''
+        let reCount = 0
+        if (su) {
+          reCount = (dbCount.get(su) || 0) + (batchSeen.get(su) || 0)
+          batchSeen.set(su, (batchSeen.get(su) || 0) + 1)
+        }
+        if (reCount > 0) reChecks++
+        return { ...row, re_inspection: reCount }
+      })
+
       const submitBtn = document.getElementById('submitBtn')
       submitBtn.disabled = true
       try {
@@ -1604,7 +1643,7 @@
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`
           },
-          body: JSON.stringify({ rows: pendingRows })
+          body: JSON.stringify({ rows: rowsToSave })
         })
 
         if (res.status === 403) { setInputMsg('Không có quyền ghi (chỉ inspector/admin).', 'err'); return }
@@ -1618,12 +1657,13 @@
         if (!res.ok) { setInputMsg('Ghi thất bại (mã ' + res.status + ').', 'err'); return }
 
         const payload = await res.json()
-        const n = payload.inserted || pendingRows.length
+        const n = payload.inserted || rowsToSave.length
+        const reMsg = reChecks ? ` (trong đó ${reChecks} dòng tái kiểm)` : ''
         pendingRows = []
         renderPreview()
-        setInputMsg(`Đã lưu ${n} dòng. Đang làm mới dữ liệu...`, 'ok')
+        setInputMsg(`Đã lưu ${n} dòng${reMsg}. Đang làm mới dữ liệu...`, 'ok')
         await loadAndRenderData(false)
-        setInputMsg(`Đã lưu ${n} dòng và cập nhật dashboard.`, 'ok')
+        setInputMsg(`Đã lưu ${n} dòng${reMsg} và cập nhật dashboard.`, 'ok')
       } catch (err) {
         setInputMsg('Lỗi mạng: ' + (err.message || 'thử lại sau.'), 'err')
       } finally {
@@ -1667,6 +1707,28 @@
       if (currentRole !== 'admin' || !supabase) return
       const table = document.getElementById('recentTable')
       try {
+        // Tìm ngày record_date mới nhất (ngày cuối cùng được nhập).
+        const { data: lastRow, error: lastErr } = await supabase
+          .from('production_records')
+          .select('record_date')
+          .order('record_date', { ascending: false })
+          .limit(1)
+        if (lastErr) throw lastErr
+        const lastDate = (lastRow && lastRow[0]) ? lastRow[0].record_date : null
+
+        // Đếm số bản ghi CỦA ngày đó (head:true → chỉ lấy count, không kéo dữ liệu).
+        if (lastDate) {
+          const { count, error: countError } = await supabase
+            .from('production_records')
+            .select('id', { count: 'exact', head: true })
+            .eq('record_date', lastDate)
+          if (countError) throw countError
+          setRecentCount(count, lastDate)
+        } else {
+          setRecentCount(0, null)
+        }
+
+        // Lấy 25 dòng mới nhất để liệt kê + xóa.
         const { data, error } = await supabase
           .from('production_records')
           .select('id, record_date, week, shift, person, machine, part, type, qty, serial_no')
@@ -1680,10 +1742,16 @@
       }
     }
 
+    function setRecentCount(total, lastDate) {
+      const countEl = document.getElementById('recentCount')
+      if (!countEl) return
+      countEl.textContent = (total == null) ? '' : `${Number(total).toLocaleString()} dòng`
+      const sub = document.getElementById('recentCountSub')
+      if (sub) sub.textContent = lastDate ? `của ngày nhập gần nhất: ${lastDate}` : ''
+    }
+
     function renderRecent(rows) {
       const table = document.getElementById('recentTable')
-      const countEl = document.getElementById('recentCount')
-      if (countEl) countEl.textContent = rows.length ? `${rows.length} dòng` : ''
       if (!rows.length) {
         table.innerHTML = '<tbody><tr><td class="px-2 py-3 text-slate-400">Chưa có bản ghi nào.</td></tr></tbody>'
         return
