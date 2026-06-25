@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <title>MT Dashboard V1</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
@@ -105,9 +105,9 @@
       background: rgba(120, 53, 15, 0.30);
     }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1280px) {
       .app-shell {
-        display: block;
+        display: block !important;
       }
 
       .sidebar {
@@ -120,13 +120,19 @@
 
       .main-content {
         margin-left: 0 !important;
+        width: 100% !important;
         padding: 16px !important;
       }
 
-      /* Chặn tràn ngang trên mobile */
+      /* Chặn tràn ngang trên mobile/tablet */
       html, body {
         overflow-x: hidden;
         max-width: 100vw;
+      }
+
+      /* Ép mọi grid 2 cột trong sidebar/main về 1 cột để khỏi tràn */
+      .sidebar .grid-cols-2 {
+        grid-template-columns: 1fr 1fr;
       }
     }
   </style>
