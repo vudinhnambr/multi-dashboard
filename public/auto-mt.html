@@ -407,10 +407,14 @@
       <!-- ===== Bước 6: Recent records (admin only) — xóa lỡ nhập ===== -->
       <section id="recentPanel" class="requires-admin glass mb-8 hidden rounded-2xl p-6">
         <div class="mb-4 flex items-center justify-between">
-          <div>
-            <div class="text-2xl font-bold">Recent records</div>
-            <div class="mt-1 text-sm text-slate-400">Dòng mới nhất theo thời điểm ghi — xóa được dòng lỡ nhập.</div>
-          </div>
+          <button id="recentToggleBtn" type="button" class="flex items-center gap-2 text-left">
+            <span id="recentChevron" class="inline-block text-slate-400 transition-transform">&#9656;</span>
+            <span>
+              <span class="text-2xl font-bold">Recent records</span>
+              <span id="recentCount" class="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-sm font-bold text-blue-300"></span>
+              <span class="mt-1 block text-sm text-slate-400">Dòng mới nhất theo thời điểm ghi — xóa được dòng lỡ nhập.</span>
+            </span>
+          </button>
           <div class="flex items-center gap-3">
             <span class="text-xs uppercase tracking-wide text-slate-500">admin only</span>
             <button id="recentRefreshBtn" type="button"
@@ -420,7 +424,7 @@
           </div>
         </div>
         <div id="recentMsg" class="mb-3 hidden text-sm"></div>
-        <div class="table-scroll rounded-xl border border-slate-800">
+        <div id="recentBody" class="table-scroll hidden rounded-xl border border-slate-800">
           <table id="recentTable" class="w-full text-left text-xs"></table>
         </div>
       </section>
@@ -458,6 +462,14 @@
         <div class="glass rounded-2xl p-6">
           <div class="mb-6 text-2xl font-bold">By Machine</div>
           <div id="machineChart" class="chart-box"></div>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-1 text-2xl font-bold">By Person — Last Day</div>
+          <div id="personLastDayLabel" class="mb-6 text-sm text-slate-400"></div>
+          <div id="personLastDayChart" class="chart-box"></div>
         </div>
       </section>
 
@@ -1019,6 +1031,24 @@
         drillField: 'partDisplay',
         drillLabel: value => `Part: ${value}`
       })
+
+      // By Person — Last Day: chỉ các bản ghi của ngày có dữ liệu mới nhất.
+      const lastDayLabel = document.getElementById('personLastDayLabel')
+      if (filteredData.length) {
+        const maxDateValue = Math.max(...filteredData.map(x => x.dateValue))
+        const lastDayRows = filteredData.filter(x => x.dateValue === maxDateValue)
+        const lastDayDate = lastDayRows.length ? lastDayRows[0].date : '-'
+        const personLastDay = sumBy(lastDayRows, 'personDisplay', 'qty')
+        if (lastDayLabel) lastDayLabel.textContent = `Ngày gần nhất: ${lastDayDate} · ${lastDayRows.length} bản ghi`
+        renderBarChart('personLastDayChart', personLastDay, false, {
+          color: '#34d399',
+          drillField: 'personDisplay',
+          drillLabel: value => `Person (last day): ${value}`
+        })
+      } else {
+        if (lastDayLabel) lastDayLabel.textContent = 'Không có dữ liệu.'
+        renderBarChart('personLastDayChart', {}, false, { color: '#34d399' })
+      }
     }
 
     function resetFilters() {
@@ -1652,6 +1682,8 @@
 
     function renderRecent(rows) {
       const table = document.getElementById('recentTable')
+      const countEl = document.getElementById('recentCount')
+      if (countEl) countEl.textContent = rows.length ? `${rows.length} dòng` : ''
       if (!rows.length) {
         table.innerHTML = '<tbody><tr><td class="px-2 py-3 text-slate-400">Chưa có bản ghi nào.</td></tr></tbody>'
         return
@@ -1736,6 +1768,14 @@
       })
       const recentRefresh = document.getElementById('recentRefreshBtn')
       if (recentRefresh) recentRefresh.addEventListener('click', loadRecentRecords)
+
+      const recentToggle = document.getElementById('recentToggleBtn')
+      if (recentToggle) recentToggle.addEventListener('click', () => {
+        const body = document.getElementById('recentBody')
+        const chevron = document.getElementById('recentChevron')
+        const open = body.classList.toggle('hidden') === false
+        if (chevron) chevron.style.transform = open ? 'rotate(90deg)' : 'rotate(0deg)'
+      })
     }
 
     initLogin()
