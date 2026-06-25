@@ -553,7 +553,8 @@
       }
 
       if (response.status === 401) {
-        const err = new Error('Incorrect password')
+        const payload = await response.json().catch(() => ({}))
+        const err = new Error(payload.error || 'Phiên hết hạn hoặc tài khoản chưa được cấp quyền (role). Liên hệ admin.')
         err.code = 'AUTH'
         throw err
       }

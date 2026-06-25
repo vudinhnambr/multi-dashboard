@@ -34,7 +34,7 @@ export default function App() {
       <header className="shell-nav">
         <div className="shell-brand">
           <span className="shell-dot" />
-          Production Hub
+          Quality Management Hub
         </div>
         <nav className="shell-tabs">
           {TABS.map((t) => {
