@@ -83,8 +83,8 @@
   background: #0b0f1a;
 }
 
-/* Mobile: thanh nav xuống dòng/cuộn, iframe cao linh hoạt */
-@media (max-width: 768px) {
+/* Mobile/tablet: thanh nav xuống dòng/cuộn, iframe cao linh hoạt */
+@media (max-width: 1024px) {
   .shell-nav {
     flex-wrap: wrap;
     gap: 8px 12px;
