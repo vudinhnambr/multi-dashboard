@@ -1,0 +1,84 @@
+/* Khung bao 2 dashboard. Giữ trung tính để không đè style của từng dashboard. */
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0b0f1a;
+}
+
+.shell-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 20px;
+  background: rgba(13, 18, 31, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  color: #e8edf7;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.shell-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8;
+}
+
+.shell-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.shell-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #93a1b8;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: all 0.18s ease;
+}
+
+.shell-tab:hover {
+  color: #e8edf7;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.shell-tab.is-active {
+  color: #0b0f1a;
+  background: #38bdf8;
+  border-color: #38bdf8;
+}
+
+.shell-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.shell-frame {
+  width: 100%;
+  height: calc(100vh - 57px);
+  border: 0;
+  display: block;
+  background: #fff;
+}

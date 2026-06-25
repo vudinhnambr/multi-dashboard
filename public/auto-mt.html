@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MT Dashboard V1</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    body {
+      background: #020617;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+
+    .glass {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .chart-box {
+      min-height: 320px;
+    }
+
+    .table-scroll {
+      max-height: 460px;
+      overflow: auto;
+    }
+
+    .table-scroll thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #0f172a;
+    }
+
+    .flatpickr-calendar {
+      background: #0f172a;
+      border: 1px solid #334155;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    .flatpickr-day,
+    .flatpickr-current-month,
+    .flatpickr-weekday,
+    .flatpickr-monthDropdown-months,
+    .numInput {
+      color: #e2e8f0 !important;
+    }
+
+    .flatpickr-day:hover,
+    .flatpickr-day.inRange {
+      background: #1d4ed8 !important;
+      border-color: #1d4ed8 !important;
+    }
+
+    .flatpickr-day.selected,
+    .flatpickr-day.startRange,
+    .flatpickr-day.endRange {
+      background: #3b82f6 !important;
+      border-color: #3b82f6 !important;
+    }
+
+    .input-tab {
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #94a3b8;
+    }
+
+    .input-tab.active {
+      border-color: #3b82f6;
+      background: #1e3a8a;
+      color: #ffffff;
+    }
+
+    .input-cell {
+      width: 100%;
+      border-radius: 0.75rem;
+      border: 1px solid #334155;
+      background: #0f172a;
+      padding: 0.6rem 0.75rem;
+      color: #e2e8f0;
+      outline: none;
+    }
+
+    .input-cell:focus {
+      border-color: #3b82f6;
+    }
+
+    .preview-bad {
+      background: rgba(127, 29, 29, 0.35);
+    }
+
+    .preview-warn {
+      background: rgba(120, 53, 15, 0.30);
+    }
+
+    @media (max-width: 1024px) {
+      .app-shell {
+        display: block;
+      }
+
+      .sidebar {
+        position: static;
+        width: 100%;
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid #1e293b;
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Màn hình đăng nhập: hiện trước, chỉ ẩn khi nhập đúng mật khẩu -->
+  <div id="loginOverlay" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950 p-6">
+    <div class="glass w-full max-w-sm rounded-2xl p-8">
+      <div class="mb-2 text-2xl font-black text-blue-400">MT DASHBOARD</div>
+      <div class="mb-6 text-sm text-slate-400">Sign in to view data</div>
+      <input id="loginEmail" type="email" placeholder="Email" autocomplete="username"
+        class="mb-3 w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-white outline-none focus:border-blue-400" />
+      <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password"
+        class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-white outline-none focus:border-blue-400" />
+      <div id="loginError" class="mt-3 hidden text-sm text-red-400"></div>
+      <button id="loginButton" type="button"
+        class="mt-5 w-full rounded-xl bg-blue-500 px-4 py-3 font-bold text-white hover:bg-blue-400 disabled:opacity-50">
+        Sign in
+      </button>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950">
+    <div class="text-center">
+      <div class="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-slate-700 border-t-blue-400"></div>
+      <div class="text-xl font-bold text-white">Loading dashboard data</div>
+      <div class="mt-2 text-sm text-slate-400">Connecting to Google Sheet...</div>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed right-6 top-6 z-40 hidden max-w-md rounded-xl border border-red-500/40 bg-red-950/90 px-5 py-4 text-sm text-red-100 shadow-2xl"></div>
+
+  <div class="app-shell flex">
+    <aside class="sidebar fixed left-0 top-0 min-h-screen w-[280px] border-r border-slate-800 bg-slate-950 p-6">
+      <div class="mb-8">
+        <div class="text-3xl font-black text-blue-400">MT DASHBOARD</div>
+        <div id="lastUpdated" class="mt-2 text-xs text-slate-500">Last updated: -</div>
+      </div>
+
+      <div class="space-y-5">
+        <div>
+          <div class="mb-2 text-sm text-slate-400">Person</div>
+          <select id="personFilter" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
+            <option value="All">All</option>
+          </select>
+        </div>
+
+        <div>
+          <div class="mb-2 text-sm text-slate-400">Machine</div>
+          <select id="machineFilter" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
+            <option value="All">All</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 lg:block lg:space-y-5">
+          <div>
+            <div class="mb-2 text-sm text-slate-400">Week</div>
+            <select id="weekFilter" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
+              <option value="All">All</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="mb-2 text-sm text-slate-400">Month</div>
+            <select id="monthFilter" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
+              <option value="All">All</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <div class="mb-2 text-sm text-slate-400">Date range</div>
+          <input id="dateFilter" placeholder="Select date range" class="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-white" />
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
+          <button id="resetFilters" type="button" class="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-200 hover:border-blue-400 hover:text-white">
+            Reset
+          </button>
+          <button id="logoutButton" type="button" class="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-200 hover:border-red-400 hover:text-white">
+            Log out
+          </button>
+        </div>
+
+        <div class="pt-2 text-xs text-slate-500">
+          Signed in as <span id="userEmail" class="text-slate-300">-</span>
+          <span id="roleBadge" class="ml-1 rounded bg-slate-800 px-2 py-0.5 text-slate-300"></span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content ml-[300px] w-full p-5 md:p-8">
+      <header class="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <div class="text-4xl font-black text-blue-400 md:text-5xl">MT INSPECTION</div>
+          <div class="mt-2 text-slate-400">Manufacturing Analytics Dashboard</div>
+        </div>
+        <div class="flex flex-col gap-3 sm:flex-row xl:flex-col xl:items-end">
+          <div class="rounded-xl border border-blue-400/40 bg-blue-950/40 px-4 py-3 text-sm text-blue-100">
+            Data date: <span id="dataThroughDate" class="font-bold text-white">-</span>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-400">
+            Showing <span id="recordCount" class="font-bold text-white">0</span> records
+          </div>
+        </div>
+      </header>
+
+      <section id="drilldownPanel" class="mb-8 hidden rounded-2xl border border-blue-400/40 bg-blue-950/40 p-5">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div class="text-sm font-bold uppercase tracking-wide text-blue-200">Drill-down</div>
+            <div id="drilldownLabel" class="mt-1 text-xl font-black text-white">-</div>
+            <div class="mt-1 text-sm text-slate-300">Charts are showing records related to this selected bar.</div>
+          </div>
+          <button id="clearDrilldown" type="button" class="rounded-xl border border-blue-300/40 bg-slate-950 px-4 py-3 text-sm font-bold text-blue-100 hover:border-blue-200 hover:text-white">
+            Clear selection
+          </button>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-5">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-3 text-sm text-slate-400">Total Production</div>
+          <div id="totalQty" class="text-4xl font-black md:text-5xl">0</div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-3 text-sm text-slate-400">Average / Day</div>
+          <div id="avgQty" class="text-4xl font-black md:text-5xl">0</div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-3 text-sm text-slate-400">Avg / Week (4 completed)</div>
+          <div id="avgWeek" class="text-4xl font-black md:text-5xl">0</div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-3 text-sm text-slate-400">Top Person</div>
+          <div id="topPerson" class="truncate text-3xl font-black md:text-4xl">-</div>
+          <div id="topPersonQty" class="mt-2 text-sm text-slate-400">0 pcs</div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-3 text-sm text-slate-400">Top Machine</div>
+          <div id="topMachine" class="truncate text-3xl font-black md:text-4xl">-</div>
+          <div id="topMachineQty" class="mt-2 text-sm text-slate-400">0 pcs</div>
+        </div>
+      </section>
+
+      <section class="glass mb-8 rounded-2xl p-6">
+        <div class="mb-4 text-2xl font-bold">Serial Number Lookup</div>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <input id="serialSearch" type="text" autocomplete="off"
+            placeholder="Enter Serial Number (full or last 7 characters)..."
+            class="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-white outline-none focus:border-blue-400" />
+          <button id="serialSearchBtn" type="button"
+            class="rounded-xl bg-blue-500 px-6 py-3 font-bold text-white hover:bg-blue-400">
+            Search
+          </button>
+          <button id="serialClearBtn" type="button"
+            class="rounded-xl border border-slate-600 px-6 py-3 font-semibold text-slate-300 hover:bg-slate-800">
+            Clear
+          </button>
+        </div>
+        <div id="serialResultInfo" class="mt-4 hidden text-sm text-slate-400"></div>
+        <div id="serialResults" class="mt-4 hidden overflow-x-auto"></div>
+      </section>
+
+      <!-- ===== Bước 5: Add records (inspector / admin) ===== -->
+      <section id="inputPanel" class="requires-input glass mb-8 hidden rounded-2xl p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <div class="text-2xl font-bold">Add records</div>
+          <div class="text-xs uppercase tracking-wide text-slate-500">inspector / admin</div>
+        </div>
+
+        <div class="mb-5 flex flex-wrap gap-2">
+          <button type="button" data-input-tab="paste" class="input-tab active">Paste table</button>
+          <button type="button" data-input-tab="excel" class="input-tab">Upload Excel</button>
+          <button type="button" data-input-tab="form" class="input-tab">Manual entry</button>
+        </div>
+
+        <!-- Manual -->
+        <div id="paneForm" class="input-pane hidden">
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Date *</label>
+              <input id="fDate" placeholder="dd/mm/yyyy" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Week</label>
+              <input id="fWeek" type="number" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Shift</label>
+              <input id="fShift" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Person *</label>
+              <input id="fPerson" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Machine *</label>
+              <input id="fMachine" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Part *</label>
+              <input id="fPart" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Type</label>
+              <input id="fType" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Qty *</label>
+              <input id="fQty" type="number" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Serial No</label>
+              <input id="fSerial" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Result</label>
+              <input id="fResult" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Indication</label>
+              <input id="fIndication" class="input-cell" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Re-Inspection</label>
+              <input id="fReInspection" type="number" class="input-cell" />
+            </div>
+          </div>
+          <button id="formAddBtn" type="button"
+            class="mt-4 rounded-xl bg-blue-500 px-6 py-3 font-bold text-white hover:bg-blue-400">
+            Add to list
+          </button>
+        </div>
+
+        <!-- Paste -->
+        <div id="panePaste" class="input-pane">
+          <div class="mb-2 text-sm text-slate-400">
+            Paste rows copied from Excel/Sheets. Keep the header row. Recognised columns:
+            Date, Week, Shift, Person, Machine, Part, Type, Qty, Serial No, Result, Indication, Re-Inspection.
+          </div>
+          <textarea id="pasteArea" rows="6"
+            placeholder="Date&#9;Person&#9;Machine&#9;Part&#9;Qty&#10;01/06/2026&#9;An&#9;M01&#9;P-100&#9;12"
+            class="input-cell font-mono text-sm" style="white-space: pre; overflow-x: auto;"></textarea>
+          <button id="pasteParseBtn" type="button"
+            class="mt-3 rounded-xl bg-blue-500 px-6 py-3 font-bold text-white hover:bg-blue-400">
+            Parse into list
+          </button>
+        </div>
+
+        <!-- Excel -->
+        <div id="paneExcel" class="input-pane hidden">
+          <div class="mb-3 text-sm text-slate-400">
+            Upload an .xlsx/.xls file. The first row must be the header. Same recognised columns as Paste.
+          </div>
+          <input id="excelFile" type="file" accept=".xlsx,.xls"
+            class="block w-full text-sm text-slate-300 file:mr-4 file:rounded-xl file:border-0 file:bg-blue-500 file:px-5 file:py-2.5 file:font-bold file:text-white hover:file:bg-blue-400" />
+        </div>
+
+        <!-- Preview + submit (chung cho cả 3 cách) -->
+        <div id="previewWrap" class="mt-6 hidden">
+          <div id="previewSummary" class="mb-3 text-sm text-slate-300"></div>
+          <div class="table-scroll rounded-xl border border-slate-800">
+            <table id="previewTable" class="w-full text-left text-xs"></table>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-3">
+            <button id="submitBtn" type="button"
+              class="rounded-xl bg-emerald-500 px-6 py-3 font-bold text-white hover:bg-emerald-400 disabled:opacity-40">
+              Save records
+            </button>
+            <button id="clearPreviewBtn" type="button"
+              class="rounded-xl border border-slate-600 px-6 py-3 font-semibold text-slate-300 hover:bg-slate-800">
+              Clear list
+            </button>
+          </div>
+          <div id="inputMsg" class="mt-3 hidden text-sm"></div>
+        </div>
+      </section>
+
+      <!-- ===== Bước 6: Recent records (admin only) — xóa lỡ nhập ===== -->
+      <section id="recentPanel" class="requires-admin glass mb-8 hidden rounded-2xl p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <div>
+            <div class="text-2xl font-bold">Recent records</div>
+            <div class="mt-1 text-sm text-slate-400">Dòng mới nhất theo thời điểm ghi — xóa được dòng lỡ nhập.</div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs uppercase tracking-wide text-slate-500">admin only</span>
+            <button id="recentRefreshBtn" type="button"
+              class="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-bold text-slate-200 hover:border-blue-400 hover:text-white">
+              Refresh
+            </button>
+          </div>
+        </div>
+        <div id="recentMsg" class="mb-3 hidden text-sm"></div>
+        <div class="table-scroll rounded-xl border border-slate-800">
+          <table id="recentTable" class="w-full text-left text-xs"></table>
+        </div>
+      </section>
+
+      <section id="emptyState" class="glass mb-8 hidden rounded-2xl p-6 text-center text-slate-300">
+        No data matches the selected filters.
+      </section>
+
+      <section class="glass mb-8 rounded-2xl p-6">
+        <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div class="text-2xl font-bold">Production Trend</div>
+          <div class="text-sm text-slate-400">Sorted by production date</div>
+        </div>
+        <div id="trendChart" class="chart-box" style="height: 420px"></div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">Last Five Week</div>
+          <div id="lastFiveWeekChart" class="chart-box"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">Top 10 Part</div>
+          <div id="partChart" class="chart-box"></div>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">By Person</div>
+          <div id="personChart" class="chart-box"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">By Machine</div>
+          <div id="machineChart" class="chart-box"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    const DATA_URL = '/api/data'
+    const AUTO_RELOAD_MS = 300000
+
+    // Supabase Auth — anon key là khoá CÔNG KHAI, an toàn để ở frontend (RLS bảo vệ dữ liệu)
+    const SUPABASE_URL = 'https://eikqftozgonpfpcciepb.supabase.co'
+    const SUPABASE_ANON_KEY = 'sb_publishable_8GPMs4RwypkP06l2lfa3BA_dcg6ccEx'
+    let supabase = null
+    let currentRole = null
+
+    const charts = {}
+    let allData = []
+    let filteredData = []
+    let datePicker = null
+    let activeDrilldown = null
+
+    function normalizeText(value) {
+      return String(value || '').trim().toUpperCase()
+    }
+
+    function parseDate(value) {
+      if (!value) return null
+
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+      }
+
+      if (typeof value === 'number') {
+        const utcDays = Math.floor(value - 25569)
+        const date = new Date(utcDays * 86400 * 1000)
+        return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+      }
+
+      const text = String(value).trim()
+      const slashParts = text.split('/')
+
+      if (slashParts.length === 3) {
+        const day = Number(slashParts[0])
+        const month = Number(slashParts[1]) - 1
+        const year = Number(slashParts[2])
+        const date = new Date(year, month, day)
+
+        if (!Number.isNaN(date.getTime())) return date
+      }
+
+      const fallback = new Date(text)
+      return Number.isNaN(fallback.getTime()) ? null : fallback
+    }
+
+    function formatDate(date) {
+      if (!date) return ''
+
+      return [
+        String(date.getDate()).padStart(2, '0'),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        date.getFullYear()
+      ].join('/')
+    }
+
+    function formatDateTime(date) {
+      return `${formatDate(date)} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    }
+
+    async function loadExcel() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        const err = new Error('Not authenticated')
+        err.code = 'AUTH'
+        throw err
+      }
+
+      const response = await fetch(DATA_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        cache: 'no-store',
+        body: JSON.stringify({})
+      })
+
+      if (response.status === 429) {
+        const payload = await response.json().catch(() => ({}))
+        const err = new Error(payload.error || 'Too many attempts. Please try again later.')
+        err.code = 'RATE_LIMIT'
+        throw err
+      }
+
+      if (response.status === 401) {
+        const err = new Error('Incorrect password')
+        err.code = 'AUTH'
+        throw err
+      }
+
+      if (!response.ok) {
+        throw new Error(`Data request failed with status ${response.status}`)
+      }
+
+      const payload = await response.json()
+      const rows = payload.data
+
+      if (!Array.isArray(rows)) {
+        throw new Error('Invalid data format')
+      }
+
+      // Validate cột bắt buộc dựa trên dòng đầu tiên
+      if (rows.length > 0) {
+        const required = ['Date', 'Qty', 'Person', 'Machine', 'Part']
+        const missing = required.filter(col => !(col in rows[0]))
+        if (missing.length) {
+          throw new Error(`Sheet thiếu cột: ${missing.join(', ')}`)
+        }
+      }
+
+      return rows
+    }
+
+    function getSerial(row) {
+      // Dò cột Serial linh hoạt: 'Serial No', 'Serial No.', 'Serial Number', 'SerialNo', ...
+      const keys = Object.keys(row)
+      const match = keys.find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes('serial'))
+      return match ? String(row[match] || '').trim() : ''
+    }
+
+    function normalizeData(data) {
+      return data
+        .map(row => {
+          const parsedDate = parseDate(row.Date)
+          const displayDate = parsedDate ? formatDate(parsedDate) : String(row.Date || '').trim()
+          const serial = getSerial(row)
+
+          return {
+            date: displayDate,
+            dateValue: parsedDate ? parsedDate.getTime() : 0,
+            qty: Number(row.Qty || 0),
+            person: normalizeText(row.Person),
+            personDisplay: row.Person || 'Unknown',
+            machine: normalizeText(row.Machine),
+            machineDisplay: row.Machine || 'Unknown',
+            part: normalizeText(row.Part),
+            partDisplay: row.Part || 'Unknown',
+            week: Number(row.Week || 0),
+            month: parsedDate ? parsedDate.getMonth() + 1 : 0,
+            serial: serial,
+            serialUpper: serial.toUpperCase(),
+            reInspection: Number(row['Re-Inspection'] || 0)
+          }
+        })
+        .sort((a, b) => a.dateValue - b.dateValue)
+    }
+
+    function populateFilter(id, values) {
+      const select = document.getElementById(id)
+      const currentValue = select.value
+
+      select.innerHTML = '<option value="All">All</option>'
+
+      values.forEach(value => {
+        if (value === '' || value === null || value === undefined) return
+
+        const option = document.createElement('option')
+        option.value = value
+        option.textContent = value
+        select.appendChild(option)
+      })
+
+      select.value = [...select.options].some(option => option.value === currentValue) ? currentValue : 'All'
+    }
+
+    function getDateRange() {
+      if (!datePicker || datePicker.selectedDates.length === 0) {
+        return { start: null, end: null }
+      }
+
+      const start = parseDate(datePicker.selectedDates[0])
+      const end = parseDate(datePicker.selectedDates[datePicker.selectedDates.length - 1])
+
+      if (end) {
+        end.setHours(23, 59, 59, 999)
+      }
+
+      return { start, end }
+    }
+
+    function applyFilters(data) {
+      const person = normalizeText(document.getElementById('personFilter').value)
+      const machine = normalizeText(document.getElementById('machineFilter').value)
+      const week = document.getElementById('weekFilter').value
+      const month = document.getElementById('monthFilter').value
+      const { start, end } = getDateRange()
+
+      return data.filter(row => {
+        const personMatch = person === 'ALL' || row.person === person
+        const machineMatch = machine === 'ALL' || row.machine === machine
+        const weekMatch = week === 'All' || row.week === Number(week)
+        const monthMatch = month === 'All' || row.month === Number(month)
+        const dateMatch = !start || !end || (row.dateValue >= start.getTime() && row.dateValue <= end.getTime())
+
+        return personMatch && machineMatch && weekMatch && monthMatch && dateMatch
+      })
+    }
+
+    function drilldownMatches(row) {
+      if (!activeDrilldown) return true
+
+      if (activeDrilldown.field === 'date') return row.date === activeDrilldown.value
+      if (activeDrilldown.field === 'week') return row.week === Number(activeDrilldown.value)
+      if (activeDrilldown.field === 'partDisplay') return row.partDisplay === activeDrilldown.value
+      if (activeDrilldown.field === 'personDisplay') return row.personDisplay === activeDrilldown.value
+      if (activeDrilldown.field === 'machineDisplay') return row.machineDisplay === activeDrilldown.value
+
+      return true
+    }
+
+    function applyDrilldown(data) {
+      return data.filter(drilldownMatches)
+    }
+
+    function sumBy(data, keyField, valueField) {
+      return data.reduce((result, row) => {
+        const key = row[keyField]
+        const value = Number(row[valueField] || 0)
+        result[key] = (result[key] || 0) + value
+        return result
+      }, {})
+    }
+
+    function topN(dataset, limit = 10) {
+      return Object.fromEntries(
+        Object.entries(dataset)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, limit)
+      )
+    }
+
+    function getChart(containerId) {
+      if (!charts[containerId]) {
+        charts[containerId] = echarts.init(document.getElementById(containerId))
+      }
+
+      return charts[containerId]
+    }
+
+    function baseTextStyle() {
+      return {
+        color: '#cbd5e1',
+        fontFamily: 'Arial, sans-serif'
+      }
+    }
+
+    function setDrilldown(field, value, label) {
+      const isSameSelection =
+        activeDrilldown &&
+        activeDrilldown.field === field &&
+        String(activeDrilldown.value) === String(value)
+
+      activeDrilldown = isSameSelection ? null : { field, value, label }
+      refreshDashboard()
+    }
+
+    function clearDrilldown() {
+      activeDrilldown = null
+      refreshDashboard()
+    }
+
+    function updateDrilldownPanel() {
+      const panel = document.getElementById('drilldownPanel')
+      const label = document.getElementById('drilldownLabel')
+
+      panel.classList.toggle('hidden', !activeDrilldown)
+      label.innerText = activeDrilldown ? activeDrilldown.label : '-'
+    }
+
+    function getBarData(sorted, options) {
+      return sorted.map(([key, value]) => {
+        const selected =
+          activeDrilldown &&
+          activeDrilldown.field === options.drillField &&
+          String(activeDrilldown.value) === String(key)
+
+        return {
+          value,
+          itemStyle: selected
+            ? { color: '#ffffff', borderRadius: options.horizontal ? [0, 10, 10, 0] : [10, 10, 0, 0] }
+            : undefined
+        }
+      })
+    }
+
+    function renderTrendChart(data) {
+      const grouped = {}
+
+      data.forEach(row => {
+        if (!grouped[row.date]) {
+          grouped[row.date] = { qty: 0, dateValue: row.dateValue }
+        }
+
+        grouped[row.date].qty += row.qty
+      })
+
+      const trend = Object.entries(grouped)
+        .map(([date, item]) => ({ date, qty: item.qty, dateValue: item.dateValue }))
+        .sort((a, b) => a.dateValue - b.dateValue)
+
+      const chart = getChart('trendChart')
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        textStyle: baseTextStyle(),
+        grid: { left: 44, right: 18, top: 28, bottom: 64 },
+        tooltip: { trigger: 'axis' },
+        xAxis: {
+          type: 'category',
+          data: trend.map(x => x.date),
+          axisLabel: { color: '#cbd5e1', rotate: 35 }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { color: '#cbd5e1' },
+          splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+        },
+        series: [{
+          data: trend.map(x => ({
+            value: x.qty,
+            itemStyle: activeDrilldown && activeDrilldown.field === 'date' && activeDrilldown.value === x.date
+              ? { color: '#ffffff' }
+              : undefined
+          })),
+          type: 'line',
+          smooth: true,
+          areaStyle: { color: 'rgba(59, 130, 246, 0.22)' },
+          lineStyle: { width: 4, color: '#3b82f6' },
+          symbolSize: 8
+        }]
+      }, true)
+
+      chart.off('click')
+      chart.on('click', params => {
+        const item = trend[params.dataIndex]
+        if (!item) return
+
+        setDrilldown('date', item.date, `Date: ${item.date}`)
+      })
+    }
+
+    function renderLastFiveWeekChart(data) {
+      const grouped = sumBy(data, 'week', 'qty')
+      // Lấy tất cả tuần hợp lệ, sắp tăng dần
+      const allWeeks = Object.entries(grouped)
+        .filter(([week]) => Number(week) > 0)
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+
+      // Tuần hiện tại = tuần có số lớn nhất (đang chạy dở) → loại khỏi phép tính trung bình
+      const completedWeeks = allWeeks.slice(0, -1)
+
+      // 4 tuần đã HOÀN THÀNH gần nhất, dùng để tính trung bình (bỏ tuần hiện tại)
+      const lastCompleted = completedWeeks.slice(-4)
+      const avgWeek = lastCompleted.length
+        ? Math.round(lastCompleted.reduce((s, x) => s + x[1], 0) / lastCompleted.length)
+        : 0
+
+      // Chart vẫn hiển thị 5 cột gần nhất (gồm cả tuần hiện tại để thấy tiến độ)
+      const shown = allWeeks.slice(-5)
+      const labels = shown.map(x => `Week ${x[0]}`)
+      const values = shown.map(x => x[1])
+
+      // Đường trung bình: cùng giá trị avgWeek ở mọi điểm → kẻ ngang, kéo full chiều ngang
+      const avgLine = values.map(() => avgWeek)
+
+      const chart = getChart('lastFiveWeekChart')
+      chart.setOption({
+        backgroundColor: 'transparent',
+        textStyle: baseTextStyle(),
+        grid: { left: 44, right: 18, top: 36, bottom: 76 },
+        tooltip: { trigger: 'axis' },
+        legend: {
+          data: ['Output', 'Avg (4 completed weeks)'],
+          textStyle: { color: '#cbd5e1' },
+          top: 0,
+          right: 8
+        },
+        xAxis: {
+          type: 'category',
+          data: labels,
+          boundaryGap: false,
+          axisLabel: { color: '#cbd5e1', rotate: 35 }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { color: '#cbd5e1' },
+          splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+        },
+        series: [
+          {
+            name: 'Output',
+            data: values,
+            type: 'bar',
+            barWidth: '55%',
+            label: { show: true, position: 'top', color: '#ffffff' },
+            itemStyle: { color: '#22c55e', borderRadius: [10, 10, 0, 0] }
+          },
+          {
+            name: 'Avg (4 completed weeks)',
+            data: avgLine,
+            type: 'line',
+            smooth: false,
+            symbol: 'none',
+            lineStyle: { width: 5, color: '#facc15' },
+            z: 5,
+            // Hiện con số trung bình ngay trên đường, ở điểm cuối bên phải
+            label: {
+              show: true,
+              position: 'top',
+              color: '#facc15',
+              fontWeight: 'bold',
+              formatter: params =>
+                params.dataIndex === avgLine.length - 1 ? avgWeek.toLocaleString() : ''
+            }
+          }
+        ]
+      }, true)
+
+      // Click vào cột vẫn drill-down theo tuần như trước
+      chart.off('click')
+      chart.on('click', params => {
+        const item = shown[params.dataIndex]
+        if (!item) return
+        setDrilldown('week', item[0], `Week: ${item[0]}`)
+      })
+
+      return avgWeek
+    }
+
+    function renderBarChart(containerId, dataset, horizontal = false, options = {}) {
+      const sorted = Object.entries(dataset).sort((a, b) => {
+        if (options.sortBy === 'keyAsc') {
+          return Number(a[0]) - Number(b[0])
+        }
+
+        return b[1] - a[1]
+      })
+      const labels = sorted.map(x => `${options.labelPrefix || ''}${x[0]}`)
+      const chart = getChart(containerId)
+      const barOptions = { ...options, horizontal }
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        textStyle: baseTextStyle(),
+        grid: horizontal
+          ? { left: 112, right: 42, top: 20, bottom: 32 }
+          : { left: 44, right: 18, top: 24, bottom: 76 },
+        tooltip: { trigger: 'axis' },
+        xAxis: horizontal ? {
+          type: 'value',
+          axisLabel: { color: '#cbd5e1' },
+          splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+        } : {
+          type: 'category',
+          data: labels,
+          axisLabel: { color: '#cbd5e1', rotate: 35 }
+        },
+        yAxis: horizontal ? {
+          type: 'category',
+          data: labels,
+          axisLabel: { color: '#cbd5e1' }
+        } : {
+          type: 'value',
+          axisLabel: { color: '#cbd5e1' },
+          splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+        },
+        series: [{
+          data: getBarData(sorted, barOptions),
+          type: 'bar',
+          label: {
+            show: true,
+            position: horizontal ? 'right' : 'top',
+            color: '#ffffff'
+          },
+          itemStyle: {
+            color: options.color || '#3b82f6',
+            borderRadius: horizontal ? [0, 10, 10, 0] : [10, 10, 0, 0]
+          }
+        }]
+      }, true)
+
+      chart.off('click')
+
+      if (options.drillField) {
+        chart.on('click', params => {
+          const item = sorted[params.dataIndex]
+          if (!item) return
+
+          const value = item[0]
+          const label = options.drillLabel ? options.drillLabel(value) : `${value}`
+          setDrilldown(options.drillField, value, label)
+        })
+      }
+    }
+
+    function setMetric(id, value) {
+      document.getElementById(id).innerText = value
+    }
+
+    function updateDataThroughDate() {
+      const latestDateValue = allData.reduce((latest, row) => {
+        return row.dateValue > latest ? row.dateValue : latest
+      }, 0)
+
+      setMetric('dataThroughDate', latestDateValue ? formatDate(new Date(latestDateValue)) : '-')
+    }
+
+    function refreshDashboard() {
+      const baseFilteredData = applyFilters(allData)
+      filteredData = applyDrilldown(baseFilteredData)
+
+      const totalQty = filteredData.reduce((sum, row) => sum + row.qty, 0)
+      const uniqueDays = [...new Set(filteredData.map(x => x.date))]
+      const avg = Math.round(totalQty / Math.max(uniqueDays.length, 1))
+      const personData = sumBy(filteredData, 'personDisplay', 'qty')
+      const machineData = sumBy(filteredData, 'machineDisplay', 'qty')
+      const partData = topN(sumBy(filteredData, 'partDisplay', 'qty'))
+      const topPerson = Object.entries(personData).sort((a, b) => b[1] - a[1])[0]
+      const topMachine = Object.entries(machineData).sort((a, b) => b[1] - a[1])[0]
+      const hasData = filteredData.length > 0
+
+      setMetric('totalQty', totalQty.toLocaleString())
+      setMetric('avgQty', `${avg.toLocaleString()} / day`)
+      setMetric('topPerson', topPerson ? topPerson[0] : '-')
+      setMetric('topPersonQty', topPerson ? `${topPerson[1].toLocaleString()} pcs` : '0 pcs')
+      setMetric('topMachine', topMachine ? topMachine[0] : '-')
+      setMetric('topMachineQty', topMachine ? `${topMachine[1].toLocaleString()} pcs` : '0 pcs')
+      setMetric('recordCount', filteredData.length.toLocaleString())
+      updateDrilldownPanel()
+
+      document.getElementById('emptyState').classList.toggle('hidden', hasData)
+
+      renderTrendChart(filteredData)
+      const avgWeek = renderLastFiveWeekChart(filteredData)
+      setMetric('avgWeek', avgWeek.toLocaleString())
+      renderBarChart('personChart', personData, false, {
+        color: '#38bdf8',
+        drillField: 'personDisplay',
+        drillLabel: value => `Person: ${value}`
+      })
+      renderBarChart('machineChart', machineData, false, {
+        color: '#f59e0b',
+        drillField: 'machineDisplay',
+        drillLabel: value => `Machine: ${value}`
+      })
+      renderBarChart('partChart', partData, true, {
+        color: '#a78bfa',
+        drillField: 'partDisplay',
+        drillLabel: value => `Part: ${value}`
+      })
+    }
+
+    function resetFilters() {
+      document.getElementById('personFilter').value = 'All'
+      document.getElementById('machineFilter').value = 'All'
+      document.getElementById('weekFilter').value = 'All'
+      document.getElementById('monthFilter').value = 'All'
+      activeDrilldown = null
+
+      if (datePicker) {
+        datePicker.clear()
+      }
+
+      refreshDashboard()
+    }
+
+    function showError(message) {
+      const toast = document.getElementById('toast')
+      toast.innerText = message
+      toast.classList.remove('hidden')
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.add('hidden')
+    }
+
+    function bindEvents() {
+      ;['personFilter', 'machineFilter', 'weekFilter', 'monthFilter'].forEach(id => {
+        document.getElementById(id).addEventListener('change', refreshDashboard)
+      })
+
+      document.getElementById('resetFilters').addEventListener('click', resetFilters)
+      document.getElementById('clearDrilldown').addEventListener('click', clearDrilldown)
+
+      // Tìm kiếm Serial Number
+      document.getElementById('serialSearchBtn').addEventListener('click', searchSerial)
+      document.getElementById('serialSearch').addEventListener('keydown', e => {
+        if (e.key === 'Enter') searchSerial()
+      })
+      document.getElementById('serialClearBtn').addEventListener('click', clearSerialSearch)
+
+      window.addEventListener('resize', () => {
+        Object.values(charts).forEach(chart => chart.resize())
+      })
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+    }
+
+    function searchSerial() {
+      const input = document.getElementById('serialSearch')
+      const infoBox = document.getElementById('serialResultInfo')
+      const resultsBox = document.getElementById('serialResults')
+
+      const query = input.value.trim().toUpperCase()
+      if (!query) {
+        clearSerialSearch()
+        return
+      }
+
+      // Tìm trên toàn bộ data (không phụ thuộc filter/drilldown đang chọn)
+      let matches
+      if (query.length <= 8) {
+        // Nhập ngắn (vd 7 ký tự cuối) → khớp theo phần ĐUÔI của serial
+        matches = allData.filter(r => r.serialUpper && r.serialUpper.endsWith(query))
+      } else {
+        // Nhập dài → khớp chứa (linh hoạt nếu thiếu vài ký tự đầu)
+        matches = allData.filter(r => r.serialUpper && r.serialUpper.includes(query))
+      }
+
+      infoBox.classList.remove('hidden')
+      resultsBox.classList.remove('hidden')
+
+      if (matches.length === 0) {
+        infoBox.innerHTML = `No serial found matching "<span class="text-white">${escapeHtml(input.value.trim())}</span>".`
+        resultsBox.innerHTML = ''
+        return
+      }
+
+      const multi = matches.length > 1
+      infoBox.innerHTML = multi
+        ? `Found <span class="font-bold text-yellow-400">${matches.length}</span> matching results (last 7 characters may be shared). Check the full Serial Number to identify the correct one.`
+        : `Found <span class="font-bold text-green-400">1</span> result.`
+
+      const rowsHtml = matches.map(r => `
+        <tr class="border-b border-slate-800 hover:bg-slate-800/50">
+          <td class="px-4 py-3 font-semibold text-white">
+            ${escapeHtml(r.serial)}
+            ${r.reInspection > 0 ? `<span class="ml-2 rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">Tái kiểm ${r.reInspection}</span>` : ''}
+          </td>
+          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.personDisplay)}</td>
+          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.machineDisplay)}</td>
+          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.partDisplay)}</td>
+          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.date)}</td>
+          <td class="px-4 py-3 text-right text-slate-200">${r.qty.toLocaleString()}</td>
+          <td class="px-4 py-3 text-slate-200">${r.week || '-'}</td>
+        </tr>`).join('')
+
+      resultsBox.innerHTML = `
+        <table class="w-full min-w-[720px] border-collapse text-left">
+          <thead>
+            <tr class="border-b border-slate-700 text-sm text-slate-400">
+              <th class="px-4 py-2 font-semibold">Serial Number</th>
+              <th class="px-4 py-2 font-semibold">Person</th>
+              <th class="px-4 py-2 font-semibold">Machine</th>
+              <th class="px-4 py-2 font-semibold">Part</th>
+              <th class="px-4 py-2 font-semibold">Date</th>
+              <th class="px-4 py-2 text-right font-semibold">Qty</th>
+              <th class="px-4 py-2 font-semibold">Week</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`
+    }
+
+    function clearSerialSearch() {
+      document.getElementById('serialSearch').value = ''
+      document.getElementById('serialResultInfo').classList.add('hidden')
+      document.getElementById('serialResults').classList.add('hidden')
+      document.getElementById('serialResults').innerHTML = ''
+    }
+
+    async function loadAndRenderData(isFirstLoad) {
+      const rawData = await loadExcel()
+      allData = normalizeData(rawData)
+
+      if (isFirstLoad) {
+        populateFilter('personFilter', [...new Set(allData.map(x => x.personDisplay))].sort())
+        populateFilter('machineFilter', [...new Set(allData.map(x => x.machineDisplay))].sort())
+        populateFilter('weekFilter', [...new Set(allData.map(x => x.week))].filter(Boolean).sort((a, b) => a - b))
+        populateFilter('monthFilter', [...new Set(allData.map(x => x.month))].filter(Boolean).sort((a, b) => a - b))
+        bindEvents()
+      } else {
+        // Re-fetch định kỳ: cập nhật options nhưng giữ nguyên lựa chọn hiện tại
+        populateFilter('personFilter', [...new Set(allData.map(x => x.personDisplay))].sort())
+        populateFilter('machineFilter', [...new Set(allData.map(x => x.machineDisplay))].sort())
+        populateFilter('weekFilter', [...new Set(allData.map(x => x.week))].filter(Boolean).sort((a, b) => a - b))
+        populateFilter('monthFilter', [...new Set(allData.map(x => x.month))].filter(Boolean).sort((a, b) => a - b))
+      }
+
+      updateDataThroughDate()
+      refreshDashboard()
+      setMetric('lastUpdated', `Last updated: ${formatDateTime(new Date())}`)
+    }
+
+    async function initDashboard() {
+      // Giữ lại để tương thích nếu cần gọi thủ công; luồng chính dùng initLogin.
+      await loadAndRenderData(true)
+    }
+
+    // Auto-refresh: lấy data mới mà KHÔNG reload trang, giữ nguyên filter & drilldown
+    setInterval(async () => {
+      if (!supabase) return
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      try {
+        await loadAndRenderData(false)
+      } catch (error) {
+        console.error('Auto-refresh failed:', error)
+      }
+    }, AUTO_RELOAD_MS)
+
+    // ===== Đăng nhập (Supabase Auth) =====
+    function applyRoleUI(role) {
+      const badge = document.getElementById('roleBadge')
+      if (badge) badge.innerText = role || ''
+      // Hook cho Bước 5: hiện/ẩn UI nhập liệu theo role.
+      // Phần tử có class "requires-input" chỉ hiện với inspector/admin.
+      const canInput = role === 'inspector' || role === 'admin'
+      document.querySelectorAll('.requires-input').forEach(el => {
+        el.classList.toggle('hidden', !canInput)
+      })
+      // Bước 6: phần tử "requires-admin" chỉ hiện với admin.
+      const isAdmin = role === 'admin'
+      document.querySelectorAll('.requires-admin').forEach(el => {
+        el.classList.toggle('hidden', !isAdmin)
+      })
+      if (isAdmin) loadRecentRecords()
+    }
+
+    async function fetchRole(userId) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single()
+      return data?.role || 'viewer'
+    }
+
+    async function enterDashboard(user) {
+      currentRole = await fetchRole(user.id)
+      const emailEl = document.getElementById('userEmail')
+      if (emailEl) emailEl.innerText = user.email || ''
+      document.getElementById('loadingOverlay').classList.remove('hidden')
+      document.getElementById('loadingOverlay').classList.add('flex')
+      await loadAndRenderData(true)
+      applyRoleUI(currentRole)
+      document.getElementById('loginOverlay').classList.add('hidden')
+    }
+
+    async function attemptLogin() {
+      const emailInput = document.getElementById('loginEmail')
+      const passInput = document.getElementById('loginPassword')
+      const button = document.getElementById('loginButton')
+      const errorBox = document.getElementById('loginError')
+
+      const email = emailInput.value.trim()
+      const password = passInput.value
+      if (!email || !password) return
+
+      button.disabled = true
+      errorBox.classList.add('hidden')
+
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) {
+          errorBox.innerText = 'Email hoặc mật khẩu không đúng.'
+          errorBox.classList.remove('hidden')
+          return
+        }
+        await enterDashboard(data.user)
+      } catch (err) {
+        errorBox.innerText = 'Lỗi tải dữ liệu: ' + (err.message || 'thử lại sau.')
+        errorBox.classList.remove('hidden')
+      } finally {
+        button.disabled = false
+        hideLoading()
+      }
+    }
+
+    async function logout() {
+      await supabase.auth.signOut()
+      location.reload()
+    }
+
+    async function initLogin() {
+      const mod = await import('https://esm.sh/@supabase/supabase-js@2')
+      supabase = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+      datePicker = flatpickr('#dateFilter', {
+        mode: 'range',
+        dateFormat: 'd/m/Y',
+        allowInput: false,
+        onChange: refreshDashboard
+      })
+
+      const button = document.getElementById('loginButton')
+      const emailInput = document.getElementById('loginEmail')
+      const passInput = document.getElementById('loginPassword')
+      button.addEventListener('click', attemptLogin)
+      ;[emailInput, passInput].forEach(el => {
+        el.addEventListener('keydown', e => { if (e.key === 'Enter') attemptLogin() })
+      })
+      document.getElementById('logoutButton').addEventListener('click', logout)
+      initInputUI()
+
+      // Khôi phục phiên nếu đã đăng nhập trước đó (không bắt nhập lại sau khi reload)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        try {
+          await enterDashboard(session.user)
+        } catch (e) {
+          console.error('Restore session failed:', e)
+        } finally {
+          hideLoading()
+        }
+      } else {
+        emailInput.focus()
+      }
+    }
+
+    // ============================================================
+    // Bước 5 — Nhập liệu: form tay / copy-paste / Excel
+    // Cả 3 dồn về canonical row (tên cột DB) → validateCanonical() chung → POST /api/insert.
+    // ============================================================
+    const INSERT_URL = '/api/insert'
+    let pendingRows = []   // canonical rows đang chờ ghi
+
+    // dd/mm/yyyy | Date | serial Excel  →  'YYYY-MM-DD' (dùng lại parseDate sẵn có)
+    function toIsoDate(value) {
+      const d = parseDate(value)
+      if (!d) return null
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0')
+      ].join('-')
+    }
+
+    function toIntOrNull(v) {
+      if (v === '' || v === null || v === undefined) return null
+      const n = Number(v)
+      return Number.isFinite(n) ? Math.trunc(n) : NaN  // NaN → để validate bắt lỗi
+    }
+    function toIntOrZero(v) {
+      if (v === '' || v === null || v === undefined) return 0
+      const n = Number(v)
+      return Number.isFinite(n) ? Math.trunc(n) : NaN
+    }
+    function textOrEmpty(v) { return String(v ?? '').trim() }
+    function textOrNull(v) {
+      const t = String(v ?? '').trim()
+      return t === '' ? null : t
+    }
+
+    // Header (paste/Excel) → field canonical. Chỉ khớp ascii, bỏ ký tự thừa.
+    const FIELD_ALIASES = {
+      record_date: ['date', 'recorddate'],
+      week: ['week'],
+      shift: ['shift'],
+      person: ['person', 'inspector', 'name'],
+      machine: ['machine'],
+      part: ['part', 'partno', 'partnumber'],
+      type: ['type'],
+      qty: ['qty', 'quantity'],
+      serial_no: ['serialno', 'serial', 'serialnumber'],
+      result: ['result'],
+      indication: ['indication'],
+      re_inspection: ['reinspection', 'reinspect']
+    }
+    function normHeader(h) {
+      return String(h ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    }
+    function buildHeaderMap(headerCells) {
+      const map = {}  // colIndex -> field
+      headerCells.forEach((cell, idx) => {
+        const key = normHeader(cell)
+        for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+          if (aliases.includes(key)) { map[idx] = field; break }
+        }
+      })
+      return map
+    }
+
+    function canonicalFromCells(cells, headerMap) {
+      const raw = {}
+      Object.entries(headerMap).forEach(([idx, field]) => { raw[field] = cells[idx] })
+      return canonicalRow(raw)
+    }
+
+    // Gom raw (key = field canonical) → canonical row chuẩn kiểu.
+    function canonicalRow(raw) {
+      return {
+        record_date: toIsoDate(raw.record_date),
+        week: toIntOrNull(raw.week),
+        shift: textOrNull(raw.shift),
+        person: textOrEmpty(raw.person),
+        machine: textOrEmpty(raw.machine),
+        part: textOrEmpty(raw.part),
+        type: textOrNull(raw.type),
+        qty: toIntOrZero(raw.qty),
+        serial_no: textOrNull(raw.serial_no),
+        result: textOrNull(raw.result),
+        indication: textOrNull(raw.indication),
+        re_inspection: toIntOrZero(raw.re_inspection)
+      }
+    }
+
+    // Ma trận (mảng các mảng, dòng 0 = header) → canonical rows. Dùng chung paste + Excel.
+    function rowsFromMatrix(matrix) {
+      if (!matrix.length) return []
+      const headerMap = buildHeaderMap(matrix[0])
+      const out = []
+      for (let i = 1; i < matrix.length; i++) {
+        const cells = matrix[i] || []
+        if (cells.every(c => String(c ?? '').trim() === '')) continue  // bỏ dòng trống
+        out.push(canonicalFromCells(cells, headerMap))
+      }
+      return out
+    }
+
+    // Validate client — trùng logic server (api/insert.js). Trả mảng lỗi.
+    function validateCanonical(row) {
+      const errs = []
+      if (!row.record_date || !/^\d{4}-\d{2}-\d{2}$/.test(row.record_date)) {
+        errs.push('Date không hợp lệ')
+      }
+      if (!Number.isInteger(row.qty) || row.qty < 0) errs.push('Qty phải là số nguyên ≥ 0')
+      if (!row.person) errs.push('Thiếu Person')
+      if (!row.machine) errs.push('Thiếu Machine')
+      if (!row.part) errs.push('Thiếu Part')
+      if (row.week != null && !Number.isInteger(row.week)) errs.push('Week không hợp lệ')
+      if (row.re_inspection != null && !Number.isInteger(row.re_inspection)) errs.push('Re-Inspection không hợp lệ')
+      return errs
+    }
+
+    // Set serial đã có trong dữ liệu đang xem (cảnh báo trùng, không chặn).
+    function existingSerialSet() {
+      const set = new Set()
+      allData.forEach(r => { if (r.serialUpper) set.add(r.serialUpper) })
+      return set
+    }
+
+    const PREVIEW_COLS = [
+      ['record_date', 'Date'], ['week', 'Week'], ['shift', 'Shift'], ['person', 'Person'],
+      ['machine', 'Machine'], ['part', 'Part'], ['type', 'Type'], ['qty', 'Qty'],
+      ['serial_no', 'Serial'], ['result', 'Result'], ['indication', 'Indication'], ['re_inspection', 'Re-Insp']
+    ]
+
+    function renderPreview() {
+      const wrap = document.getElementById('previewWrap')
+      const table = document.getElementById('previewTable')
+      const summary = document.getElementById('previewSummary')
+      const submitBtn = document.getElementById('submitBtn')
+
+      if (!pendingRows.length) {
+        wrap.classList.add('hidden')
+        table.innerHTML = ''
+        return
+      }
+      wrap.classList.remove('hidden')
+
+      const serials = existingSerialSet()
+      let invalid = 0, dups = 0
+
+      const head = '<thead><tr>' +
+        PREVIEW_COLS.map(c => `<th class="px-2 py-2 text-slate-400">${c[1]}</th>`).join('') +
+        '<th class="px-2 py-2 text-slate-400">Status</th><th class="px-2 py-2"></th></tr></thead>'
+
+      const bodyRows = pendingRows.map((row, i) => {
+        const errs = validateCanonical(row)
+        const isDup = row.serial_no && serials.has(String(row.serial_no).toUpperCase())
+        if (errs.length) invalid++
+        if (isDup) dups++
+
+        const rowClass = errs.length ? 'preview-bad' : (isDup ? 'preview-warn' : '')
+        const cells = PREVIEW_COLS.map(([key]) => {
+          const v = row[key]
+          return `<td class="px-2 py-1.5 text-slate-200">${escapeHtml(v == null ? '' : String(v))}</td>`
+        }).join('')
+
+        let status
+        if (errs.length) status = `<span class="text-red-300">${escapeHtml(errs.join('; '))}</span>`
+        else if (isDup) status = '<span class="text-amber-300">Serial đã tồn tại</span>'
+        else status = '<span class="text-emerald-300">OK</span>'
+
+        return `<tr class="${rowClass} border-t border-slate-800">${cells}` +
+          `<td class="px-2 py-1.5">${status}</td>` +
+          `<td class="px-2 py-1.5"><button type="button" data-remove-row="${i}" class="text-slate-500 hover:text-red-300">✕</button></td></tr>`
+      }).join('')
+
+      table.innerHTML = head + '<tbody>' + bodyRows + '</tbody>'
+
+      const parts = [`${pendingRows.length} dòng`]
+      if (invalid) parts.push(`<span class="text-red-300">${invalid} lỗi</span>`)
+      if (dups) parts.push(`<span class="text-amber-300">${dups} serial trùng</span>`)
+      summary.innerHTML = parts.join(' · ')
+
+      submitBtn.disabled = invalid > 0
+      submitBtn.innerText = invalid > 0 ? `Sửa ${invalid} dòng lỗi trước` : `Save ${pendingRows.length} records`
+
+      table.querySelectorAll('[data-remove-row]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          pendingRows.splice(Number(btn.dataset.removeRow), 1)
+          renderPreview()
+        })
+      })
+    }
+
+    function setInputMsg(text, kind) {
+      const el = document.getElementById('inputMsg')
+      el.classList.remove('hidden')
+      el.className = 'mt-3 text-sm ' + (kind === 'ok' ? 'text-emerald-300' : 'text-red-300')
+      el.innerText = text
+    }
+    function clearInputMsg() {
+      document.getElementById('inputMsg').classList.add('hidden')
+    }
+
+    function addFromForm() {
+      clearInputMsg()
+      const row = canonicalRow({
+        record_date: document.getElementById('fDate').value,
+        week: document.getElementById('fWeek').value,
+        shift: document.getElementById('fShift').value,
+        person: document.getElementById('fPerson').value,
+        machine: document.getElementById('fMachine').value,
+        part: document.getElementById('fPart').value,
+        type: document.getElementById('fType').value,
+        qty: document.getElementById('fQty').value,
+        serial_no: document.getElementById('fSerial').value,
+        result: document.getElementById('fResult').value,
+        indication: document.getElementById('fIndication').value,
+        re_inspection: document.getElementById('fReInspection').value
+      })
+      const errs = validateCanonical(row)
+      if (errs.length) {
+        setInputMsg('Dòng chưa hợp lệ: ' + errs.join('; '), 'err')
+        return
+      }
+      pendingRows.push(row)
+      ;['fDate', 'fWeek', 'fShift', 'fPerson', 'fMachine', 'fPart', 'fType', 'fQty', 'fSerial', 'fResult', 'fIndication', 'fReInspection']
+        .forEach(id => { document.getElementById(id).value = '' })
+      renderPreview()
+    }
+
+    function addFromPaste() {
+      clearInputMsg()
+      const text = document.getElementById('pasteArea').value
+      if (!text.trim()) return
+      const matrix = text.replace(/\r/g, '').split('\n').map(line => line.split('\t'))
+      const rows = rowsFromMatrix(matrix)
+      if (!rows.length) {
+        setInputMsg('Không đọc được dòng nào. Nhớ giữ dòng tiêu đề và phân tách bằng Tab.', 'err')
+        return
+      }
+      pendingRows = pendingRows.concat(rows)
+      document.getElementById('pasteArea').value = ''
+      renderPreview()
+    }
+
+    function addFromExcel(file) {
+      clearInputMsg()
+      const reader = new FileReader()
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true })
+          const sheet = wb.Sheets[wb.SheetNames[0]]
+          const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: true })
+          const rows = rowsFromMatrix(matrix)
+          if (!rows.length) {
+            setInputMsg('File không có dòng dữ liệu (cần dòng tiêu đề + dữ liệu).', 'err')
+            return
+          }
+          pendingRows = pendingRows.concat(rows)
+          renderPreview()
+        } catch (err) {
+          setInputMsg('Lỗi đọc Excel: ' + (err.message || 'file không hợp lệ'), 'err')
+        }
+      }
+      reader.readAsArrayBuffer(file)
+    }
+
+    async function submitRows() {
+      clearInputMsg()
+      if (!pendingRows.length) return
+      if (pendingRows.some(r => validateCanonical(r).length)) {
+        setInputMsg('Còn dòng lỗi, hãy sửa trước khi lưu.', 'err')
+        return
+      }
+      const submitBtn = document.getElementById('submitBtn')
+      submitBtn.disabled = true
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { setInputMsg('Phiên đã hết hạn, đăng nhập lại.', 'err'); return }
+
+        const res = await fetch(INSERT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ rows: pendingRows })
+        })
+
+        if (res.status === 403) { setInputMsg('Không có quyền ghi (chỉ inspector/admin).', 'err'); return }
+        if (res.status === 429) { setInputMsg('Quá nhiều yêu cầu, thử lại sau ít phút.', 'err'); return }
+        if (res.status === 422) {
+          const payload = await res.json().catch(() => ({}))
+          const n = payload.details ? payload.details.length : '?'
+          setInputMsg(`Server từ chối ${n} dòng không hợp lệ.`, 'err')
+          return
+        }
+        if (!res.ok) { setInputMsg('Ghi thất bại (mã ' + res.status + ').', 'err'); return }
+
+        const payload = await res.json()
+        const n = payload.inserted || pendingRows.length
+        pendingRows = []
+        renderPreview()
+        setInputMsg(`Đã lưu ${n} dòng. Đang làm mới dữ liệu...`, 'ok')
+        await loadAndRenderData(false)
+        setInputMsg(`Đã lưu ${n} dòng và cập nhật dashboard.`, 'ok')
+      } catch (err) {
+        setInputMsg('Lỗi mạng: ' + (err.message || 'thử lại sau.'), 'err')
+      } finally {
+        submitBtn.disabled = false
+      }
+    }
+
+    function switchInputTab(tab) {
+      document.querySelectorAll('[data-input-tab]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.inputTab === tab)
+      })
+      document.getElementById('paneForm').classList.toggle('hidden', tab !== 'form')
+      document.getElementById('panePaste').classList.toggle('hidden', tab !== 'paste')
+      document.getElementById('paneExcel').classList.toggle('hidden', tab !== 'excel')
+    }
+
+    // ============================================================
+    // Bước 6 — Recent records (admin): liệt kê + xóa lỡ nhập
+    // Đọc trực tiếp qua supabase client (như fetchRole) để lấy id mà /api/data không trả.
+    // Xóa qua /api/delete (forward JWT, RLS "admin delete" gác cổng).
+    // ============================================================
+    const DELETE_URL = '/api/delete'
+    const RECENT_LIMIT = 25
+
+    const RECENT_COLS = [
+      ['record_date', 'Date'], ['week', 'Week'], ['shift', 'Shift'], ['person', 'Person'],
+      ['machine', 'Machine'], ['part', 'Part'], ['type', 'Type'], ['qty', 'Qty'], ['serial_no', 'Serial']
+    ]
+
+    function setRecentMsg(text, kind) {
+      const el = document.getElementById('recentMsg')
+      el.classList.remove('hidden')
+      el.className = 'mb-3 text-sm ' + (kind === 'ok' ? 'text-emerald-300' : 'text-red-300')
+      el.innerText = text
+    }
+    function clearRecentMsg() {
+      document.getElementById('recentMsg').classList.add('hidden')
+    }
+
+    async function loadRecentRecords() {
+      if (currentRole !== 'admin' || !supabase) return
+      const table = document.getElementById('recentTable')
+      try {
+        const { data, error } = await supabase
+          .from('production_records')
+          .select('id, record_date, week, shift, person, machine, part, type, qty, serial_no')
+          .order('created_at', { ascending: false })
+          .limit(RECENT_LIMIT)
+        if (error) throw error
+        renderRecent(data || [])
+      } catch (err) {
+        table.innerHTML = ''
+        setRecentMsg('Không tải được danh sách: ' + (err.message || 'thử lại sau.'), 'err')
+      }
+    }
+
+    function renderRecent(rows) {
+      const table = document.getElementById('recentTable')
+      if (!rows.length) {
+        table.innerHTML = '<tbody><tr><td class="px-2 py-3 text-slate-400">Chưa có bản ghi nào.</td></tr></tbody>'
+        return
+      }
+      const head = '<thead><tr>' +
+        '<th class="px-2 py-2 text-slate-500">id</th>' +
+        RECENT_COLS.map(c => `<th class="px-2 py-2 text-slate-400">${c[1]}</th>`).join('') +
+        '<th class="px-2 py-2"></th></tr></thead>'
+
+      const body = rows.map(r => {
+        const cells = RECENT_COLS.map(([key]) => {
+          const v = r[key]
+          return `<td class="px-2 py-1.5 text-slate-200">${escapeHtml(v == null ? '' : String(v))}</td>`
+        }).join('')
+        return `<tr class="border-t border-slate-800">` +
+          `<td class="px-2 py-1.5 text-slate-500">${r.id}</td>${cells}` +
+          `<td class="px-2 py-1.5"><button type="button" data-del-id="${r.id}" ` +
+          `class="rounded-lg border border-red-500/40 px-3 py-1 text-xs font-bold text-red-300 hover:bg-red-950/60">Delete</button></td></tr>`
+      }).join('')
+
+      table.innerHTML = head + '<tbody>' + body + '</tbody>'
+
+      table.querySelectorAll('[data-del-id]').forEach(btn => {
+        btn.addEventListener('click', () => deleteRecord(Number(btn.dataset.delId)))
+      })
+    }
+
+    async function deleteRecord(id) {
+      clearRecentMsg()
+      if (!Number.isInteger(id)) return
+      if (!window.confirm(`Xóa dòng id ${id}? Thao tác này không hoàn tác được.`)) return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { setRecentMsg('Phiên đã hết hạn, đăng nhập lại.', 'err'); return }
+
+        const res = await fetch(DELETE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ ids: [id] })
+        })
+
+        if (res.status === 403) { setRecentMsg('Không có quyền xóa (chỉ admin).', 'err'); return }
+        if (res.status === 429) { setRecentMsg('Quá nhiều yêu cầu, thử lại sau ít phút.', 'err'); return }
+        if (!res.ok) { setRecentMsg('Xóa thất bại (mã ' + res.status + ').', 'err'); return }
+
+        const payload = await res.json()
+        if (!payload.deleted) {
+          setRecentMsg(`Không xóa được dòng id ${id} (có thể đã bị xóa hoặc không đủ quyền).`, 'err')
+        } else {
+          setRecentMsg(`Đã xóa dòng id ${id}. Đang làm mới...`, 'ok')
+        }
+        await loadRecentRecords()
+        await loadAndRenderData(false)
+        if (payload.deleted) setRecentMsg(`Đã xóa dòng id ${id} và cập nhật dashboard.`, 'ok')
+      } catch (err) {
+        setRecentMsg('Lỗi mạng: ' + (err.message || 'thử lại sau.'), 'err')
+      }
+    }
+
+    function initInputUI() {
+      // flatpickr cho ô Date của form, đồng bộ định dạng d/m/Y với phần còn lại
+      flatpickr('#fDate', { dateFormat: 'd/m/Y', allowInput: true })
+
+      document.querySelectorAll('[data-input-tab]').forEach(btn => {
+        btn.addEventListener('click', () => switchInputTab(btn.dataset.inputTab))
+      })
+      document.getElementById('formAddBtn').addEventListener('click', addFromForm)
+      document.getElementById('pasteParseBtn').addEventListener('click', addFromPaste)
+      document.getElementById('excelFile').addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0]
+        if (file) addFromExcel(file)
+        e.target.value = ''
+      })
+      document.getElementById('submitBtn').addEventListener('click', submitRows)
+      document.getElementById('clearPreviewBtn').addEventListener('click', () => {
+        pendingRows = []
+        clearInputMsg()
+        renderPreview()
+      })
+      const recentRefresh = document.getElementById('recentRefreshBtn')
+      if (recentRefresh) recentRefresh.addEventListener('click', loadRecentRecords)
+    }
+
+    initLogin()
+  </script>
+</body>
+</html>
