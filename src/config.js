@@ -10,7 +10,7 @@
 //  Sheet phải được share "Anyone with the link -> Viewer".
 // ============================================================
 
-export const GSHEET_ID = '19S8uVe6yPyWz_R_jvtImqkiXZvKmy2iC';
+export const GSHEET_ID = '1rDZ-mcgz1vdBuGZeqhF7dIwGlAADvcd_';
 
 // Endpoint export .xlsx của Google Sheets.
 export const dataUrl = () =>
