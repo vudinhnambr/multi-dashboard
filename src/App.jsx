@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Database } from 'lucide-react';
+import { Activity, Database, FileWarning } from 'lucide-react';
 import CMM from './pages/CMM.jsx';
 import './app-shell.css';
 
-// Hai dashboard. Auto MT là file HTML tĩnh trong /public, nhúng qua iframe.
+// Dashboard nhúng iframe đều là file tĩnh trong /public.
 const TABS = [
   { id: 'cmm', label: 'CMM Dashboard', icon: Activity },
   { id: 'auto-mt', label: 'Auto MT Dashboard', icon: Database },
+  { id: 'supplier-ncr', label: 'Supplier NCR', icon: FileWarning },
 ];
 
-// Lấy tab từ hash (#cmm / #auto-mt). Mặc định cmm.
+// Lấy tab từ hash (#cmm / #auto-mt / #supplier-ncr). Mặc định cmm.
 function tabFromHash() {
   const h = (window.location.hash || '').replace('#', '');
   return TABS.some((t) => t.id === h) ? h : 'cmm';
@@ -60,6 +61,13 @@ export default function App() {
             className="shell-frame"
             src="/auto-mt.html"
             title="Auto MT Dashboard"
+          />
+        )}
+        {tab === 'supplier-ncr' && (
+          <iframe
+            className="shell-frame"
+            src="/supplier-ncr/index.html"
+            title="Supplier NCR Dashboard"
           />
         )}
       </main>

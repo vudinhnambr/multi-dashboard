@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Supplier NCR Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+
+    <!-- LOGIN -->
+    <div id="loginGate">
+      <div class="login-box">
+        <div class="logo-badge">NCR</div>
+        <h2>Supplier NCR Dashboard</h2>
+        <p>Nhập mật mã để truy cập hệ thống</p>
+        <input type="password" id="passInput" placeholder="Mật mã..." autocomplete="current-password" />
+        <button id="loginBtn">Đăng nhập</button>
+        <p id="loginError">Mật mã không chính xác</p>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="container" id="mainDashboard" style="display:none;">
+
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="logo-badge">NCR</div>
+          <div>
+            <div class="logo-text">NCR</div>
+            <div class="sub-logo">Supplier Performance</div>
+          </div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="filter-label-group">🔍 Filters</div>
+
+        <div class="filter-section">
+          <label for="supplierFilter">Supplier</label>
+          <select id="supplierFilter"><option value="">All Suppliers</option></select>
+        </div>
+
+        <div class="filter-section">
+          <label for="yearFilter">Year</label>
+          <select id="yearFilter"><option value="">All Years</option></select>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <button id="resetButton" class="reset-btn" type="button">↺ Reset Filters</button>
+        <button id="exportPdfBtn" class="export-btn" type="button">⬇ Export PDF</button>
+
+        <div class="source-box">
+          <div class="source-dot"></div>
+          <div>
+            <div class="source-label">Google Drive · Live Data</div>
+            <strong id="dataStatus">Loading...</strong>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+
+        <!-- Top accent bar -->
+        <div class="top-bar"></div>
+
+        <header class="header">
+          <div class="header-left">
+            <h1>SUPPLIER PERFORMANCE</h1>
+            <span class="header-sub">NCR Analytics Dashboard</span>
+          </div>
+          <div class="header-right" id="headerTime"></div>
+        </header>
+
+        <!-- KPI -->
+        <section class="kpi-grid">
+          <div class="kpi-card kpi-blue">
+            <div class="kpi-icon">📋</div>
+            <div class="kpi-body">
+              <h4>Total NCR</h4>
+              <span id="totalNcr">0</span>
+              <div class="kpi-sub">Reports</div>
+            </div>
+          </div>
+          <div class="kpi-card kpi-cyan">
+            <div class="kpi-icon">📦</div>
+            <div class="kpi-body">
+              <h4>Total Qty</h4>
+              <span id="totalQty">0</span>
+              <div class="kpi-sub">Defect units</div>
+            </div>
+          </div>
+          <div class="kpi-card kpi-green">
+            <div class="kpi-icon">🏭</div>
+            <div class="kpi-body">
+              <h4>Suppliers</h4>
+              <span id="totalSupplier">0</span>
+              <div class="kpi-sub">Active</div>
+            </div>
+          </div>
+          <div class="kpi-card kpi-purple">
+            <div class="kpi-icon">⚙️</div>
+            <div class="kpi-body">
+              <h4>Parts</h4>
+              <span id="totalPart">0</span>
+              <div class="kpi-sub">Affected</div>
+            </div>
+          </div>
+          <div class="kpi-card kpi-orange">
+            <div class="kpi-icon">⚠️</div>
+            <div class="kpi-body">
+              <h4>Open NCR</h4>
+              <span id="openNcr">0</span>
+              <div class="kpi-sub">Pending</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CHARTS -->
+        <section class="charts">
+
+          <div class="chart-row">
+            <div class="chart-card accent-blue">
+              <div class="chart-card-header">
+                <span class="chart-icon">🏆</span>
+                <h3>Supplier NCR Ranking</h3>
+              </div>
+              <div class="chart-wrapper"><canvas id="supplierChart"></canvas></div>
+            </div>
+            <div class="chart-card accent-cyan">
+              <div class="chart-card-header">
+                <span class="chart-icon">📅</span>
+                <h3>NCR by Year</h3>
+              </div>
+              <div class="chart-wrapper"><canvas id="yearChart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="chart-card accent-green">
+            <div class="chart-card-header">
+              <span class="chart-icon">🗓</span>
+              <h3>NCR by Month</h3>
+            </div>
+            <div class="chart-wrapper"><canvas id="monthChart"></canvas></div>
+          </div>
+          <div class="chart-card accent-purple">
+            <div class="chart-card-header">
+              <span class="chart-icon">⚙️</span>
+              <h3>Top Parts</h3>
+            </div>
+            <div class="chart-wrapper"><canvas id="partChart"></canvas></div>
+          </div>
+
+          <div class="chart-card accent-orange">
+            <div class="chart-card-header">
+              <span class="chart-icon">🔍</span>
+              <h3>Phenomenon</h3>
+            </div>
+            <div class="chart-wrapper"><canvas id="phenomenonChart"></canvas></div>
+          </div>
+          <div class="chart-card accent-red">
+            <div class="chart-card-header">
+              <span class="chart-icon">🔄</span>
+              <h3>Replacement Status</h3>
+            </div>
+            <div class="chart-wrapper"><canvas id="statusChart"></canvas></div>
+          </div>
+
+        </section>
+      </main>
+    </div>
+
+  </body>
+</html>
