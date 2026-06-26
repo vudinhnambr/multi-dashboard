@@ -309,7 +309,7 @@
 
         <div id="effPanel" class="hidden">
           <!-- Controls (admin only) -->
-          <div class="requires-admin mb-5 hidden flex-wrap items-end gap-4 sm:flex">
+          <div id="effControls" class="requires-admin mb-5 hidden items-end gap-4">
             <div>
               <label class="mb-1 block text-xs text-slate-400">Standard minutes / day</label>
               <input id="effMinutesPerDay" type="number" min="1" value="620"
@@ -1830,11 +1830,17 @@
       document.querySelectorAll('.requires-input').forEach(el => {
         el.classList.toggle('hidden', !canInput)
       })
-      // Bước 6: phần tử "requires-admin" chỉ hiện với admin.
+      // Bước 6 + Efficiency controls: phần tử "requires-admin" chỉ hiện với admin.
       const isAdmin = role === 'admin'
       document.querySelectorAll('.requires-admin').forEach(el => {
         el.classList.toggle('hidden', !isAdmin)
+        // Đặt display tường minh để không bị utility responsive (vd sm:flex) ghi đè.
+        el.style.display = isAdmin ? '' : 'none'
       })
+      // Khối controls của Efficiency dùng flex khi hiện.
+      const effControls = document.getElementById('effControls')
+      if (effControls) effControls.style.display = isAdmin ? 'flex' : 'none'
+
       // Viewer/inspector không sửa bảng chuẩn → đảm bảo bảng edit luôn đóng.
       if (!isAdmin) {
         const wrap = document.getElementById('effTableWrap')
