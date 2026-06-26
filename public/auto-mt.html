@@ -283,7 +283,69 @@
         </div>
       </section>
 
+      <section class="mb-8 grid grid-cols-1 gap-8">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-1 text-2xl font-bold">By Person — Last Day</div>
+          <div id="personLastDayLabel" class="mb-6 text-sm text-slate-400"></div>
+          <div id="personLastDayChart" class="chart-box"></div>
+        </div>
+      </section>
+
+
+
+      <section id="emptyState" class="glass mb-8 hidden rounded-2xl p-6 text-center text-slate-300">
+        No data matches the selected filters.
+      </section>
+
       <section class="glass mb-8 rounded-2xl p-6">
+        <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div class="text-2xl font-bold">Production Trend</div>
+          <div class="text-sm text-slate-400">Sorted by production date</div>
+        </div>
+        <div id="trendChart" class="chart-box" style="height: 420px"></div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">Last Five Week</div>
+          <div id="lastFiveWeekChart" class="chart-box"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">Top 10 Part</div>
+          <div id="partChart" class="chart-box"></div>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">By Person</div>
+          <div id="personChart" class="chart-box"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">By Machine</div>
+          <div id="machineChart" class="chart-box"></div>
+        </div>
+      </section>
+
+      <!-- ===== Re-Inspection list (click to reveal) ===== -->
+      <section class="glass mb-8 rounded-2xl p-6">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div class="text-2xl font-bold">Re-Inspection</div>
+            <div class="mt-1 text-sm text-slate-400">Show every Serial Number that has been re-inspected (Re-Inspection &gt; 0).</div>
+          </div>
+          <button id="reInspectionToggleBtn" type="button"
+            class="rounded-xl bg-amber-500 px-6 py-3 font-bold text-slate-900 hover:bg-amber-400">
+            Show Re-Inspection
+          </button>
+        </div>
+        <div id="reInspectionInfo" class="mb-3 hidden text-sm text-slate-400"></div>
+        <div id="reInspectionResults" class="hidden overflow-x-auto"></div>
+      </section>
+
+      <section id="serialLookupPanel" class="glass mb-8 rounded-2xl p-6">
         <div class="mb-4 text-2xl font-bold">Serial Number Lookup</div>
         <div class="flex flex-col gap-3 sm:flex-row">
           <input id="serialSearch" type="text" autocomplete="off"
@@ -426,7 +488,7 @@
               <span class="text-2xl font-bold">Recent records</span>
               <span id="recentCount" class="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-sm font-bold text-blue-300"></span>
               <span id="recentCountSub" class="ml-1 text-xs text-slate-500"></span>
-              <span class="mt-1 block text-sm text-slate-400">Số bản ghi của ngày nhập gần nhất. Bảng bên dưới liệt kê 25 dòng mới nhất để xóa dòng lỡ nhập.</span>
+              <span class="mt-1 block text-sm text-slate-400">Number of records for the most recent entry day. The table below lists every record of that day so you can delete any mistaken entry.</span>
             </span>
           </button>
           <div class="flex items-center gap-3">
@@ -442,51 +504,6 @@
           <table id="recentTable" class="w-full text-left text-xs"></table>
         </div>
       </section>
-
-      <section id="emptyState" class="glass mb-8 hidden rounded-2xl p-6 text-center text-slate-300">
-        No data matches the selected filters.
-      </section>
-
-      <section class="glass mb-8 rounded-2xl p-6">
-        <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div class="text-2xl font-bold">Production Trend</div>
-          <div class="text-sm text-slate-400">Sorted by production date</div>
-        </div>
-        <div id="trendChart" class="chart-box" style="height: 420px"></div>
-      </section>
-
-      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">Last Five Week</div>
-          <div id="lastFiveWeekChart" class="chart-box"></div>
-        </div>
-
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">Top 10 Part</div>
-          <div id="partChart" class="chart-box"></div>
-        </div>
-      </section>
-
-      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">By Person</div>
-          <div id="personChart" class="chart-box"></div>
-        </div>
-
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">By Machine</div>
-          <div id="machineChart" class="chart-box"></div>
-        </div>
-      </section>
-
-      <section class="mb-8 grid grid-cols-1 gap-8">
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-1 text-2xl font-bold">By Person — Last Day</div>
-          <div id="personLastDayLabel" class="mb-6 text-sm text-slate-400"></div>
-          <div id="personLastDayChart" class="chart-box"></div>
-        </div>
-      </section>
-
     </main>
   </div>
 
@@ -580,7 +597,7 @@
 
       if (response.status === 401) {
         const payload = await response.json().catch(() => ({}))
-        const err = new Error(payload.error || 'Phiên hết hạn hoặc tài khoản chưa được cấp quyền (role). Liên hệ admin.')
+        const err = new Error(payload.error || 'Your session has expired or this account has not been granted a role. Please contact an admin.')
         err.code = 'AUTH'
         throw err
       }
@@ -601,7 +618,7 @@
         const required = ['Date', 'Qty', 'Person', 'Machine', 'Part']
         const missing = required.filter(col => !(col in rows[0]))
         if (missing.length) {
-          throw new Error(`Sheet thiếu cột: ${missing.join(', ')}`)
+          throw new Error(`Sheet is missing column(s): ${missing.join(', ')}`)
         }
       }
 
@@ -868,7 +885,7 @@
       chart.setOption({
         backgroundColor: 'transparent',
         textStyle: baseTextStyle(),
-        grid: { left: 44, right: 18, top: 36, bottom: 76 },
+        grid: { left: 44, right: 64, top: 36, bottom: 76 },
         tooltip: { trigger: 'axis' },
         legend: {
           data: ['Output', 'Avg (4 completed weeks)'],
@@ -901,17 +918,27 @@
             data: avgLine,
             type: 'line',
             smooth: false,
-            symbol: 'none',
-            lineStyle: { width: 5, color: '#facc15' },
+            symbol: 'circle',
+            symbolSize: 8,
+            itemStyle: { color: '#facc15' },
+            lineStyle: { width: 4, color: '#facc15' },
             z: 5,
-            // Hiện con số trung bình ngay trên đường, ở điểm cuối bên phải
+            // Show the average number at the END of the line, lifted above the line
+            // and given a dark pill so it is never hidden behind the bars.
             label: {
               show: true,
               position: 'top',
+              distance: 10,
               color: '#facc15',
               fontWeight: 'bold',
+              fontSize: 14,
+              backgroundColor: 'rgba(2, 6, 23, 0.85)',
+              borderColor: '#facc15',
+              borderWidth: 1,
+              borderRadius: 6,
+              padding: [4, 8],
               formatter: params =>
-                params.dataIndex === avgLine.length - 1 ? avgWeek.toLocaleString() : ''
+                params.dataIndex === avgLine.length - 1 ? `Avg ${avgWeek.toLocaleString()}` : ''
             }
           }
         ]
@@ -1058,15 +1085,15 @@
         const lastDayRows = baseFilteredData.filter(x => x.dateValue === maxDateValue)
         const lastDayDate = lastDayRows.length ? lastDayRows[0].date : '-'
         const personLastDay = sumBy(lastDayRows, 'personDisplay', 'qty')
-        if (lastDayLabel) lastDayLabel.textContent = `Ngày gần nhất: ${lastDayDate} · ${lastDayRows.length} bản ghi`
+        if (lastDayLabel) lastDayLabel.textContent = `Latest day: ${lastDayDate} · ${lastDayRows.length} records`
         renderBarChart('personLastDayChart', personLastDay, false, {
           color: '#34d399',
           drillField: 'personLastDay',
           drillExtra: { dateValue: maxDateValue, dayDate: lastDayDate },
-          drillLabel: value => `${value} — ngày ${lastDayDate}`
+          drillLabel: value => `${value} — ${lastDayDate}`
         })
       } else {
-        if (lastDayLabel) lastDayLabel.textContent = 'Không có dữ liệu.'
+        if (lastDayLabel) lastDayLabel.textContent = 'No data.'
         renderBarChart('personLastDayChart', {}, false, { color: '#34d399' })
       }
     }
@@ -1109,6 +1136,10 @@
         if (e.key === 'Enter') searchSerial()
       })
       document.getElementById('serialClearBtn').addEventListener('click', clearSerialSearch)
+
+      // Re-Inspection: click to reveal all re-inspected serials
+      const reBtn = document.getElementById('reInspectionToggleBtn')
+      if (reBtn) reBtn.addEventListener('click', toggleReInspection)
 
       window.addEventListener('resize', () => {
         Object.values(charts).forEach(chart => chart.resize())
@@ -1160,7 +1191,7 @@
         <tr class="border-b border-slate-800 hover:bg-slate-800/50">
           <td class="px-4 py-3 font-semibold text-white">
             ${escapeHtml(r.serial)}
-            ${r.reInspection > 0 ? `<span class="ml-2 rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">Tái kiểm ${r.reInspection}</span>` : ''}
+            ${r.reInspection > 0 ? `<span class="ml-2 rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">Re-inspection ${r.reInspection}</span>` : ''}
           </td>
           <td class="px-4 py-3 text-slate-200">${escapeHtml(r.personDisplay)}</td>
           <td class="px-4 py-3 text-slate-200">${escapeHtml(r.machineDisplay)}</td>
@@ -1192,6 +1223,70 @@
       document.getElementById('serialResultInfo').classList.add('hidden')
       document.getElementById('serialResults').classList.add('hidden')
       document.getElementById('serialResults').innerHTML = ''
+    }
+
+    // Re-Inspection: show every record whose Re-Inspection count > 0.
+    // Searches the whole dataset (ignores current filters / drill-down).
+    let reInspectionVisible = false
+    function toggleReInspection() {
+      const btn = document.getElementById('reInspectionToggleBtn')
+      const info = document.getElementById('reInspectionInfo')
+      const box = document.getElementById('reInspectionResults')
+
+      reInspectionVisible = !reInspectionVisible
+      if (!reInspectionVisible) {
+        info.classList.add('hidden')
+        box.classList.add('hidden')
+        box.innerHTML = ''
+        btn.innerText = 'Show Re-Inspection'
+        return
+      }
+
+      btn.innerText = 'Hide Re-Inspection'
+      const matches = allData
+        .filter(r => r.reInspection > 0)
+        .sort((a, b) => b.dateValue - a.dateValue)
+
+      info.classList.remove('hidden')
+      box.classList.remove('hidden')
+
+      if (matches.length === 0) {
+        info.innerHTML = 'No re-inspected Serial Numbers found.'
+        box.innerHTML = ''
+        return
+      }
+
+      info.innerHTML = `Found <span class="font-bold text-amber-300">${matches.length}</span> re-inspected record(s).`
+
+      const rowsHtml = matches.map(r => `
+        <tr class="border-b border-slate-800 hover:bg-slate-800/50">
+          <td class="px-4 py-3 font-semibold text-white">
+            ${escapeHtml(r.serial)}
+            <span class="ml-2 rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">Re-inspection ${r.reInspection}</span>
+          </td>
+          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.personDisplay)}</td>
+          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.machineDisplay)}</td>
+          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.partDisplay)}</td>
+          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.date)}</td>
+          <td class="px-4 py-3 text-right text-slate-200">${r.qty.toLocaleString()}</td>
+          <td class="px-4 py-3 text-slate-200">${r.week || '-'}</td>
+        </tr>`).join('')
+
+      box.innerHTML = `
+        <table class="w-full min-w-[720px] border-collapse text-left">
+          <thead>
+            <tr class="border-b border-slate-700 text-sm text-slate-400">
+              <th class="px-4 py-2 font-semibold">Serial Number</th>
+              <th class="px-4 py-2 font-semibold">Person</th>
+              <th class="px-4 py-2 font-semibold">Machine</th>
+              <th class="px-4 py-2 font-semibold">Part</th>
+              <th class="px-4 py-2 font-semibold">Date</th>
+              <th class="px-4 py-2 text-right font-semibold">Qty</th>
+              <th class="px-4 py-2 font-semibold">Week</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`
     }
 
     async function loadAndRenderData(isFirstLoad) {
@@ -1288,13 +1383,13 @@
       try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) {
-          errorBox.innerText = 'Email hoặc mật khẩu không đúng.'
+          errorBox.innerText = 'Incorrect email or password.'
           errorBox.classList.remove('hidden')
           return
         }
         await enterDashboard(data.user)
       } catch (err) {
-        errorBox.innerText = 'Lỗi tải dữ liệu: ' + (err.message || 'thử lại sau.')
+        errorBox.innerText = 'Error loading data: ' + (err.message || 'please try again later.')
         errorBox.classList.remove('hidden')
       } finally {
         button.disabled = false
@@ -1447,14 +1542,14 @@
     function validateCanonical(row) {
       const errs = []
       if (!row.record_date || !/^\d{4}-\d{2}-\d{2}$/.test(row.record_date)) {
-        errs.push('Date không hợp lệ')
+        errs.push('Invalid Date')
       }
-      if (!Number.isInteger(row.qty) || row.qty < 0) errs.push('Qty phải là số nguyên ≥ 0')
-      if (!row.person) errs.push('Thiếu Person')
-      if (!row.machine) errs.push('Thiếu Machine')
-      if (!row.part) errs.push('Thiếu Part')
-      if (row.week != null && !Number.isInteger(row.week)) errs.push('Week không hợp lệ')
-      if (row.re_inspection != null && !Number.isInteger(row.re_inspection)) errs.push('Re-Inspection không hợp lệ')
+      if (!Number.isInteger(row.qty) || row.qty < 0) errs.push('Qty must be an integer ≥ 0')
+      if (!row.person) errs.push('Missing Person')
+      if (!row.machine) errs.push('Missing Machine')
+      if (!row.part) errs.push('Missing Part')
+      if (row.week != null && !Number.isInteger(row.week)) errs.push('Invalid Week')
+      if (row.re_inspection != null && !Number.isInteger(row.re_inspection)) errs.push('Invalid Re-Inspection')
       return errs
     }
 
@@ -1521,7 +1616,7 @@
 
         let status
         if (errs.length) status = `<span class="text-red-300">${escapeHtml(errs.join('; '))}</span>`
-        else if (reCount > 0) status = `<span class="text-amber-300">Tái kiểm ${reCount}</span>`
+        else if (reCount > 0) status = `<span class="text-amber-300">Re-inspection ${reCount}</span>`
         else status = '<span class="text-emerald-300">OK</span>'
 
         return `<tr class="${rowClass} border-t border-slate-800">${cells}` +
@@ -1531,13 +1626,13 @@
 
       table.innerHTML = head + '<tbody>' + bodyRows + '</tbody>'
 
-      const parts = [`${pendingRows.length} dòng`]
-      if (invalid) parts.push(`<span class="text-red-300">${invalid} lỗi</span>`)
-      if (reChecks) parts.push(`<span class="text-amber-300">${reChecks} dòng tái kiểm</span>`)
+      const parts = [`${pendingRows.length} rows`]
+      if (invalid) parts.push(`<span class="text-red-300">${invalid} error(s)</span>`)
+      if (reChecks) parts.push(`<span class="text-amber-300">${reChecks} re-inspection row(s)</span>`)
       summary.innerHTML = parts.join(' · ')
 
       submitBtn.disabled = invalid > 0
-      submitBtn.innerText = invalid > 0 ? `Sửa ${invalid} dòng lỗi trước` : `Save ${pendingRows.length} records`
+      submitBtn.innerText = invalid > 0 ? `Fix ${invalid} error row(s) first` : `Save ${pendingRows.length} records`
 
       table.querySelectorAll('[data-remove-row]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1575,7 +1670,7 @@
       })
       const errs = validateCanonical(row)
       if (errs.length) {
-        setInputMsg('Dòng chưa hợp lệ: ' + errs.join('; '), 'err')
+        setInputMsg('Invalid row: ' + errs.join('; '), 'err')
         return
       }
       pendingRows.push(row)
@@ -1591,7 +1686,7 @@
       const matrix = text.replace(/\r/g, '').split('\n').map(line => line.split('\t'))
       const rows = rowsFromMatrix(matrix)
       if (!rows.length) {
-        setInputMsg('Không đọc được dòng nào. Nhớ giữ dòng tiêu đề và phân tách bằng Tab.', 'err')
+        setInputMsg('No rows could be read. Keep the header row and separate columns with Tab.', 'err')
         return
       }
       pendingRows = pendingRows.concat(rows)
@@ -1609,13 +1704,13 @@
           const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: true })
           const rows = rowsFromMatrix(matrix)
           if (!rows.length) {
-            setInputMsg('File không có dòng dữ liệu (cần dòng tiêu đề + dữ liệu).', 'err')
+            setInputMsg('The file has no data rows (a header row plus data is required).', 'err')
             return
           }
           pendingRows = pendingRows.concat(rows)
           renderPreview()
         } catch (err) {
-          setInputMsg('Lỗi đọc Excel: ' + (err.message || 'file không hợp lệ'), 'err')
+          setInputMsg('Error reading Excel: ' + (err.message || 'invalid file'), 'err')
         }
       }
       reader.readAsArrayBuffer(file)
@@ -1625,7 +1720,7 @@
       clearInputMsg()
       if (!pendingRows.length) return
       if (pendingRows.some(r => validateCanonical(r).length)) {
-        setInputMsg('Còn dòng lỗi, hãy sửa trước khi lưu.', 'err')
+        setInputMsg('There are still error rows. Please fix them before saving.', 'err')
         return
       }
 
@@ -1648,7 +1743,7 @@
       submitBtn.disabled = true
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (!session) { setInputMsg('Phiên đã hết hạn, đăng nhập lại.', 'err'); return }
+        if (!session) { setInputMsg('Your session has expired. Please sign in again.', 'err'); return }
 
         const res = await fetch(INSERT_URL, {
           method: 'POST',
@@ -1659,26 +1754,26 @@
           body: JSON.stringify({ rows: rowsToSave })
         })
 
-        if (res.status === 403) { setInputMsg('Không có quyền ghi (chỉ inspector/admin).', 'err'); return }
-        if (res.status === 429) { setInputMsg('Quá nhiều yêu cầu, thử lại sau ít phút.', 'err'); return }
+        if (res.status === 403) { setInputMsg('You do not have write permission (inspector/admin only).', 'err'); return }
+        if (res.status === 429) { setInputMsg('Too many requests. Please try again in a few minutes.', 'err'); return }
         if (res.status === 422) {
           const payload = await res.json().catch(() => ({}))
           const n = payload.details ? payload.details.length : '?'
-          setInputMsg(`Server từ chối ${n} dòng không hợp lệ.`, 'err')
+          setInputMsg(`The server rejected ${n} invalid row(s).`, 'err')
           return
         }
-        if (!res.ok) { setInputMsg('Ghi thất bại (mã ' + res.status + ').', 'err'); return }
+        if (!res.ok) { setInputMsg('Save failed (code ' + res.status + ').', 'err'); return }
 
         const payload = await res.json()
         const n = payload.inserted || rowsToSave.length
-        const reMsg = reChecks ? ` (trong đó ${reChecks} dòng tái kiểm)` : ''
+        const reMsg = reChecks ? ` (including ${reChecks} re-inspection row(s))` : ''
         pendingRows = []
         renderPreview()
-        setInputMsg(`Đã lưu ${n} dòng${reMsg}. Đang làm mới dữ liệu...`, 'ok')
+        setInputMsg(`Saved ${n} row(s)${reMsg}. Refreshing data...`, 'ok')
         await loadAndRenderData(false)
-        setInputMsg(`Đã lưu ${n} dòng${reMsg} và cập nhật dashboard.`, 'ok')
+        setInputMsg(`Saved ${n} row(s)${reMsg} and updated the dashboard.`, 'ok')
       } catch (err) {
-        setInputMsg('Lỗi mạng: ' + (err.message || 'thử lại sau.'), 'err')
+        setInputMsg('Network error: ' + (err.message || 'please try again later.'), 'err')
       } finally {
         submitBtn.disabled = false
       }
@@ -1699,7 +1794,6 @@
     // Xóa qua /api/delete (forward JWT, RLS "admin delete" gác cổng).
     // ============================================================
     const DELETE_URL = '/api/delete'
-    const RECENT_LIMIT = 25
 
     const RECENT_COLS = [
       ['record_date', 'Date'], ['week', 'Week'], ['shift', 'Shift'], ['person', 'Person'],
@@ -1741,32 +1835,34 @@
           setRecentCount(0, null)
         }
 
-        // Lấy 25 dòng mới nhất để liệt kê + xóa.
-        const { data, error } = await supabase
+        // Fetch ALL rows of the latest entry day (not just the newest 25) so the
+        // listed table matches the total count shown above.
+        let recentQuery = supabase
           .from('production_records')
           .select('id, record_date, week, shift, person, machine, part, type, qty, serial_no')
           .order('created_at', { ascending: false })
-          .limit(RECENT_LIMIT)
+        if (lastDate) recentQuery = recentQuery.eq('record_date', lastDate)
+        const { data, error } = await recentQuery
         if (error) throw error
         renderRecent(data || [])
       } catch (err) {
         table.innerHTML = ''
-        setRecentMsg('Không tải được danh sách: ' + (err.message || 'thử lại sau.'), 'err')
+        setRecentMsg('Could not load the list: ' + (err.message || 'please try again later.'), 'err')
       }
     }
 
     function setRecentCount(total, lastDate) {
       const countEl = document.getElementById('recentCount')
       if (!countEl) return
-      countEl.textContent = (total == null) ? '' : `${Number(total).toLocaleString()} dòng`
+      countEl.textContent = (total == null) ? '' : `${Number(total).toLocaleString()} rows`
       const sub = document.getElementById('recentCountSub')
-      if (sub) sub.textContent = lastDate ? `của ngày nhập gần nhất: ${lastDate}` : ''
+      if (sub) sub.textContent = lastDate ? `of the most recent entry day: ${lastDate}` : ''
     }
 
     function renderRecent(rows) {
       const table = document.getElementById('recentTable')
       if (!rows.length) {
-        table.innerHTML = '<tbody><tr><td class="px-2 py-3 text-slate-400">Chưa có bản ghi nào.</td></tr></tbody>'
+        table.innerHTML = '<tbody><tr><td class="px-2 py-3 text-slate-400">No records yet.</td></tr></tbody>'
         return
       }
       const head = '<thead><tr>' +
@@ -1795,10 +1891,10 @@
     async function deleteRecord(id) {
       clearRecentMsg()
       if (!Number.isInteger(id)) return
-      if (!window.confirm(`Xóa dòng id ${id}? Thao tác này không hoàn tác được.`)) return
+      if (!window.confirm(`Delete row id ${id}? This action cannot be undone.`)) return
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (!session) { setRecentMsg('Phiên đã hết hạn, đăng nhập lại.', 'err'); return }
+        if (!session) { setRecentMsg('Your session has expired. Please sign in again.', 'err'); return }
 
         const res = await fetch(DELETE_URL, {
           method: 'POST',
@@ -1809,21 +1905,21 @@
           body: JSON.stringify({ ids: [id] })
         })
 
-        if (res.status === 403) { setRecentMsg('Không có quyền xóa (chỉ admin).', 'err'); return }
-        if (res.status === 429) { setRecentMsg('Quá nhiều yêu cầu, thử lại sau ít phút.', 'err'); return }
-        if (!res.ok) { setRecentMsg('Xóa thất bại (mã ' + res.status + ').', 'err'); return }
+        if (res.status === 403) { setRecentMsg('You do not have delete permission (admin only).', 'err'); return }
+        if (res.status === 429) { setRecentMsg('Too many requests. Please try again in a few minutes.', 'err'); return }
+        if (!res.ok) { setRecentMsg('Delete failed (code ' + res.status + ').', 'err'); return }
 
         const payload = await res.json()
         if (!payload.deleted) {
-          setRecentMsg(`Không xóa được dòng id ${id} (có thể đã bị xóa hoặc không đủ quyền).`, 'err')
+          setRecentMsg(`Could not delete row id ${id} (it may already be deleted or you lack permission).`, 'err')
         } else {
-          setRecentMsg(`Đã xóa dòng id ${id}. Đang làm mới...`, 'ok')
+          setRecentMsg(`Deleted row id ${id}. Refreshing...`, 'ok')
         }
         await loadRecentRecords()
         await loadAndRenderData(false)
-        if (payload.deleted) setRecentMsg(`Đã xóa dòng id ${id} và cập nhật dashboard.`, 'ok')
+        if (payload.deleted) setRecentMsg(`Deleted row id ${id} and updated the dashboard.`, 'ok')
       } catch (err) {
-        setRecentMsg('Lỗi mạng: ' + (err.message || 'thử lại sau.'), 'err')
+        setRecentMsg('Network error: ' + (err.message || 'please try again later.'), 'err')
       }
     }
 
