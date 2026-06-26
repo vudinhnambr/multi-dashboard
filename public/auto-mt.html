@@ -291,6 +291,62 @@
         </div>
       </section>
 
+      <!-- ===== Standard Time / Efficiency ===== -->
+      <section class="glass mb-8 rounded-2xl p-6">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div class="text-2xl font-bold">Standard Time / Efficiency</div>
+            <div class="mt-1 text-sm text-slate-400">
+              Earned minutes = Qty × standard time (Part = Model, Type = Outer / Inner / Inner 1 / Inner 2).
+              Efficiency = total earned minutes ÷ standard minutes per day.
+            </div>
+          </div>
+          <button id="effToggleBtn" type="button"
+            class="rounded-xl bg-emerald-500 px-6 py-3 font-bold text-slate-900 hover:bg-emerald-400">
+            Show Efficiency
+          </button>
+        </div>
+
+        <div id="effPanel" class="hidden">
+          <!-- Controls -->
+          <div class="mb-5 flex flex-wrap items-end gap-4">
+            <div>
+              <label class="mb-1 block text-xs text-slate-400">Standard minutes / day</label>
+              <input id="effMinutesPerDay" type="number" min="1" value="620"
+                class="w-40 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-white outline-none focus:border-emerald-400" />
+            </div>
+            <button id="effApplyBtn" type="button"
+              class="rounded-xl bg-blue-500 px-5 py-2.5 font-bold text-white hover:bg-blue-400">
+              Apply
+            </button>
+            <button id="effEditTableBtn" type="button"
+              class="rounded-xl border border-slate-600 px-5 py-2.5 font-semibold text-slate-200 hover:bg-slate-800">
+              Edit standard table
+            </button>
+          </div>
+
+          <!-- Efficiency result (per person, last day) -->
+          <div id="effResultLabel" class="mb-3 text-sm text-slate-400"></div>
+          <div id="effResults" class="mb-4 overflow-x-auto"></div>
+          <div id="effUnmatched" class="mb-6 hidden rounded-xl border border-amber-500/40 bg-amber-950/30 p-4 text-sm text-amber-200"></div>
+
+          <!-- Editable standard time table -->
+          <div id="effTableWrap" class="hidden">
+            <div class="mb-3 flex items-center justify-between">
+              <div class="text-lg font-bold">Standard Time table (minutes / piece)</div>
+              <button id="effAddRowBtn" type="button"
+                class="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800">
+                + Add row
+              </button>
+            </div>
+            <div class="table-scroll rounded-xl border border-slate-800">
+              <table id="effTable" class="w-full text-left text-xs"></table>
+            </div>
+            <div class="mt-2 text-xs text-slate-500">Leave a cell blank if that Type does not apply to the model.</div>
+          </div>
+        </div>
+      </section>
+
 
 
       <section id="emptyState" class="glass mb-8 hidden rounded-2xl p-6 text-center text-slate-300">
@@ -649,6 +705,8 @@
             machineDisplay: row.Machine || 'Unknown',
             part: normalizeText(row.Part),
             partDisplay: row.Part || 'Unknown',
+            type: normalizeText(row.Type),
+            typeDisplay: (row.Type != null && String(row.Type).trim() !== '') ? String(row.Type).trim() : '',
             week: Number(row.Week || 0),
             month: parsedDate ? parsedDate.getMonth() + 1 : 0,
             serial: serial,
@@ -1141,6 +1199,8 @@
       const reBtn = document.getElementById('reInspectionToggleBtn')
       if (reBtn) reBtn.addEventListener('click', toggleReInspection)
 
+      bindEfficiencyEvents()
+
       window.addEventListener('resize', () => {
         Object.values(charts).forEach(chart => chart.resize())
       })
@@ -1289,6 +1349,233 @@
         </table>`
     }
 
+    // ============================================================
+    // Standard Time / Efficiency
+    // Mỗi record: earned = qty × std(Part=Model, Type). Efficiency người/ngày
+    // = tổng earned ÷ standard minutes per day. Bảng chuẩn sửa được trên dashboard.
+    // ============================================================
+    const EFF_TYPES = ['Outer', 'Inner', 'Inner 1', 'Inner 2']
+
+    // Bảng standard time mặc định (phút/cái), khớp Part & Type với database.
+    // null = Type đó không áp dụng cho Part.
+    let standardTable = [
+      { model: '1.6 Hybrid Pitch',  outer: 60,  inner: 75,   inner1: null, inner2: null },
+      { model: '1.5MW Pitch',       outer: 60,  inner: 75,   inner1: null, inner2: null },
+      { model: '1.X-97 Pitch',      outer: 60,  inner: 75,   inner1: null, inner2: null },
+      { model: '2.5 - 116 Pitch',   outer: 60,  inner: 75,   inner1: null, inner2: null },
+      { model: '3.x-103 Pitch Bearing', outer: 60, inner: 75, inner1: null, inner2: null },
+      { model: '2.X-127',           outer: 60,  inner: null, inner1: 40,   inner2: 70 },
+      { model: '3X130 PITCH',       outer: 60,  inner: null, inner1: 40,   inner2: 70 },
+      { model: 'WT20 O-Brg',        outer: 60,  inner: null, inner1: 40,   inner2: 70 },
+      { model: 'WT20 N1 Pitch',     outer: 60,  inner: 75,   inner1: null, inner2: null },
+      { model: 'WT19 Cypress Pitch', outer: 65, inner: 75,   inner1: null, inner2: null },
+      { model: '2.X YAW',           outer: 100, inner: 50,   inner1: null, inner2: null },
+      { model: 'WT20 N1 Yaw',       outer: 100, inner: 55,   inner1: null, inner2: null },
+      { model: 'WT19 Cypress Yaw',  outer: 100, inner: 55,   inner1: null, inner2: null },
+      { model: 'Vestas V172',       outer: 100, inner: null, inner1: 50,   inner2: 70 },
+      { model: 'Vestas 4MW',        outer: 80,  inner: null, inner1: null, inner2: null },
+      { model: 'Vestas 15MW',       outer: 500, inner: null, inner1: null, inner2: null },
+      { model: 'Rotor Lock Disc',   outer: 420, inner: null, inner1: null, inner2: null },
+      { model: 'SG129 MY20 Yaw Ring', outer: 80, inner: null, inner1: null, inner2: null },
+      { model: 'SG14 Yaw Ring',     outer: 500, inner: null, inner1: null, inner2: null }
+    ]
+
+    let effVisible = false
+    let effMinutesPerDay = 620
+
+    // Tra std time cho 1 record. Trả null nếu không map được model hoặc type.
+    function lookupStandard(partDisplay, typeDisplay) {
+      const modelKey = String(partDisplay || '').trim().toUpperCase()
+      const row = standardTable.find(r => r.model.trim().toUpperCase() === modelKey)
+      if (!row) return null
+
+      const t = String(typeDisplay || '').trim().toUpperCase()
+      let val = null
+      if (t === 'OUTER') val = row.outer
+      else if (t === 'INNER') val = row.inner
+      else if (t === 'INNER 1') val = row.inner1
+      else if (t === 'INNER 2') val = row.inner2
+      else return null  // type không hợp lệ
+
+      return (val == null || val === '' || isNaN(Number(val))) ? null : Number(val)
+    }
+
+    function toggleEfficiency() {
+      const btn = document.getElementById('effToggleBtn')
+      const panel = document.getElementById('effPanel')
+      effVisible = !effVisible
+      if (!effVisible) {
+        panel.classList.add('hidden')
+        btn.innerText = 'Show Efficiency'
+        return
+      }
+      btn.innerText = 'Hide Efficiency'
+      panel.classList.remove('hidden')
+      renderEfficiency()
+    }
+
+    function renderEfficiency() {
+      const label = document.getElementById('effResultLabel')
+      const box = document.getElementById('effResults')
+      const unmatchedBox = document.getElementById('effUnmatched')
+
+      // Tính trên ngày nhập gần nhất, theo bộ lọc bên trái (bỏ qua drilldown).
+      const base = applyFilters(allData)
+      if (!base.length) {
+        label.textContent = 'No data.'
+        box.innerHTML = ''
+        unmatchedBox.classList.add('hidden')
+        return
+      }
+
+      const maxDateValue = Math.max(...base.map(x => x.dateValue))
+      const dayRows = base.filter(x => x.dateValue === maxDateValue)
+      const dayDate = dayRows.length ? dayRows[0].date : '-'
+
+      // Gom theo người: earned minutes + qty. Ghi nhận record không map được.
+      const perPerson = {}    // person -> { earned, qty, person }
+      const unmatched = []    // {part, type, qty}
+      for (const r of dayRows) {
+        const std = lookupStandard(r.partDisplay, r.typeDisplay)
+        const p = r.personDisplay || 'Unknown'
+        if (!perPerson[p]) perPerson[p] = { person: p, earned: 0, qty: 0 }
+        perPerson[p].qty += r.qty
+        if (std == null) {
+          unmatched.push({ part: r.partDisplay, type: r.typeDisplay || '(empty)', qty: r.qty })
+        } else {
+          perPerson[p].earned += r.qty * std
+        }
+      }
+
+      const minutesPerDay = Math.max(1, Number(effMinutesPerDay) || 620)
+      const rows = Object.values(perPerson)
+        .map(x => ({ ...x, pct: (x.earned / minutesPerDay) * 100 }))
+        .sort((a, b) => b.earned - a.earned)
+
+      const maxEarned = rows.length ? rows[0].earned : 0
+
+      label.innerHTML = `Latest day: <span class="text-white">${escapeHtml(dayDate)}</span> · ` +
+        `standard <span class="text-white">${minutesPerDay.toLocaleString()}</span> min/day · ${rows.length} person(s)`
+
+      const colorFor = pct =>
+        pct >= 100 ? 'text-emerald-300' : (pct >= 80 ? 'text-amber-300' : 'text-red-300')
+
+      const bodyRows = rows.map(x => {
+        const rel = maxEarned > 0 ? (x.earned / maxEarned) * 100 : 0
+        return `
+          <tr class="border-b border-slate-800 hover:bg-slate-800/50">
+            <td class="px-4 py-3 font-semibold text-white">${escapeHtml(x.person)}</td>
+            <td class="px-4 py-3 text-right text-slate-200">${x.qty.toLocaleString()}</td>
+            <td class="px-4 py-3 text-right text-slate-200">${Math.round(x.earned).toLocaleString()}</td>
+            <td class="px-4 py-3 text-right font-bold ${colorFor(x.pct)}">${x.pct.toFixed(1)}%</td>
+            <td class="px-4 py-3 text-right text-slate-300">${rel.toFixed(0)}%</td>
+          </tr>`
+      }).join('')
+
+      box.innerHTML = `
+        <table class="w-full min-w-[680px] border-collapse text-left">
+          <thead>
+            <tr class="border-b border-slate-700 text-sm text-slate-400">
+              <th class="px-4 py-2 font-semibold">Person</th>
+              <th class="px-4 py-2 text-right font-semibold">Qty</th>
+              <th class="px-4 py-2 text-right font-semibold">Earned min</th>
+              <th class="px-4 py-2 text-right font-semibold">Efficiency (vs ${minutesPerDay.toLocaleString()})</th>
+              <th class="px-4 py-2 text-right font-semibold">Relative (top=100%)</th>
+            </tr>
+          </thead>
+          <tbody>${bodyRows}</tbody>
+        </table>`
+
+      // Cảnh báo record không map được standard.
+      if (unmatched.length) {
+        const agg = {}
+        for (const u of unmatched) {
+          const key = `${u.part} · ${u.type}`
+          agg[key] = (agg[key] || 0) + u.qty
+        }
+        const list = Object.entries(agg)
+          .map(([k, q]) => `<li>${escapeHtml(k)} — Qty ${q.toLocaleString()}</li>`).join('')
+        unmatchedBox.classList.remove('hidden')
+        unmatchedBox.innerHTML =
+          `<div class="mb-1 font-bold">No standard time matched for the following (excluded from earned minutes):</div>` +
+          `<ul class="list-disc pl-5">${list}</ul>` +
+          `<div class="mt-1 text-xs text-amber-300/80">Check the Part (Model) and Type spelling, or add/fill the row in the standard table.</div>`
+      } else {
+        unmatchedBox.classList.add('hidden')
+        unmatchedBox.innerHTML = ''
+      }
+    }
+
+    function renderStandardTable() {
+      const table = document.getElementById('effTable')
+      const head = `<thead><tr class="text-slate-400">
+          <th class="px-2 py-2 font-semibold">Part</th>
+          <th class="px-2 py-2 font-semibold">Outer</th>
+          <th class="px-2 py-2 font-semibold">Inner</th>
+          <th class="px-2 py-2 font-semibold">Inner 1</th>
+          <th class="px-2 py-2 font-semibold">Inner 2</th>
+          <th class="px-2 py-2"></th>
+        </tr></thead>`
+      const fmt = v => (v == null ? '' : v)
+      const body = standardTable.map((r, i) => `
+        <tr class="border-t border-slate-800">
+          <td class="px-2 py-1.5"><input data-eff="model" data-i="${i}" value="${escapeHtml(r.model)}" class="input-cell text-xs" /></td>
+          <td class="px-2 py-1.5"><input data-eff="outer" data-i="${i}" type="number" value="${fmt(r.outer)}" class="input-cell text-xs w-20" /></td>
+          <td class="px-2 py-1.5"><input data-eff="inner" data-i="${i}" type="number" value="${fmt(r.inner)}" class="input-cell text-xs w-20" /></td>
+          <td class="px-2 py-1.5"><input data-eff="inner1" data-i="${i}" type="number" value="${fmt(r.inner1)}" class="input-cell text-xs w-20" /></td>
+          <td class="px-2 py-1.5"><input data-eff="inner2" data-i="${i}" type="number" value="${fmt(r.inner2)}" class="input-cell text-xs w-20" /></td>
+          <td class="px-2 py-1.5"><button type="button" data-eff-del="${i}" class="text-slate-500 hover:text-red-300">✕</button></td>
+        </tr>`).join('')
+      table.innerHTML = head + '<tbody>' + body + '</tbody>'
+
+      table.querySelectorAll('[data-eff]').forEach(inp => {
+        inp.addEventListener('change', () => {
+          const i = Number(inp.dataset.i)
+          const field = inp.dataset.eff
+          if (field === 'model') {
+            standardTable[i].model = inp.value
+          } else {
+            const v = inp.value.trim()
+            standardTable[i][field] = (v === '' ? null : Number(v))
+          }
+          renderEfficiency()
+        })
+      })
+      table.querySelectorAll('[data-eff-del]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          standardTable.splice(Number(btn.dataset.effDel), 1)
+          renderStandardTable()
+          renderEfficiency()
+        })
+      })
+    }
+
+    function bindEfficiencyEvents() {
+      const toggle = document.getElementById('effToggleBtn')
+      if (toggle) toggle.addEventListener('click', toggleEfficiency)
+
+      const apply = document.getElementById('effApplyBtn')
+      if (apply) apply.addEventListener('click', () => {
+        const v = Number(document.getElementById('effMinutesPerDay').value)
+        if (Number.isFinite(v) && v > 0) effMinutesPerDay = v
+        renderEfficiency()
+      })
+
+      const editBtn = document.getElementById('effEditTableBtn')
+      if (editBtn) editBtn.addEventListener('click', () => {
+        const wrap = document.getElementById('effTableWrap')
+        const hidden = wrap.classList.toggle('hidden')
+        editBtn.innerText = hidden ? 'Edit standard table' : 'Hide standard table'
+        if (!hidden) renderStandardTable()
+      })
+
+      const addRow = document.getElementById('effAddRowBtn')
+      if (addRow) addRow.addEventListener('click', () => {
+        standardTable.push({ model: '', outer: null, inner: null, inner1: null, inner2: null })
+        renderStandardTable()
+      })
+    }
+
     async function loadAndRenderData(isFirstLoad) {
       const rawData = await loadExcel()
       allData = normalizeData(rawData)
@@ -1309,6 +1596,7 @@
 
       updateDataThroughDate()
       refreshDashboard()
+      if (effVisible) renderEfficiency()
       setMetric('lastUpdated', `Last updated: ${formatDateTime(new Date())}`)
     }
 
