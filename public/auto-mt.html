@@ -283,6 +283,55 @@
         </div>
       </section>
 
+      <section id="emptyState" class="glass mb-8 hidden rounded-2xl p-6 text-center text-slate-300">
+        No data matches the selected filters.
+      </section>
+
+      <section class="glass mb-8 rounded-2xl p-6">
+        <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div class="text-2xl font-bold">Production Trend</div>
+          <div class="text-sm text-slate-400">Sorted by production date</div>
+        </div>
+        <div id="trendChart" class="chart-box" style="height: 420px"></div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-1 text-2xl font-bold">By Person — Last Day</div>
+          <div id="personLastDayLabel" class="mb-6 text-sm text-slate-400"></div>
+          <div id="personLastDayChart" class="chart-box"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">By Person</div>
+          <div id="personChart" class="chart-box"></div>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">Last Five Week</div>
+          <div id="lastFiveWeekChart" class="chart-box"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">By Month</div>
+          <div id="monthChart" class="chart-box"></div>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">Top 10 Part</div>
+          <div id="partChart" class="chart-box"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">By Machine</div>
+          <div id="machineChart" class="chart-box"></div>
+        </div>
+      </section>
+
       <!-- ===== Standard Time / Efficiency ===== -->
       <section class="glass mb-8 rounded-2xl p-6">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -340,55 +389,6 @@
       </section>
 
 
-
-      <section id="emptyState" class="glass mb-8 hidden rounded-2xl p-6 text-center text-slate-300">
-        No data matches the selected filters.
-      </section>
-
-      <section class="glass mb-8 rounded-2xl p-6">
-        <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div class="text-2xl font-bold">Production Trend</div>
-          <div class="text-sm text-slate-400">Sorted by production date</div>
-        </div>
-        <div id="trendChart" class="chart-box" style="height: 420px"></div>
-      </section>
-
-      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">Last Five Week</div>
-          <div id="lastFiveWeekChart" class="chart-box"></div>
-        </div>
-
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">By Month</div>
-          <div id="monthChart" class="chart-box"></div>
-        </div>
-      </section>
-
-      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-1 text-2xl font-bold">By Person — Last Day</div>
-          <div id="personLastDayLabel" class="mb-6 text-sm text-slate-400"></div>
-          <div id="personLastDayChart" class="chart-box"></div>
-        </div>
-
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">By Person</div>
-          <div id="personChart" class="chart-box"></div>
-        </div>
-      </section>
-
-      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">Top 10 Part</div>
-          <div id="partChart" class="chart-box"></div>
-        </div>
-
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">By Machine</div>
-          <div id="machineChart" class="chart-box"></div>
-        </div>
-      </section>
 
       <!-- ===== Re-Inspection list (click to reveal) ===== -->
       <section class="glass mb-8 rounded-2xl p-6">
@@ -884,7 +884,7 @@
       chart.setOption({
         backgroundColor: 'transparent',
         textStyle: baseTextStyle(),
-        grid: { left: 44, right: 18, top: 28, bottom: 64 },
+        grid: { left: 44, right: 18, top: 48, bottom: 64 },
         tooltip: { trigger: 'axis' },
         xAxis: {
           type: 'category',
@@ -907,7 +907,14 @@
           smooth: true,
           areaStyle: { color: 'rgba(59, 130, 246, 0.22)' },
           lineStyle: { width: 4, color: '#3b82f6' },
-          symbolSize: 8
+          symbolSize: 8,
+          markPoint: {
+            symbol: 'pin',
+            symbolSize: 56,
+            itemStyle: { color: '#3b82f6' },
+            label: { color: '#ffffff', fontWeight: 'bold' },
+            data: [{ type: 'max', name: 'Max' }]
+          }
         }]
       }, true)
 
@@ -941,8 +948,27 @@
       const labels = shown.map(x => `Week ${x[0]}`)
       const values = shown.map(x => x[1])
 
-      // Đường trung bình: cùng giá trị avgWeek ở mọi điểm → kẻ ngang, kéo full chiều ngang
-      const avgLine = values.map(() => avgWeek)
+      // Đường trung bình: cùng giá trị avgWeek ở mọi điểm → kẻ ngang, kéo full chiều ngang.
+      // Chỉ điểm CUỐI mới gắn label (pill); các điểm khác không có label để khỏi hiện ô trống.
+      const avgLine = values.map((_, i) => ({
+        value: avgWeek,
+        label: i === values.length - 1
+          ? {
+              show: true,
+              position: 'top',
+              distance: 10,
+              color: '#facc15',
+              fontWeight: 'bold',
+              fontSize: 14,
+              backgroundColor: 'rgba(2, 6, 23, 0.85)',
+              borderColor: '#facc15',
+              borderWidth: 1,
+              borderRadius: 6,
+              padding: [4, 8],
+              formatter: () => `Avg ${avgWeek.toLocaleString()}`
+            }
+          : { show: false }
+      }))
 
       const chart = getChart('lastFiveWeekChart')
       chart.setOption({
@@ -986,23 +1012,7 @@
             itemStyle: { color: '#facc15' },
             lineStyle: { width: 4, color: '#facc15' },
             z: 5,
-            // Show the average number at the END of the line, lifted above the line
-            // and given a dark pill so it is never hidden behind the bars.
-            label: {
-              show: true,
-              position: 'top',
-              distance: 10,
-              color: '#facc15',
-              fontWeight: 'bold',
-              fontSize: 14,
-              backgroundColor: 'rgba(2, 6, 23, 0.85)',
-              borderColor: '#facc15',
-              borderWidth: 1,
-              borderRadius: 6,
-              padding: [4, 8],
-              formatter: params =>
-                params.dataIndex === avgLine.length - 1 ? `Avg ${avgWeek.toLocaleString()}` : ''
-            }
+            label: { show: false }
           }
         ]
       }, true)
