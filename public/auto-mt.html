@@ -283,14 +283,6 @@
         </div>
       </section>
 
-      <section class="mb-8 grid grid-cols-1 gap-8">
-        <div class="glass rounded-2xl p-6">
-          <div class="mb-1 text-2xl font-bold">By Person — Last Day</div>
-          <div id="personLastDayLabel" class="mb-6 text-sm text-slate-400"></div>
-          <div id="personLastDayChart" class="chart-box"></div>
-        </div>
-      </section>
-
       <!-- ===== Standard Time / Efficiency ===== -->
       <section class="glass mb-8 rounded-2xl p-6">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -368,15 +360,28 @@
         </div>
 
         <div class="glass rounded-2xl p-6">
-          <div class="mb-6 text-2xl font-bold">Top 10 Part</div>
-          <div id="partChart" class="chart-box"></div>
+          <div class="mb-6 text-2xl font-bold">By Month</div>
+          <div id="monthChart" class="chart-box"></div>
         </div>
       </section>
 
       <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
         <div class="glass rounded-2xl p-6">
+          <div class="mb-1 text-2xl font-bold">By Person — Last Day</div>
+          <div id="personLastDayLabel" class="mb-6 text-sm text-slate-400"></div>
+          <div id="personLastDayChart" class="chart-box"></div>
+        </div>
+
+        <div class="glass rounded-2xl p-6">
           <div class="mb-6 text-2xl font-bold">By Person</div>
           <div id="personChart" class="chart-box"></div>
+        </div>
+      </section>
+
+      <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div class="glass rounded-2xl p-6">
+          <div class="mb-6 text-2xl font-bold">Top 10 Part</div>
+          <div id="partChart" class="chart-box"></div>
         </div>
 
         <div class="glass rounded-2xl p-6">
@@ -1013,6 +1018,57 @@
       return avgWeek
     }
 
+    // By Month: hiện từ tháng 1 đến tháng cuối cùng CÓ dữ liệu (bỏ các tháng trống ở cuối).
+    function renderMonthChart() {
+      const chart = getChart('monthChart')
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const totals = new Array(12).fill(0)
+      for (const r of allData) {
+        if (r.month >= 1 && r.month <= 12) totals[r.month - 1] += r.qty
+      }
+
+      // Tìm tháng cuối cùng có dữ liệu; chỉ hiển thị đến tháng đó.
+      let lastMonthWithData = 0
+      for (let m = 0; m < 12; m++) {
+        if (totals[m] > 0) lastMonthWithData = m + 1
+      }
+      const count = Math.max(lastMonthWithData, 1)
+      const labels = MONTHS.slice(0, count)
+      const values = totals.slice(0, count)
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        textStyle: baseTextStyle(),
+        grid: { left: 48, right: 18, top: 24, bottom: 48 },
+        tooltip: { trigger: 'axis' },
+        xAxis: {
+          type: 'category',
+          data: labels,
+          axisLabel: { color: '#cbd5e1' }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { color: '#cbd5e1' },
+          splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } }
+        },
+        series: [
+          {
+            name: 'Qty',
+            type: 'bar',
+            data: values,
+            barWidth: '55%',
+            label: {
+              show: true,
+              position: 'top',
+              color: '#ffffff',
+              formatter: p => (p.value > 0 ? p.value.toLocaleString() : '')
+            },
+            itemStyle: { color: '#22c55e', borderRadius: [8, 8, 0, 0] }
+          }
+        ]
+      }, true)
+    }
+
     function renderBarChart(containerId, dataset, horizontal = false, options = {}) {
       const sorted = Object.entries(dataset).sort((a, b) => {
         if (options.sortBy === 'keyAsc') {
@@ -1119,6 +1175,7 @@
       renderTrendChart(filteredData)
       const avgWeek = renderLastFiveWeekChart(filteredData)
       setMetric('avgWeek', avgWeek.toLocaleString())
+      renderMonthChart()
       renderPersonCombo('personChart', filteredData)
       renderBarChart('machineChart', machineData, false, {
         color: '#f59e0b',
@@ -1219,7 +1276,7 @@
             yAxisIndex: 0,
             data: qtyVals,
             barWidth: '50%',
-            label: { show: true, position: 'top', color: '#ffffff' },
+            label: { show: true, position: 'inside', color: '#04342c', fontWeight: 'bold' },
             itemStyle: { color: '#34d399', borderRadius: [10, 10, 0, 0] }
           },
           {
@@ -1236,6 +1293,7 @@
             label: {
               show: true,
               position: 'top',
+              distance: 12,
               color: '#facc15',
               fontWeight: 'bold',
               formatter: p => `${p.value}%`
@@ -1326,7 +1384,7 @@
             yAxisIndex: 0,
             data: qtyVals,
             barWidth: '50%',
-            label: { show: true, position: 'top', color: '#ffffff' },
+            label: { show: true, position: 'inside', color: '#042c53', fontWeight: 'bold' },
             itemStyle: { color: '#38bdf8', borderRadius: [10, 10, 0, 0] }
           },
           {
@@ -1343,6 +1401,7 @@
             label: {
               show: true,
               position: 'top',
+              distance: 12,
               color: '#facc15',
               fontWeight: 'bold',
               formatter: p => `${p.value}%`
