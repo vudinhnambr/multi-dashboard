@@ -1631,25 +1631,27 @@
     // Bảng standard time mặc định (phút/cái), khớp Part & Type với database.
     // null = Type đó không áp dụng cho Part.
     let standardTable = [
-      { model: '1.6 Hybrid Pitch',  outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
-      { model: '1.5MW Pitch',       outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
-      { model: '1.X-97 Pitch',      outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
-      { model: '2.5 - 116 Pitch',   outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
-      { model: '3.x-103 Pitch Bearing', outer: 60, inner: 75, inner1: null, inner2: null, singleRing: null },
-      { model: '2.X-127',           outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
-      { model: '3X130 PITCH',       outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
-      { model: 'WT20 O-Brg',        outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
-      { model: 'WT20 N1 Pitch',     outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
-      { model: 'WT19 Cypress Pitch', outer: 65, inner: 75,   inner1: null, inner2: null, singleRing: null },
-      { model: '2.X YAW',           outer: 100, inner: 50,   inner1: null, inner2: null, singleRing: null },
-      { model: 'WT20 N1 Yaw',       outer: 100, inner: 55,   inner1: null, inner2: null, singleRing: null },
-      { model: 'WT19 Cypress Yaw',  outer: 100, inner: 55,   inner1: null, inner2: null, singleRing: null },
-      { model: 'Vestas V172',       outer: 100, inner: null, inner1: 50,   inner2: 70,   singleRing: null },
-      { model: 'Vestas 4MW',        outer: null, inner: null, inner1: null, inner2: null, singleRing: 80  },
-      { model: 'Vestas 15MW',       outer: null, inner: null, inner1: null, inner2: null, singleRing: 500 },
-      { model: 'Rotor Lock Disc',   outer: null, inner: null, inner1: null, inner2: null, singleRing: 420 },
-      { model: 'SG129 MY20 Yaw Ring', outer: null, inner: null, inner1: null, inner2: null, singleRing: 80 },
-      { model: 'SG14 Yaw Ring',     outer: null, inner: null, inner1: null, inner2: null, singleRing: 500 }
+      { model: '1.6 Hybrid Carbon Pitch Bearing', outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '1.5 Pitch Bearing',               outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '1.x-97 Pitch Bearing',            outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '2.5-116 Pitch Bearing',           outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '3.x-103 Pitch Bearing',           outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '2.8-127 Pitch O-Bearing',         outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
+      { model: '3.x-130 Pitch O-Bearing',         outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
+      { model: 'WT20 Pitch O-Bearing',            outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
+      { model: 'Sierra N1 Pitch Bearing',         outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: 'Cypress Pitch Bearing',           outer: 65,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '2.x Yaw Bearing',                outer: 100, inner: 50,   inner1: null, inner2: null, singleRing: null },
+      { model: 'Sierra N1 Yaw Bearing',          outer: 100, inner: 55,   inner1: null, inner2: null, singleRing: null },
+      { model: 'Cypress Yaw Bearing',            outer: 100, inner: 55,   inner1: null, inner2: null, singleRing: null },
+      { model: 'V172 Blade Bearing',             outer: 100, inner: null, inner1: 50,   inner2: 70,   singleRing: null },
+      { model: 'V163 Blade Bearing',             outer: 100, inner: null, inner1: 50,   inner2: 70,   singleRing: null },
+      { model: '4MW Yaw Ring',                   outer: null, inner: null, inner1: null, inner2: null, singleRing: 80  },
+      { model: '15MW Yaw Ring',                  outer: null, inner: null, inner1: null, inner2: null, singleRing: 500 },
+      { model: 'Rotor Lock Disc',                outer: null, inner: null, inner1: null, inner2: null, singleRing: 420 },
+      { model: 'SG129 MY20 Yaw Ring',            outer: null, inner: null, inner1: null, inner2: null, singleRing: 80  },
+      { model: '14MW Yaw Ring',                  outer: null, inner: null, inner1: null, inner2: null, singleRing: 500 },
+      { model: 'SG8.0-167 Yaw Ring',             outer: null, inner: null, inner1: null, inner2: null, singleRing: null }
     ]
 
     let effVisible = false
