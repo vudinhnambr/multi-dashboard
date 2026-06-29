@@ -1626,30 +1626,30 @@
     // Mỗi record: earned = qty × std(Part=Model, Type). Efficiency người/ngày
     // = tổng earned ÷ standard minutes per day. Bảng chuẩn sửa được trên dashboard.
     // ============================================================
-    const EFF_TYPES = ['Outer', 'Inner', 'Inner 1', 'Inner 2']
+    const EFF_TYPES = ['Outer', 'Inner', 'Inner 1', 'Inner 2', 'Single ring']
 
     // Bảng standard time mặc định (phút/cái), khớp Part & Type với database.
     // null = Type đó không áp dụng cho Part.
     let standardTable = [
-      { model: '1.6 Hybrid Pitch',  outer: 60,  inner: 75,   inner1: null, inner2: null },
-      { model: '1.5MW Pitch',       outer: 60,  inner: 75,   inner1: null, inner2: null },
-      { model: '1.X-97 Pitch',      outer: 60,  inner: 75,   inner1: null, inner2: null },
-      { model: '2.5 - 116 Pitch',   outer: 60,  inner: 75,   inner1: null, inner2: null },
-      { model: '3.x-103 Pitch Bearing', outer: 60, inner: 75, inner1: null, inner2: null },
-      { model: '2.X-127',           outer: 60,  inner: null, inner1: 40,   inner2: 70 },
-      { model: '3X130 PITCH',       outer: 60,  inner: null, inner1: 40,   inner2: 70 },
-      { model: 'WT20 O-Brg',        outer: 60,  inner: null, inner1: 40,   inner2: 70 },
-      { model: 'WT20 N1 Pitch',     outer: 60,  inner: 75,   inner1: null, inner2: null },
-      { model: 'WT19 Cypress Pitch', outer: 65, inner: 75,   inner1: null, inner2: null },
-      { model: '2.X YAW',           outer: 100, inner: 50,   inner1: null, inner2: null },
-      { model: 'WT20 N1 Yaw',       outer: 100, inner: 55,   inner1: null, inner2: null },
-      { model: 'WT19 Cypress Yaw',  outer: 100, inner: 55,   inner1: null, inner2: null },
-      { model: 'Vestas V172',       outer: 100, inner: null, inner1: 50,   inner2: 70 },
-      { model: 'Vestas 4MW',        outer: 80,  inner: null, inner1: null, inner2: null },
-      { model: 'Vestas 15MW',       outer: 500, inner: null, inner1: null, inner2: null },
-      { model: 'Rotor Lock Disc',   outer: 420, inner: null, inner1: null, inner2: null },
-      { model: 'SG129 MY20 Yaw Ring', outer: 80, inner: null, inner1: null, inner2: null },
-      { model: 'SG14 Yaw Ring',     outer: 500, inner: null, inner1: null, inner2: null }
+      { model: '1.6 Hybrid Pitch',  outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '1.5MW Pitch',       outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '1.X-97 Pitch',      outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '2.5 - 116 Pitch',   outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '3.x-103 Pitch Bearing', outer: 60, inner: 75, inner1: null, inner2: null, singleRing: null },
+      { model: '2.X-127',           outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
+      { model: '3X130 PITCH',       outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
+      { model: 'WT20 O-Brg',        outer: 60,  inner: null, inner1: 40,   inner2: 70,   singleRing: null },
+      { model: 'WT20 N1 Pitch',     outer: 60,  inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: 'WT19 Cypress Pitch', outer: 65, inner: 75,   inner1: null, inner2: null, singleRing: null },
+      { model: '2.X YAW',           outer: 100, inner: 50,   inner1: null, inner2: null, singleRing: null },
+      { model: 'WT20 N1 Yaw',       outer: 100, inner: 55,   inner1: null, inner2: null, singleRing: null },
+      { model: 'WT19 Cypress Yaw',  outer: 100, inner: 55,   inner1: null, inner2: null, singleRing: null },
+      { model: 'Vestas V172',       outer: 100, inner: null, inner1: 50,   inner2: 70,   singleRing: null },
+      { model: 'Vestas 4MW',        outer: null, inner: null, inner1: null, inner2: null, singleRing: 80  },
+      { model: 'Vestas 15MW',       outer: null, inner: null, inner1: null, inner2: null, singleRing: 500 },
+      { model: 'Rotor Lock Disc',   outer: null, inner: null, inner1: null, inner2: null, singleRing: 420 },
+      { model: 'SG129 MY20 Yaw Ring', outer: null, inner: null, inner1: null, inner2: null, singleRing: 80 },
+      { model: 'SG14 Yaw Ring',     outer: null, inner: null, inner1: null, inner2: null, singleRing: 500 }
     ]
 
     let effVisible = false
@@ -1667,6 +1667,7 @@
       else if (t === 'INNER') val = row.inner
       else if (t === 'INNER 1') val = row.inner1
       else if (t === 'INNER 2') val = row.inner2
+      else if (t === 'SINGLE RING') val = row.singleRing
       else return null  // type không hợp lệ
 
       return (val == null || val === '' || isNaN(Number(val))) ? null : Number(val)
@@ -1786,6 +1787,7 @@
           <th class="px-2 py-2 font-semibold">Inner</th>
           <th class="px-2 py-2 font-semibold">Inner 1</th>
           <th class="px-2 py-2 font-semibold">Inner 2</th>
+          <th class="px-2 py-2 font-semibold">Single Ring</th>
           <th class="px-2 py-2"></th>
         </tr></thead>`
       const fmt = v => (v == null ? '' : v)
@@ -1796,6 +1798,7 @@
           <td class="px-2 py-1.5"><input data-eff="inner" data-i="${i}" type="number" value="${fmt(r.inner)}" class="input-cell text-xs w-20" /></td>
           <td class="px-2 py-1.5"><input data-eff="inner1" data-i="${i}" type="number" value="${fmt(r.inner1)}" class="input-cell text-xs w-20" /></td>
           <td class="px-2 py-1.5"><input data-eff="inner2" data-i="${i}" type="number" value="${fmt(r.inner2)}" class="input-cell text-xs w-20" /></td>
+          <td class="px-2 py-1.5"><input data-eff="singleRing" data-i="${i}" type="number" value="${fmt(r.singleRing)}" class="input-cell text-xs w-20" /></td>
           <td class="px-2 py-1.5"><button type="button" data-eff-del="${i}" class="text-slate-500 hover:text-red-300">✕</button></td>
         </tr>`).join('')
       table.innerHTML = head + '<tbody>' + body + '</tbody>'
@@ -1843,7 +1846,7 @@
 
       const addRow = document.getElementById('effAddRowBtn')
       if (addRow) addRow.addEventListener('click', () => {
-        standardTable.push({ model: '', outer: null, inner: null, inner1: null, inner2: null })
+        standardTable.push({ model: '', outer: null, inner: null, inner1: null, inner2: null, singleRing: null })
         renderStandardTable()
       })
     }
