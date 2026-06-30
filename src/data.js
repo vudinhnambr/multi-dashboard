@@ -73,6 +73,7 @@ export function normalize(rows) {
         planDate: parseDate(r['Plan Date']),
         actualDate: parseDate(r['Actual Date']),
         partName: (r['Part Name'] || '—').toString().trim(),
+        model: r['Model'] ? r['Model'].toString().trim() : null,
         target,
         stock: num(r['Stock']),
         completed,

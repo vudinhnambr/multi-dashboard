@@ -1,6 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Component } from 'react';
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, color: '#ff6b79', fontFamily: 'monospace', background: '#090e14', minHeight: '100vh' }}>
+          <h2>Runtime Error</h2>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{this.state.error?.stack || String(this.state.error)}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { Activity, Database, FileWarning } from 'lucide-react';
 import CMM from './pages/CMM.jsx';
+import { LangProvider, useLang } from './LangContext.jsx';
 import './app-shell.css';
 
 // Dashboard nhúng iframe đều là file tĩnh trong /public.
@@ -16,8 +33,9 @@ function tabFromHash() {
   return TABS.some((t) => t.id === h) ? h : 'cmm';
 }
 
-export default function App() {
+function AppInner() {
   const [tab, setTab] = useState(tabFromHash());
+  const { lang, setLang, t } = useLang();
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash());
@@ -35,42 +53,59 @@ export default function App() {
       <header className="shell-nav">
         <div className="shell-brand">
           <span className="shell-dot" />
-          Quality Management Hub
+          {t('app.brand')}
         </div>
         <nav className="shell-tabs">
-          {TABS.map((t) => {
-            const Icon = t.icon;
+          {TABS.map((tb) => {
+            const Icon = tb.icon;
             return (
               <button
-                key={t.id}
-                className={`shell-tab ${tab === t.id ? 'is-active' : ''}`}
-                onClick={() => go(t.id)}
+                key={tb.id}
+                className={`shell-tab ${tab === tb.id ? 'is-active' : ''}`}
+                onClick={() => go(tb.id)}
               >
                 <Icon size={16} />
-                {t.label}
+                {t(`tab.${tb.id}`)}
               </button>
             );
           })}
         </nav>
+
+        {/* Language toggle */}
+        <div style={{ marginLeft: 'auto', display: 'flex', background: 'rgba(255,255,255,.06)', borderRadius: 8, padding: 3, gap: 2 }}>
+          {['vi', 'en'].map(l => (
+            <button key={l} onClick={() => setLang(l)} style={{
+              padding: '4px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              fontWeight: 700, fontSize: 12, letterSpacing: '.04em',
+              background: lang === l ? '#38bdf8' : 'transparent',
+              color: lang === l ? '#0f172a' : '#94a3b8',
+              transition: 'all .2s',
+            }}>
+               {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
       </header>
 
       <main className="shell-body">
         {tab === 'cmm' && <CMM />}
         {tab === 'auto-mt' && (
-          <iframe
-            className="shell-frame"
-            src="/auto-mt.html"
-            title="Auto MT Dashboard"
-          />
+          <iframe className="shell-frame" src="/auto-mt.html" title="Auto MT Dashboard" />
         )}
         {tab === 'supplier-ncr' && (
-          <iframe
-            className="shell-frame"
-            src="/supplier-ncr/index.html"
-            title="Supplier NCR Dashboard"
-          />
+          <iframe className="shell-frame" src="/supplier-ncr/index.html" title="Supplier NCR Dashboard" />
         )}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <LangProvider>
+        <AppInner />
+      </LangProvider>
+    </ErrorBoundary>
   );
 }
