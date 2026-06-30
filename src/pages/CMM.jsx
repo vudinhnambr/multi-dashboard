@@ -548,7 +548,7 @@ function POCapacitySection() {
               {t('po.click_month')}
             </div>
             <ResponsiveContainer width="100%" height={240}>
-              <ComposedChart data={monthly} margin={{ top: 4, right: 8, bottom: 4, left: 10 }}
+              <ComposedChart data={monthly} margin={{ top: 22, right: 8, bottom: 4, left: 10 }}
                 onClick={d => d?.activePayload && setSelectedItem(s =>
                   s?.name === d.activePayload[0].payload.name ? null : { type: 'month', name: d.activePayload[0].payload.name }
                 )}>
@@ -563,6 +563,7 @@ function POCapacitySection() {
                     fill={barColor(m.h, m.capH)}
                     opacity={selMonth && selMonth !== m.name ? 0.4 : 1}
                   />)}
+                  <LabelList dataKey="h" position="top" formatter={v => v > 0 ? (v >= 1000 ? `${(v/1000).toFixed(1)}kh` : Math.round(v) + 'h') : ''} style={{ fontSize: 10, fill: 'var(--txt-mid)', fontWeight: 600 }} />
                 </Bar>
               </ComposedChart>
             </ResponsiveContainer>
@@ -581,7 +582,7 @@ function POCapacitySection() {
                 <ResponsiveContainer width="100%" height={180}>
                   <ComposedChart
                     data={drillWeeks}
-                    margin={{ top: 4, right: 8, bottom: 4, left: 10 }}
+                    margin={{ top: 22, right: 8, bottom: 4, left: 10 }}
                     onClick={d => {
                       if (!d?.activePayload) return;
                       const wi = d.activePayload[0].payload.idx;
@@ -602,6 +603,7 @@ function POCapacitySection() {
                           opacity={selWeekInMonth !== null && selWeekInMonth !== w.idx ? 0.45 : 1}
                         />
                       ))}
+                      <LabelList dataKey="h" position="top" formatter={v => v > 0 ? Math.round(v) + 'h' : ''} style={{ fontSize: 10, fill: 'var(--txt-mid)', fontWeight: 600 }} />
                     </Bar>
                   </ComposedChart>
                 </ResponsiveContainer>
