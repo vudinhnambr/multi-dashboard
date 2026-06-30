@@ -13,6 +13,7 @@ import {
 } from '../data';
 import { cmmStdTimeData2026 } from '../cmmStdTimeData2026';
 import { poCapacityData } from '../poCapacityData';
+import { loadCmmWeeklyData, loadPoCapacityData, loadCmmStdTable } from '../dynamicLoaders';
 import { useLang } from '../LangContext.jsx';
 import '../dashboard.css';
 
@@ -153,9 +154,16 @@ function StdTimeSection() {
   const [show2026Table, setShow2026Table] = useState(false);
   const [selected2026FW, setSelected2026FW] = useState(null);
   const [showStdRef, setShowStdRef] = useState(false);
+  const [liveWeeklyData, setLiveWeeklyData] = useState(null);
+  const [liveStdTable, setLiveStdTable] = useState(null);
   const { t } = useLang();
 
-  const data2026 = cmmStdTimeData2026;
+  useEffect(() => {
+    loadCmmWeeklyData().then(setLiveWeeklyData).catch(() => {});
+    loadCmmStdTable().then(d => { if (d) setLiveStdTable(d); }).catch(() => {});
+  }, []);
+
+  const data2026 = liveWeeklyData || cmmStdTimeData2026;
   const actualWeeks = data2026.weeklySummary.filter(w => w.source === 'CMM Daily Inspection');
   const actualHours = Math.round(actualWeeks.reduce((a, w) => a + w.totalHours, 0) * 10) / 10;
   const massHours = Math.round((data2026.grandTotalHours - actualHours) * 10) / 10;
@@ -343,7 +351,7 @@ function StdTimeSection() {
                 </tr>
               </thead>
               <tbody>
-                {CMM_STD_TABLE.map((r, i) => {
+                {(liveStdTable || CMM_STD_TABLE).map((r, i) => {
                   const rowBg = r.highlight === 'rose' ? 'rgba(244,63,94,0.12)'
                     : r.highlight === 'amber' ? 'rgba(245,158,11,0.12)'
                     : undefined;
@@ -415,7 +423,11 @@ const CAP_SHIFT_MIN = 11 * 60;  // 660 min
 
 // ─── PO Capacity Section ────────────────────────────────────────────────────
 function POCapacitySection() {
-  const { capWeek, months: MONTHS_DEF, parts, tiered: TIERED = {} } = poCapacityData;
+  const [livePoData, setLivePoData] = React.useState(null);
+  React.useEffect(() => {
+    loadPoCapacityData().then(d => { if (d) setLivePoData(d); }).catch(() => {});
+  }, []);
+  const { capWeek, months: MONTHS_DEF, parts, tiered: TIERED = {} } = livePoData || poCapacityData;
   const [view, setView] = React.useState('monthly');
   const [selectedItem, setSelectedItem] = React.useState(null);
   const { t } = useLang();
@@ -1772,6 +1784,7 @@ export default function CMM() {
                 const dueCls = !r.dueDate ? 'ok' : (du < 0 && !isComplete) ? 'overdue' : (du <= 7 && !isComplete) ? 'soon' : 'ok';
                 const hasDetail = r.features || r.comment;
                 const isExpanded = isRowOpen(r, hasDetail);
+                const catCls = r.category ? r.category.split('/').join('-').replace(/\s+/g, '_') : '';
                 return (
                   <React.Fragment key={r.id}>
                     <tr className={isComplete ? 'row-done' : ''}>
@@ -1782,7 +1795,7 @@ export default function CMM() {
                           </button>
                         )}
                       </td>
-                      <td><span className={`badge cat-${r.category?.replace(/\//g, '-').replace(/\s/g, '_')}`}>{r.category}</span></td>
+                      <td><span className={`badge cat-${catCls}`}>{r.category}</span></td>
                       <td style={{ fontWeight: 500 }}>{r.partName}</td>
                       <td className="mono">{r.refNo || '—'}</td>
                       <td className="mono">{r.ringSN || '—'}</td>
@@ -1823,16 +1836,16 @@ export default function CMM() {
                   </React.Fragment>
                 );
               })}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
+          <div className="tbl-foot">
+            <span className="mono" style={{ fontSize: 11, color: 'var(--txt-low)' }}>
+              {t('tbl.showing', { n: filtered.length, total: items.length })}
+            </span>
+          </div>
         </div>
-        <div className="tbl-foot">
-          {filtered.length} / {items.length} records
-          {(catFilter !== 'all' || statusFilter !== 'all' || dueFilter !== 'all' || query) && (
-            <button className="af-clear" onClick={clearFilters}>Xoa loc x</button>
-          )}
-      </div>
+
     </div>
-  </div>
   );
 }
