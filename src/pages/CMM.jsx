@@ -1808,9 +1808,9 @@ export default function CMM() {
                           <span>
                             {fmtDate(r.dueDate)}
                             {!isComplete && du != null && (
-                              <span className={`due-badge ${dueCls}`}>
+                              <><br /><span className={`due-badge ${dueCls}`}>
                                 {du < 0 ? `${Math.abs(du)} ${t('kpi.days_ago')}` : `${du} ${t('kpi.days_left')}`}
-                              </span>
+                              </span></>
                             )}
                           </span>
                         ) : '—'}
