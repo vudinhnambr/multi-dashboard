@@ -6,8 +6,11 @@
 
 // File gop: 1. Mass Product , Test Inspection
 // Sheet "4. ITR & Shipment" -> CMM Records table (06 - Records)
-export const GSHEET_ID  = '1-X-ax3MhVtpN3tMsAhIsntjWYx5or0i8';
-export const SHEET_NAME = '4. ITR & Shipment';
+export const GSHEET_ID  = "1-X-ax3MhVtpN3tMsAhIsntjWYx5or0i8";
+export const SHEET_NAME = "4. ITR & Shipment";
 
-// Avoid template literal with /export?format= to prevent esbuild regex parse error
-expor
+// Avoid template literal - esbuild misparses /export?format= as regex
+export const dataUrl = () =>
+  "https://docs.google.com/spreadsheets/d/" + GSHEET_ID + "/export?format=xlsx";
+
+export const USE_SAMPLE_FALLBACK = false;
