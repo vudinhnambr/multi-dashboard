@@ -883,8 +883,8 @@ function DailyPlannerSection() {
   const [sets, setSets]   = React.useState({});
   const [shifts, setShifts] = React.useState(2);
 
-  const capMin  = shifts * 11 * 60;
-  const capHours = shifts * 11;
+  const capMin  = shifts * 620;        // 620 min/ca
+  const capHours = +(shifts * 620 / 60).toFixed(2);
 
   const rows = PLANNER_PARTS.map((p) => {
     const s   = Number(sets[p.part] || 0);
