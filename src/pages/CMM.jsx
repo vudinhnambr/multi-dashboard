@@ -199,7 +199,7 @@ function StdTimeSection() {
       {/* 2026 Weekly Chart */}
       <div className="panel" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="panel-title" style={{ margin: 0 }}>Gio CMM theo tuan vs Capacity (154h/tuan) — 2026</div>
+          <div className="panel-title" style={{ margin: 0 }}>Gio CMM theo tuan vs Capacity (~144.7h/tuan @ 100%) — 2026</div>
           <button
             onClick={() => setShow2026Chart(o => !o)}
             style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 6, padding: '2px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
@@ -211,7 +211,7 @@ function StdTimeSection() {
           <div className="panel-sub">
             <span style={{ color: 'var(--azure)' }}>■ Mass Product</span>&nbsp;
             <span style={{ color: 'var(--violet)' }}>■ CMM Daily Inspection</span>&nbsp;·&nbsp;
-            <span style={{ color: 'var(--rose)' }}>— 154h/tuan</span>&nbsp;·&nbsp;
+            <span style={{ color: 'var(--rose)' }}>— {CAP_WEEK_BASE}h/tuan</span>&nbsp;·&nbsp;
             <span style={{ color: 'var(--amber)' }}>— % Utilization</span>&nbsp;·&nbsp;
             Tong: {cmmStdTimeData2026.grandTotalHours}h · {cmmStdTimeData2026.fwRange} 2026
             &nbsp;·&nbsp;<span style={{ color: 'var(--txt-low)', fontSize: 10 }}>Sync: {cmmStdTimeData2026.lastSynced}</span>
@@ -230,7 +230,7 @@ function StdTimeSection() {
             >
               <XAxis dataKey="week" tick={{ fill: 'var(--txt-mid)', fontSize: 9 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} interval={1} />
               <YAxis yAxisId="left" tick={{ fill: 'var(--txt-low)', fontSize: 10 }} axisLine={false} tickLine={false} unit="h" domain={[0, 175]} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--amber)', fontSize: 9 }} axisLine={false} tickLine={false} unit="%" domain={[0, Math.round(175/154*100)]} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--amber)', fontSize: 9 }} axisLine={false} tickLine={false} unit="%" domain={[0, Math.round(175/CAP_WEEK_BASE*100)]} />
               <Tooltip
                 formatter={(v, name) => name === 'Utilization' ? [`${v}%`, 'Utilization'] : [`${v}h`, 'CMM Hours']}
                 labelFormatter={(label, payload) => {
@@ -251,8 +251,8 @@ function StdTimeSection() {
               </Bar>
               <Line yAxisId="right" type="monotone" dataKey="utilization" name="Utilization"
                 stroke="var(--amber)" strokeWidth={1.5} dot={{ r: 2, fill: 'var(--amber)' }} activeDot={{ r: 4 }} />
-              <ReferenceLine yAxisId="left" y={154} stroke="var(--rose)" strokeDasharray="5 3" strokeWidth={2}
-                label={{ value: '154h / 100%', fill: 'var(--rose)', fontSize: 10, position: 'insideTopRight' }} />
+              <ReferenceLine yAxisId="left" y={CAP_WEEK_BASE} stroke="var(--rose)" strokeDasharray="5 3" strokeWidth={2}
+                label={{ value: `${CAP_WEEK_BASE}h / 100%`, fill: 'var(--rose)', fontSize: 10, position: 'insideTopRight' }} />
             </ComposedChart>
           </ResponsiveContainer>
           {/* Week drill-down */}
@@ -418,8 +418,9 @@ const PLANNER_PARTS = [
   { part: '2.X-127 O-Bearing Pitch Inner Upper',  stdMin: 185 },
 ];
 
-const CAP_DAY_MIN  = 22 * 60;   // 1320 min  (11h x 2 shifts)
-const CAP_SHIFT_MIN = 11 * 60;  // 660 min
+const CAP_SHIFT_MIN = 620;         // 620 min/ca (new standard)
+const CAP_DAY_MIN   = CAP_SHIFT_MIN * 2; // 1240 min (2 ca/ngay)
+const CAP_WEEK_BASE = Math.round(CAP_DAY_MIN * 7 / 60 * 10) / 10; // ~144.7h (100% avail)
 
 // ─── PO Capacity Section ────────────────────────────────────────────────────
 function POCapacitySection() {
@@ -430,6 +431,8 @@ function POCapacitySection() {
   const { capWeek, months: MONTHS_DEF, parts, tiered: TIERED = {} } = livePoData || poCapacityData;
   const [view, setView] = React.useState('monthly');
   const [selectedItem, setSelectedItem] = React.useState(null);
+  const [avail, setAvail] = React.useState(85); // Machine Availability %
+  const effectiveCapWeek = Math.round(CAP_WEEK_BASE * avail / 100 * 10) / 10;
   const { t } = useLang();
 
   // Per-part weekly hours: handles GEV sampling + V172 tiered rates (cumulative across year)
@@ -465,7 +468,7 @@ function POCapacitySection() {
   const monthly = React.useMemo(() =>
     MONTHS_DEF.map(([name, ws, we]) => {
       const h = weekly.slice(ws, we + 1).reduce((a, b) => a + b, 0);
-      const capH = (we - ws + 1) * capWeek;
+      const capH = (we - ws + 1) * effectiveCapWeek;
       return { name, h: Math.round(h * 10) / 10, capH, weeks: we - ws + 1 };
     }), [weekly]);
 
@@ -479,8 +482,8 @@ function POCapacitySection() {
     }).filter(p => p.totalSets > 0).sort((a, b) => b.totalH - a.totalH), [parts, partWeeklyHours]);
 
   const totalH     = Math.round(weekly.reduce((a, b) => a + b, 0) * 10) / 10;
-  const annualCap  = 53 * capWeek;
-  const overWeeks  = weekly.filter(h => h > capWeek).length;
+  const annualCap  = 53 * effectiveCapWeek;
+  const overWeeks  = weekly.filter(h => h > effectiveCapWeek).length;
   const peakWeekH  = Math.max(...weekly);
   const peakWeekIdx = weekly.indexOf(peakWeekH);
 
@@ -505,8 +508,8 @@ function POCapacitySection() {
           { label: t('po.total_demand'),    val: totalH.toLocaleString() + 'h', sub: `${t('po.annual_cap')} ${annualCap.toLocaleString()}h`, color: 'var(--rose)' },
           { label: t('po.overload_factor'), val: (totalH / annualCap).toFixed(1) + '×', sub: t('po.demand_cap'), color: 'var(--rose)' },
           { label: t('po.over_weeks'), val: `${overWeeks}/53`, sub: `${Math.round(overWeeks/53*100)}% ${t('po.pct_time')}`, color: overWeeks > 30 ? 'var(--rose)' : 'var(--amber)' },
-          { label: t('po.peak_week'), val: `W${peakWeekIdx + 1}`, sub: `${Math.round(peakWeekH).toLocaleString()}h (×${(peakWeekH/capWeek).toFixed(1)} cap)`, color: 'var(--rose)' },
-          { label: t('po.cap_week'), val: capWeek + 'h', sub: t('po.cap_note'), color: 'var(--azure)' },
+          { label: t('po.peak_week'), val: `W${peakWeekIdx + 1}`, sub: `${Math.round(peakWeekH).toLocaleString()}h (×${(peakWeekH/effectiveCapWeek).toFixed(1)} cap)`, color: 'var(--rose)' },
+          { label: t('po.cap_week'), val: effectiveCapWeek + 'h', sub: `${avail}% avail · 620min/ca`, color: 'var(--azure)' },
         ].map(k => (
           <div key={k.label} className="kpi" style={{ '--accent': k.color }}>
             <div className="label">{k.label}</div>
@@ -514,6 +517,19 @@ function POCapacitySection() {
             <div style={{ fontSize: 11, color: 'var(--txt-mid)', marginTop: 2 }}>{k.sub}</div>
           </div>
         ))}
+      </div>
+
+      {/* Availability input */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '8px 14px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, color: 'var(--txt-mid)', fontWeight: 600 }}>⚙ Machine Availability:</span>
+        <input type="range" min={50} max={100} step={1} value={avail} onChange={e => setAvail(+e.target.value)}
+          style={{ width: 130, accentColor: 'var(--azure)', cursor: 'pointer' }} />
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--azure)', minWidth: 40 }}>{avail}%</span>
+        <span style={{ fontSize: 11, color: 'var(--txt-low)' }}>
+          → Cap/tuần: <strong style={{ color: 'var(--signal)' }}>{effectiveCapWeek}h</strong>
+          &nbsp;<span style={{ color: 'var(--border)' }}>|</span>&nbsp;
+          620 min × 2 ca × 7 ngày × {avail}%
+        </span>
       </div>
 
       {/* View toggle */}
@@ -557,7 +573,7 @@ function POCapacitySection() {
                   tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}kh` : v + 'h'} />
                 <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                   formatter={(v, n) => [Math.round(v).toLocaleString() + 'h', n]} />
-                <ReferenceLine y={660} stroke="var(--azure)" strokeDasharray="4 3" strokeWidth={2} label={{ value: 'Cap 660h', fill: 'var(--azure)', fontSize: 10, position: 'insideTopRight' }} />
+                <ReferenceLine y={Math.round(effectiveCapWeek*4.33)} stroke="var(--azure)" strokeDasharray="4 3" strokeWidth={2} label={{ value: `Cap ${Math.round(effectiveCapWeek*4.33)}h`, fill: 'var(--azure)', fontSize: 10, position: 'insideTopRight' }} />
                 <Bar dataKey="h" name="Demand" radius={[4,4,0,0]} style={{ cursor: 'pointer' }}>
                   {monthly.map((m, i) => <Cell key={i}
                     fill={barColor(m.h, m.capH)}
@@ -594,12 +610,12 @@ function POCapacitySection() {
                       tickFormatter={v => v + 'h'} />
                     <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                       formatter={v => [v.toFixed(1) + 'h', 'Demand']} />
-                    <ReferenceLine y={capWeek} stroke="var(--azure)" strokeDasharray="4 3" strokeWidth={2}
-                      label={{ value: `${capWeek}h`, fill: 'var(--azure)', fontSize: 10, position: 'insideTopRight' }} />
+                    <ReferenceLine y={effectiveCapWeek} stroke="var(--azure)" strokeDasharray="4 3" strokeWidth={2}
+                      label={{ value: `${effectiveCapWeek}h`, fill: 'var(--azure)', fontSize: 10, position: 'insideTopRight' }} />
                     <Bar dataKey="h" radius={[4,4,0,0]} style={{ cursor: 'pointer' }}>
                       {drillWeeks.map((w, i) => (
                         <Cell key={i}
-                          fill={selWeekInMonth === w.idx ? 'var(--amber)' : w.h > capWeek ? overColor : okColor}
+                          fill={selWeekInMonth === w.idx ? 'var(--amber)' : w.h > effectiveCapWeek ? overColor : okColor}
                           opacity={selWeekInMonth !== null && selWeekInMonth !== w.idx ? 0.45 : 1}
                         />
                       ))}
@@ -613,12 +629,12 @@ function POCapacitySection() {
                   <div style={{ marginTop: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <span style={{ fontWeight: 700, color: 'var(--amber)', fontSize: 12 }}>
-                        🔩 W{selWeekInMonth + 1} — {weekly[selWeekInMonth].toFixed(1)}h
+                        🔩 W{selWeekInMonth + 1} — {weekly[selWeekInMonth].toFixed(1)}h / {effectiveCapWeek}h
                       </span>
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 8px', borderRadius: 8,
-                        background: weekly[selWeekInMonth] > capWeek ? 'rgba(248,113,113,.15)' : 'rgba(74,222,128,.12)',
-                        color: weekly[selWeekInMonth] > capWeek ? 'var(--rose)' : 'var(--signal)' }}>
-                        {weekly[selWeekInMonth] > capWeek ? 'OVERLOAD' : 'OK'}
+                        background: weekly[selWeekInMonth] > effectiveCapWeek ? 'rgba(248,113,113,.15)' : 'rgba(74,222,128,.12)',
+                        color: weekly[selWeekInMonth] > effectiveCapWeek ? 'var(--rose)' : 'var(--signal)' }}>
+                        {weekly[selWeekInMonth] > effectiveCapWeek ? 'OVERLOAD' : 'OK'}
                       </span>
                     </div>
                     {drillParts.length > 0 ? (
@@ -730,11 +746,11 @@ function POCapacitySection() {
                   tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v} />
                 <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                   formatter={(v) => [Math.round(v).toLocaleString() + 'h', 'Demand']} />
-                <ReferenceLine y={capWeek} stroke="var(--azure)" strokeDasharray="4 3" strokeWidth={2}
-                  label={{ value: `Cap ${capWeek}h`, fill: 'var(--azure)', fontSize: 10, position: 'insideTopRight' }} />
+                <ReferenceLine y={effectiveCapWeek} stroke="var(--azure)" strokeDasharray="4 3" strokeWidth={2}
+                  label={{ value: `Cap ${effectiveCapWeek}h`, fill: 'var(--azure)', fontSize: 10, position: 'insideTopRight' }} />
                 <Bar dataKey="h" radius={[3,3,0,0]} style={{ cursor: 'pointer' }}>
                   {weekly.map((h, i) => <Cell key={i}
-                    fill={i === selIdx ? 'var(--amber)' : h > capWeek ? overColor : okColor}
+                    fill={i === selIdx ? 'var(--amber)' : h > effectiveCapWeek ? overColor : okColor}
                     opacity={selIdx !== null && i !== selIdx ? 0.4 : 1}
                   />)}
                 </Bar>
@@ -744,7 +760,7 @@ function POCapacitySection() {
             <div style={{ fontSize: 11, color: 'var(--txt-mid)', marginTop: 6 }}>
               <span style={{ color: overColor, fontWeight: 700 }}>■</span> {t('po.overload_weeks_legend', { n: overWeeks })} &nbsp;
               <span style={{ color: okColor, fontWeight: 700 }}>■</span> {t('po.ok_weeks_legend', { n: 53 - overWeeks })} &nbsp;
-              <span style={{ color: 'var(--azure)' }}>— {t('po.cap_week')} {capWeek}h</span>
+              <span style={{ color: 'var(--azure)' }}>— {t('po.cap_week')} {effectiveCapWeek}h</span>
               {selIdx !== null && <span style={{ color: 'var(--amber)', marginLeft: 12 }}>{t('po.selected_week', { n: selIdx + 1 })}</span>}
             </div>
 
@@ -753,11 +769,11 @@ function POCapacitySection() {
               <div style={{ marginTop: 10, background: 'var(--bg3,var(--surface-2))', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span style={{ fontWeight: 700, color: 'var(--amber)', fontSize: 13 }}>
-                    🔩 W{selIdx + 1} — {weekly[selIdx].toFixed(1)}h / {capWeek}h cap
+                    🔩 W{selIdx + 1} — {weekly[selIdx].toFixed(1)}h / {effectiveCapWeek}h cap
                     <span style={{ marginLeft: 8, fontSize: 11, padding: '2px 8px', borderRadius: 8,
-                      background: weekly[selIdx] > capWeek ? 'rgba(248,113,113,.15)' : 'rgba(74,222,128,.12)',
-                      color: weekly[selIdx] > capWeek ? 'var(--rose)' : 'var(--signal)' }}>
-                      {weekly[selIdx] > capWeek ? t('status.overload') : t('status.ok')}
+                      background: weekly[selIdx] > effectiveCapWeek ? 'rgba(248,113,113,.15)' : 'rgba(74,222,128,.12)',
+                      color: weekly[selIdx] > effectiveCapWeek ? 'var(--rose)' : 'var(--signal)' }}>
+                      {weekly[selIdx] > effectiveCapWeek ? t('status.overload') : t('status.ok')}
                     </span>
                   </span>
                   <button onClick={() => setSelectedItem(null)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11 }}>✕</button>
@@ -1045,9 +1061,9 @@ function WeeklyPlannerSection() {
   const [shifts, setShifts]       = React.useState(2);
   const [weekLabel, setWeekLabel] = React.useState('');
 
-  const capDayMin  = shifts * 11 * 60;
+  const capDayMin  = shifts * 620;       // 620 min/ca
   const capWeekMin = capDayMin * 7;
-  const capDayH    = shifts * 11;
+  const capDayH    = +(shifts * 620 / 60).toFixed(2);
 
   const getVal = (part, day) => Number(sets[part + '||' + day] || 0);
 
