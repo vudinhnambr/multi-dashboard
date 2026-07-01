@@ -1,15 +1,12 @@
 // ============================================================
 //  CẤU HÌNH NGUỒN DỮ LIỆU
 //  Sheet phải được share "Anyone with the link -> Viewer".
-//  Lấy ID từ link: .../spreadsheets/d/<GSHEET_ID>/edit...
+//  Lấy ID từ link: .../spreadsheets/d/<ID>/edit...
 // ============================================================
 
-// ITR_Standardized (Records table)
-export const GSHEET_ID = '1HGvO6E_ELurEimM5nZiMbgDKKiVG1TQL';
+// ── File gộp: 1. Mass Product , Test Inspection ──────────────
+// Sheet "4. ITR & Shipment" → CMM Records table (06 - Records)
+export const GSHEET_ID  = '1-X-ax3MhVtpN3tMsAhIsntjWYx5or0i8';
+export const SHEET_NAME = '4. ITR & Shipment';
 
-export const dataUrl = () =>
-  `https://docs.google.com/spreadsheets/d/${GSHEET_ID}/export?format=xlsx`;
-
-export const SHEET_NAME = 'Raw_Data';
-
-export const USE_SAMPLE_FALLBACK = false;
+export const data

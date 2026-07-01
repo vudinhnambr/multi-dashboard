@@ -4,18 +4,20 @@
  * as the static JS fallback files, so components can use them interchangeably.
  *
  * Sheet IDs (must be shared "Anyone with link → Viewer"):
- *   CMM Daily Inspection 2026  : 1AO8p5_cIhCkAGWJu-WAqhUoWaFt7sKIs
- *   Combined Standard Time      : 1l0xVtIKULSBImmHbEB3SxZIiW0p_xfH6
- *   PO Forecast 2026            : 1Dh7EtKj8ovnGL0H_mqCpy9P7FWFJp-8F
+ *   1. Mass Product, Test Inspection : 1-X-ax3MhVtpN3tMsAhIsntjWYx5or0i8
+ *     └─ sheet "CMM Daily"           → CMM Daily Inspection data
+ *     └─ sheet "4. ITR & Shipment"   → ITR data
+ *   Combined ST Auto MT and CMM      : 1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8
+ *   PO Forecast 2026 Clean           : 1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby
  */
 
 import * as XLSX from 'xlsx';
 import { cmmStdTimeData2026 } from './cmmStdTimeData2026';
 
 // ─── Sheet IDs ───────────────────────────────────────────────────────────────
-const DAILY_INSPECTION_ID = '1AO8p5_cIhCkAGWJu-WAqhUoWaFt7sKIs';
-const COMBINED_ST_ID      = '1l0xVtIKULSBImmHbEB3SxZIiW0p_xfH6';
-const PO_FORECAST_ID      = '1Dh7EtKj8ovnGL0H_mqCpy9P7FWFJp-8F';
+const MASS_PRODUCT_ID     = '1-X-ax3MhVtpN3tMsAhIsntjWYx5or0i8'; // 1. Mass Product, Test Inspection
+const COMBINED_ST_ID      = '1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8'; // Combined standard time Auto MT and CMM
+const PO_FORECAST_ID      = '1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby'; // PO_Forecast_2026_Clean
 
 async function fetchXlsx(id) {
   const url = `https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`;
@@ -122,22 +124,35 @@ function getDisplayName(raw) {
   return DISPLAY_NAME[k] || String(raw).trim();
 }
 
-// ─── Load CMM Weekly Data from CMM Daily Inspection ──────────────────────────
+// ─── Load CMM Weekly Data from "CMM Daily" sheet ─────────────────────────────
+// New format (1. Mass Product file): one row per step
+//   col0=Date, col1=Type, col2=DueDate, col3=PartName, col4=StepName, col5=RingSN
+// StepName → old col index for PART_COL_STD lookup:
+const STEP_TO_COL = {
+  'itr': 4, 'single ring': 5, 'single': 5,
+  'outer': 6,
+  'inner': 7,
+  'inner 1': 8, 'inner1': 8,
+  'inner 2': 9, 'inner2': 9,
+  'inner assembly': 10, 'innerassembly': 10, 'inner asm': 10,
+  'outer radial+gap': 11, 'outer radial gap': 11, 'outerrgap': 11,
+  'assembly': 12,
+};
+
 export async function loadCmmWeeklyData() {
-  const wb = await fetchXlsx(DAILY_INSPECTION_ID);
-  // First sheet = Sheet1 (daily measurement log)
-  const ws = wb.Sheets[wb.SheetNames[0]];
+  const wb = await fetchXlsx(MASS_PRODUCT_ID);
+  // Sheet 'CMM Daily' in 1. Mass Product, Test Inspection
+  const ws = wb.Sheets['CMM Daily'] || wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 
   const CAPACITY = 154;
-  // weekMap[fw][displayPartName] = total minutes
   const weekMap = {};
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row) continue;
 
-    // Parse date (can be JS Date or Excel serial or string)
+    // col0 = Date
     let date = row[0];
     if (typeof date === 'number') {
       date = new Date(Date.UTC(1899, 11, 30) + date * 86400000);
@@ -147,28 +162,27 @@ export async function loadCmmWeeklyData() {
     if (!(date instanceof Date) || isNaN(date)) continue;
     if (date.getFullYear() !== 2026) continue;
 
+    // col3 = Part Name, col4 = Step name, col5 = Ring SN
     const rawPart = row[3];
     if (!rawPart) continue;
 
+    const ringSN = row[5];
+    if (ringSN == null || ringSN === '') continue; // no SN = step not done
+
+    const stepName = String(row[4] || '').trim().toLowerCase();
+    const col = STEP_TO_COL[stepName];
+    if (col === undefined) continue; // unknown step
+
     const key = normPart(rawPart);
     const stepStd = PART_COL_STD[key];
-    if (!stepStd) continue; // unknown part → skip
+    if (!stepStd || !stepStd[col]) continue;
 
     const fw = isoWeek(date);
     const displayPart = getDisplayName(rawPart);
 
     if (!weekMap[fw]) weekMap[fw] = {};
-    if (!weekMap[fw][displayPart] === undefined) weekMap[fw][displayPart] = 0;
     if (weekMap[fw][displayPart] === undefined) weekMap[fw][displayPart] = 0;
-
-    // Check each step column
-    for (let col = 4; col <= 12; col++) {
-      const val = row[col];
-      if (val != null && val !== '') {
-        const min = stepStd[col] || 0;
-        if (min > 0) weekMap[fw][displayPart] += min;
-      }
-    }
+    weekMap[fw][displayPart] += stepStd[col];
   }
 
   // Build weeklySummary entries for actual weeks (source = 'CMM Daily Inspection')
@@ -221,7 +235,7 @@ export async function loadCmmWeeklyData() {
     totalSets,
     fwRange: `FW01–${lastFW}`,
     year: 2026,
-    lastSynced: `Google Sheets · CMM Daily Inspection 2026 · ${today}`,
+    lastSynced: `Google Sheets · 1. Mass Product (CMM Daily) · ${today} · đến FW${lastFW.replace('FW','')}`,
   };
 }
 
