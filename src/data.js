@@ -144,7 +144,7 @@ export async function loadData() {
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
     const ws = wb.Sheets[SHEET_NAME] || wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: null, range: 2 }); // row 3 = header in '4. ITR & Shipment'
     if (!rows.length) throw new Error('Sheet rỗng');
     return { items: normalize(rows), source: 'sheets' };
   } catch (e) {

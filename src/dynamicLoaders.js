@@ -69,6 +69,7 @@ const PART_COL_STD = {
   'wt20 pitch o-bearing':     { 6:150, 8:130, 9:130 },
   'sierra n1 pitch bearing':  { 4:530, 6:240, 7:290 },
   'cypress pitch bearing':    { 6:290, 7:240 },
+  'wt19 cypress pitch bearing': { 6:290, 7:240 },
   '2.x yaw bearing':          { 6:130, 7:180 },
   'sierra n1 yaw bearing':    { 4:530, 6:240, 7:290 },
   'cypress yaw bearing':      { 6:240, 7:290 },
@@ -113,7 +114,8 @@ const DISPLAY_NAME = {
   'wt20 pitch o-bearing': 'WT20 Pitch O-Bearing',
   'sierra n1 pitch bearing':'Sierra N1 Pitch Bearing',
   'sierra n1 yaw bearing': 'Sierra N1 Yaw Bearing',
-  'cypress pitch bearing': 'Cypress Pitch Bearing',
+  'cypress pitch bearing':       'Cypress Pitch Bearing',
+  'wt19 cypress pitch bearing': 'WT19 Cypress Pitch Bearing',
   'cypress yaw bearing':   'Cypress Yaw Bearing',
   'rotor lock disc':       'Rotor Lock Disc',
   '1.6 hybrid glass pitch bearing':  '1.6 Hybrid Glass Pitch Bearing',
@@ -136,7 +138,7 @@ const STEP_TO_COL = {
   'inner 1': 8, 'inner1': 8,
   'inner 2': 9, 'inner2': 9,
   'inner assembly': 10, 'innerassembly': 10, 'inner asm': 10,
-  'outer radial+gap': 11, 'outer radial gap': 11, 'outerrgap': 11,
+  'outer radial+gap': 11, 'outer radial gap': 11, 'outer radial + gap': 11, 'outerrgap': 11,
   'assembly': 12,
 };
 
