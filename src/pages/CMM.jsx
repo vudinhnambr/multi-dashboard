@@ -149,7 +149,7 @@ const CMM_STD_TABLE = [
   { customer:'ITR',    part:'ITR',                             outer:null, itr:120,  singleRing:null, inner:null, inner1:null, inner2:null, innerAsm:null, outerRGap:null, assembly:null, total:120 },
 ];
 
-function StdTimeSection() {
+function StdTimeSection({ avail = 95 }) {
   const [show2026Chart, setShow2026Chart] = useState(true);
   const [show2026Table, setShow2026Table] = useState(false);
   const [selected2026FW, setSelected2026FW] = useState(null);
@@ -157,6 +157,7 @@ function StdTimeSection() {
   const [liveWeeklyData, setLiveWeeklyData] = useState(null);
   const [liveStdTable, setLiveStdTable] = useState(null);
   const { t } = useLang();
+  const effectiveCapStd = Math.round(CAP_WEEK_BASE * avail / 100 * 10) / 10;
 
   useEffect(() => {
     loadCmmWeeklyData().then(setLiveWeeklyData).catch(() => {});
@@ -164,6 +165,12 @@ function StdTimeSection() {
   }, []);
 
   const data2026 = liveWeeklyData || cmmStdTimeData2026;
+  // Recompute utilization relative to effectiveCapStd (avail-adjusted capacity)
+  const chartData2026 = React.useMemo(() => data2026.weeklySummary.map(w => ({
+    ...w,
+    utilization: Math.round(w.totalHours / effectiveCapStd * 100),
+    overload: w.totalHours > effectiveCapStd,
+  })), [data2026, effectiveCapStd]);
   const actualWeeks = data2026.weeklySummary.filter(w => w.source === 'CMM Daily Inspection');
   const actualHours = Math.round(actualWeeks.reduce((a, w) => a + w.totalHours, 0) * 10) / 10;
   const massHours = Math.round((data2026.grandTotalHours - actualHours) * 10) / 10;
@@ -199,7 +206,7 @@ function StdTimeSection() {
       {/* 2026 Weekly Chart */}
       <div className="panel" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="panel-title" style={{ margin: 0 }}>Gio CMM theo tuan vs Capacity (~144.7h/tuan @ 100%) — 2026</div>
+          <div className="panel-title" style={{ margin: 0 }}>Gio CMM theo tuan vs Capacity ({effectiveCapStd}h/tuan @ {avail}%) — 2026</div>
           <button
             onClick={() => setShow2026Chart(o => !o)}
             style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 6, padding: '2px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
@@ -211,14 +218,14 @@ function StdTimeSection() {
           <div className="panel-sub">
             <span style={{ color: 'var(--azure)' }}>■ Mass Product</span>&nbsp;
             <span style={{ color: 'var(--violet)' }}>■ CMM Daily Inspection</span>&nbsp;·&nbsp;
-            <span style={{ color: 'var(--rose)' }}>— {CAP_WEEK_BASE}h/tuan</span>&nbsp;·&nbsp;
+            <span style={{ color: 'var(--rose)' }}>— {effectiveCapStd}h/tuan ({avail}%)</span>&nbsp;·&nbsp;
             <span style={{ color: 'var(--amber)' }}>— % Utilization</span>&nbsp;·&nbsp;
             Tong: {cmmStdTimeData2026.grandTotalHours}h · {cmmStdTimeData2026.fwRange} 2026
             &nbsp;·&nbsp;<span style={{ color: 'var(--txt-low)', fontSize: 10 }}>Sync: {cmmStdTimeData2026.lastSynced}</span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart
-              data={cmmStdTimeData2026.weeklySummary}
+              data={chartData2026}
               margin={{ top: 22, right: 44, left: -8, bottom: 0 }}
               onClick={e => {
                 if (e?.activePayload?.[0]) {
@@ -230,7 +237,7 @@ function StdTimeSection() {
             >
               <XAxis dataKey="week" tick={{ fill: 'var(--txt-mid)', fontSize: 9 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} interval={1} />
               <YAxis yAxisId="left" tick={{ fill: 'var(--txt-low)', fontSize: 10 }} axisLine={false} tickLine={false} unit="h" domain={[0, 175]} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--amber)', fontSize: 9 }} axisLine={false} tickLine={false} unit="%" domain={[0, Math.round(175/CAP_WEEK_BASE*100)]} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--amber)', fontSize: 9 }} axisLine={false} tickLine={false} unit="%" domain={[0, (() => { const maxU = Math.max(...(chartData2026.map(d => d.utilization||0))); return maxU > 100 ? Math.ceil(maxU/10)*10+10 : 110; })()]} />
               <Tooltip
                 formatter={(v, name) => name === 'Utilization' ? [`${v}%`, 'Utilization'] : [`${v}h`, 'CMM Hours']}
                 labelFormatter={(label, payload) => {
@@ -240,7 +247,7 @@ function StdTimeSection() {
               />
               <Bar yAxisId="left" dataKey="totalHours" name="CMM Hours" radius={[3, 3, 0, 0]}>
                 <LabelList dataKey="totalHours" position="top" formatter={v => v > 0 ? `${v}h` : ''} style={{ fontSize: 8, fill: 'var(--txt-mid)' }} />
-                {cmmStdTimeData2026.weeklySummary.map((d, i) => {
+                {chartData2026.map((d, i) => {
                   const src = d.source || '';
                   const isSelected = d.week === selected2026FW;
                   const fill = d.overload ? 'var(--rose)'
@@ -251,8 +258,8 @@ function StdTimeSection() {
               </Bar>
               <Line yAxisId="right" type="monotone" dataKey="utilization" name="Utilization"
                 stroke="var(--amber)" strokeWidth={1.5} dot={{ r: 2, fill: 'var(--amber)' }} activeDot={{ r: 4 }} />
-              <ReferenceLine yAxisId="left" y={CAP_WEEK_BASE} stroke="var(--rose)" strokeDasharray="5 3" strokeWidth={2}
-                label={{ value: `${CAP_WEEK_BASE}h / 100%`, fill: 'var(--rose)', fontSize: 10, position: 'insideTopRight' }} />
+              <ReferenceLine yAxisId="left" y={effectiveCapStd} stroke="var(--rose)" strokeDasharray="5 3" strokeWidth={2}
+                label={{ value: `${effectiveCapStd}h / ${avail}%`, fill: 'var(--rose)', fontSize: 10, position: 'insideTopRight' }} />
             </ComposedChart>
           </ResponsiveContainer>
           {/* Week drill-down */}
@@ -423,7 +430,7 @@ const CAP_DAY_MIN   = CAP_SHIFT_MIN * 2; // 1240 min (2 ca/ngay)
 const CAP_WEEK_BASE = Math.round(CAP_DAY_MIN * 7 / 60 * 10) / 10; // ~144.7h (100% avail)
 
 // ─── PO Capacity Section ────────────────────────────────────────────────────
-function POCapacitySection() {
+function POCapacitySection({ avail, setAvail }) {
   const [livePoData, setLivePoData] = React.useState(null);
   React.useEffect(() => {
     loadPoCapacityData().then(d => { if (d) setLivePoData(d); }).catch(() => {});
@@ -431,7 +438,7 @@ function POCapacitySection() {
   const { capWeek, months: MONTHS_DEF, parts, tiered: TIERED = {} } = livePoData || poCapacityData;
   const [view, setView] = React.useState('monthly');
   const [selectedItem, setSelectedItem] = React.useState(null);
-  const [avail, setAvail] = React.useState(85); // Machine Availability %
+  // avail & setAvail now received as props
   const effectiveCapWeek = Math.round(CAP_WEEK_BASE * avail / 100 * 10) / 10;
   const { t } = useLang();
 
@@ -904,7 +911,7 @@ function DailyPlannerSection() {
           {[1, 2].map((n) => (
             <button key={n} className={`chip ${shifts === n ? 'active' : ''}`}
               onClick={() => setShifts(n)}>
-              {t('dp.shift_n', { n, h: n * 11 })}
+              {t('dp.shift_n', { n, h: +(n * 620 / 60).toFixed(1) })}
             </button>
           ))}
         </div>
@@ -1125,7 +1132,7 @@ function WeeklyPlannerSection() {
           <span style={{ color: 'var(--txt-mid)', fontSize: 13 }}>{t('dp.shifts')}</span>
           {[1, 2].map(n => (
             <button key={n} className={`chip ${shifts === n ? 'active' : ''}`} onClick={() => setShifts(n)}>
-              {t('dp.shift_n', { n, h: n * 11 })}
+              {t('dp.shift_n', { n, h: +(n * 620 / 60).toFixed(1) })}
             </button>
           ))}
         </div>
@@ -1374,6 +1381,8 @@ export default function CMM() {
   const [toggled, setToggled] = useState(() => new Set());
   const [showUnmatched, setShowUnmatched] = useState(false);
 
+  const [avail, setAvail] = React.useState(95); // Machine Availability % (shared)
+
   function toggleExpand(id) {
     setToggled((prev) => {
       const next = new Set(prev);
@@ -1564,11 +1573,11 @@ export default function CMM() {
       </CollapsibleSection>
 
       <CollapsibleSection eyebrow={t('s02.eyebrow')} title={t('s02.title')} defaultOpen={true}>
-        <StdTimeSection />
+        <StdTimeSection avail={avail} />
       </CollapsibleSection>
 
       <CollapsibleSection eyebrow={t('s02b.eyebrow')} title={t('s02b.title')}>
-        <POCapacitySection />
+        <POCapacitySection avail={avail} setAvail={setAvail} />
       </CollapsibleSection>
 
       <SectionHead eyebrow={t('s03.eyebrow')} title={t('s03.title')} />
@@ -1686,7 +1695,7 @@ export default function CMM() {
                 {remainingLoad.totalH}<span style={{ fontSize: 14, fontWeight: 400, color: 'var(--txt-mid)', marginLeft: 4 }}>h</span>
               </div>
               <div style={{ fontSize: 10, color: 'var(--txt-low)', marginBottom: 10 }}>
-                ≈ <strong style={{ color: 'var(--txt-mid)' }}>{remainingLoad.totalDays} ngày</strong> (2 ca × 11h)&nbsp;·&nbsp;
+                ≈ <strong style={{ color: 'var(--txt-mid)' }}>{remainingLoad.totalDays} ngày</strong> (620 min/ca × 2 ca)&nbsp;·&nbsp;
                 <strong style={{ color: 'var(--txt-mid)' }}>{remainingLoad.totalWeeks} tuần</strong> (154h/tuần)
               </div>
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
