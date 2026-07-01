@@ -20,9 +20,10 @@ const COMBINED_ST_ID      = '1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8'; // Combined sta
 const PO_FORECAST_ID      = '1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby'; // PO_Forecast_2026_Clean
 
 async function fetchXlsx(id) {
-  const url = `https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`;
+  // Route through /api/sheets proxy to avoid CORS when fetching from browser
+  const url = '/api/sheets?id=' + id;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching sheet ${id}`);
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' fetching sheet ' + id);
   const buf = await res.arrayBuffer();
   return XLSX.read(buf, { type: 'array' });
 }
