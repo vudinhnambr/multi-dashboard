@@ -6,7 +6,7 @@
 
 // File gop: 1. Mass Product , Test Inspection
 // Sheet "4. ITR & Shipment" -> CMM Records table (06 - Records)
-export const GSHEET_ID  = "1-X-ax3MhVtpN3tMsAhIsntjWYx5or0i8";
+export const GSHEET_ID  = "11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj";
 export const SHEET_NAME = "4. ITR & Shipment";
 
 // Route through Vercel API proxy to avoid browser CORS restrictions

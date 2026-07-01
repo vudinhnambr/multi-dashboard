@@ -4,7 +4,7 @@
  * as the static JS fallback files, so components can use them interchangeably.
  *
  * Sheet IDs (must be shared "Anyone with link → Viewer"):
- *   1. Mass Product, Test Inspection : 1-X-ax3MhVtpN3tMsAhIsntjWYx5or0i8
+ *   1. Mass Product, Test Inspection : 11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj
  *     └─ sheet "CMM Daily"           → CMM Daily Inspection data
  *     └─ sheet "4. ITR & Shipment"   → ITR data
  *   Combined ST Auto MT and CMM      : 1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8
@@ -15,7 +15,7 @@ import * as XLSX from 'xlsx';
 import { cmmStdTimeData2026 } from './cmmStdTimeData2026';
 
 // ─── Sheet IDs ───────────────────────────────────────────────────────────────
-const MASS_PRODUCT_ID     = '1-X-ax3MhVtpN3tMsAhIsntjWYx5or0i8'; // 1. Mass Product, Test Inspection
+const MASS_PRODUCT_ID     = '11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj'; // 1. Mass Product, Test Inspection
 const COMBINED_ST_ID      = '1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8'; // Combined standard time Auto MT and CMM
 const PO_FORECAST_ID      = '1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby'; // PO_Forecast_2026_Clean
 
