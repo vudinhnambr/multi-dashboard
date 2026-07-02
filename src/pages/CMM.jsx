@@ -74,6 +74,7 @@ function ProgressRing({ value, size = 84, stroke = 8 }) {
 }
 
 function DueList({ rows, accent }) {
+  const { t } = useLang();
   const catColorOf = (c) => (c === 'Shipment' ? 'var(--azure)' : c === 'ITR' ? 'var(--violet)' : 'var(--signal)');
   return (
     <div className="due-list">
@@ -82,7 +83,7 @@ function DueList({ rows, accent }) {
         return (
           <div className="due-row" key={r.id} style={{ '--accent': accent }}>
             <div className="d-when" style={{ color: accent }}>
-              {Math.abs(du)}<small>{du < 0 ? 'NGAY TRE' : 'NGAY NUA'}</small>
+              {Math.abs(du)}<small>{du < 0 ? t('unit.days_late') : t('unit.days_left')}</small>
             </div>
             <div className="d-body">
               <div className="d-name">
@@ -91,7 +92,7 @@ function DueList({ rows, accent }) {
                 </span>
                 {r.partName}
               </div>
-              <div className="d-meta">{fmtDate(r.dueDate)} · con {r.balance}/{r.target} · {r.status}</div>
+              <div className="d-meta">{fmtDate(r.dueDate)} · {t('unit.remaining')} {r.balance}/{r.target} · {r.status}</div>
             </div>
           </div>
         );
@@ -189,7 +190,7 @@ function StdTimeSection({ avail = 95 }) {
         <div className="kpi" style={{ '--accent': 'var(--violet)' }}>
           <div className="label"><Activity size={13} style={{ marginRight: 4 }} />Thuc te (CMM Daily Inspection)</div>
           <div className="value">{actualHours}<small> h</small></div>
-          <div className="foot ok"><TrendingUp size={13} /> FW21–FW26 · {actualWeeks.length} tuan</div>
+          <div className="foot ok"><TrendingUp size={13} /> FW21–FW26 · {actualWeeks.length} {t('unit.weeks')}</div>
         </div>
         <div className="kpi" style={{ '--accent': 'var(--azure)' }}>
           <div className="label"><BarChart2 size={13} style={{ marginRight: 4 }} />Mass Product (FW01–FW20)</div>
@@ -200,7 +201,7 @@ function StdTimeSection({ avail = 95 }) {
           <div className="label"><AlertTriangle size={13} style={{ marginRight: 4 }} />Peak week</div>
           <div className="value" style={{ fontSize: 20 }}>{peakWeek?.week}<small> · {peakWeek?.totalHours}h</small></div>
           <div className={`foot ${peakWeek?.overload ? 'alert' : 'ok'}`}>
-            <TrendingUp size={13} /> {peakWeek?.utilization}% capacity · {data2026.overloadWeeks.length > 0 ? `${data2026.overloadWeeks.length} tuan overload` : 'Khong co overload'}
+            <TrendingUp size={13} /> {peakWeek?.utilization}% capacity · {data2026.overloadWeeks.length > 0 ? t('std.n_overload', { n: data2026.overloadWeeks.length }) : t('std.no_overload')}
           </div>
         </div>
       </div>
@@ -208,7 +209,7 @@ function StdTimeSection({ avail = 95 }) {
       {/* 2026 Weekly Chart */}
       <div className="panel" style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="panel-title" style={{ margin: 0 }}>Gio CMM theo tuan vs Capacity ({effectiveCapStd}h/tuan @ {avail}%) — 2026</div>
+          <div className="panel-title" style={{ margin: 0 }}>{t('std.chart_title', { h: effectiveCapStd, a: avail })}</div>
           <button
             onClick={() => setShow2026Chart(o => !o)}
             style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 6, padding: '2px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
@@ -220,7 +221,7 @@ function StdTimeSection({ avail = 95 }) {
           <div className="panel-sub">
             <span style={{ color: 'var(--azure)' }}>■ Mass Product</span>&nbsp;
             <span style={{ color: 'var(--violet)' }}>■ CMM Daily Inspection</span>&nbsp;·&nbsp;
-            <span style={{ color: 'var(--rose)' }}>— {effectiveCapStd}h/tuan ({avail}%)</span>&nbsp;·&nbsp;
+            <span style={{ color: 'var(--rose)' }}>{t('std.legend_cap', { h: effectiveCapStd, a: avail })}</span>&nbsp;·&nbsp;
             <span style={{ color: 'var(--amber)' }}>— % Utilization</span>&nbsp;·&nbsp;
             Tong: {data2026.grandTotalHours}h · {data2026.fwRange} 2026
             &nbsp;·&nbsp;<span style={{ color: 'var(--txt-low)', fontSize: 10 }}>Sync: CMM Daily Inspection _2026.xlsx</span>
@@ -285,7 +286,7 @@ function StdTimeSection({ avail = 95 }) {
                       <th style={{ textAlign: 'left', padding: '3px 6px', fontWeight: 500 }}>Part</th>
                       <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>Steps / Sets</th>
                       <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>CMM Hours</th>
-                      <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>% tuần</th>
+                      <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>{t('std.pct_week')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1248,7 +1249,7 @@ function WeeklyPlannerSection({ avail = 80 }) {
                     <input type="number" min="0" max="9999"
                       value={ptSets || ''}
                       placeholder="0"
-                      title={isManual ? 'Manual total (nha? vao day)' : 'Tu tinh tu cac ngay — nha? vao de override'}
+                      title={isManual ? t('wp.tip_manual') : t('wp.tip_auto')}
                       onChange={e => setTotalVal(p.part, e.target.value)}
                       style={{
                         width: 68, padding: '4px 6px', borderRadius: 6,
@@ -1570,7 +1571,7 @@ export default function CMM() {
     return (
       <div className="app"><div className="center-state">
         <div className="err-box">
-          <b>Khong tai duoc du lieu.</b><br />{state.message}
+          <b>{t('err.load_failed')}</b><br />{state.message}
           <br /><br /><button className="refresh-btn" onClick={fetchAll}><RefreshCw size={13} /> Thu lai</button>
         </div>
       </div></div>
@@ -1727,19 +1728,19 @@ export default function CMM() {
             <div style={{ flex: 1, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--border)', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <Clock size={13} style={{ color: 'var(--amber)' }} />
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--txt-mid)' }}>CMM Hours còn lại</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--txt-mid)' }}>{t('rl.title')}</span>
                 <span style={{ fontSize: 10, color: 'var(--txt-low)' }}>(open jobs × std time)</span>
               </div>
               <div style={{ fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--amber)', lineHeight: 1, marginBottom: 4 }}>
                 {remainingLoad.totalH}<span style={{ fontSize: 14, fontWeight: 400, color: 'var(--txt-mid)', marginLeft: 4 }}>h</span>
               </div>
               <div style={{ fontSize: 10, color: 'var(--txt-low)', marginBottom: 10 }}>
-                ≈ <strong style={{ color: 'var(--txt-mid)' }}>{remainingLoad.totalDays} ngày</strong> (620 min/ca × 2 ca)&nbsp;·&nbsp;
-                <strong style={{ color: 'var(--txt-mid)' }}>{remainingLoad.totalWeeks} tuần</strong> (154h/tuần)
+                ≈ <strong style={{ color: 'var(--txt-mid)' }}>{remainingLoad.totalDays} {t('unit.days')}</strong> {t('rl.day_calc')}&nbsp;·&nbsp;
+                <strong style={{ color: 'var(--txt-mid)' }}>{remainingLoad.totalWeeks} {t('unit.weeks')}</strong> {t('rl.week_calc')}
               </div>
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--txt-low)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Top parts (giờ còn lại)
+                  {t('rl.top_parts')}
                 </div>
                 {remainingLoad.top.map((p, i) => (
                   <div key={p.part} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -1754,7 +1755,7 @@ export default function CMM() {
                       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 10, color: 'var(--txt-low)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ color: 'var(--rose)' }}>⚠</span>
                       <span style={{ textDecoration: 'underline dotted' }}>
-                        + {remainingLoad.unmatched} part chưa có std time {showUnmatched ? '▲' : '▼'}
+                        {t('rl.unmatched', { n: remainingLoad.unmatched })} {showUnmatched ? '▲' : '▼'}
                       </span>
                     </button>
                     {showUnmatched && (
@@ -1778,17 +1779,17 @@ export default function CMM() {
       <SectionHead eyebrow={t('s05.eyebrow')} title={t('s05.title')} />
       <div className="charts-grid">
         <div className="panel">
-          <div className="panel-title clickable-title" style={{ color: 'var(--rose)' }} onClick={() => applyDueFilter('overdue')}>Qua han</div>
-          <div className="panel-sub">{m.overdue.length} job · nhan de loc bang</div>
+          <div className="panel-title clickable-title" style={{ color: 'var(--rose)' }} onClick={() => applyDueFilter('overdue')}>{t('due.overdue_title')}</div>
+          <div className="panel-sub">{t('due.overdue_sub', { n: m.overdue.length })}</div>
           {m.overdue.length === 0
-            ? <div className="empty-note">Khong co job nao qua han.</div>
+            ? <div className="empty-note">{t('due.no_overdue')}</div>
             : <DueList rows={m.overdue} accent="var(--rose)" />}
         </div>
         <div className="panel">
-          <div className="panel-title clickable-title" style={{ color: 'var(--amber)' }} onClick={() => applyDueFilter('duesoon')}>Sap den han (7 ngay)</div>
+          <div className="panel-title clickable-title" style={{ color: 'var(--amber)' }} onClick={() => applyDueFilter('duesoon')}>{t('due.duesoon_title')}</div>
           <div className="panel-sub">{m.dueSoon.length} job</div>
           {m.dueSoon.length === 0
-            ? <div className="empty-note">Khong co job nao trong 7 ngay toi.</div>
+            ? <div className="empty-note">{t('due.no_duesoon')}</div>
             : <DueList rows={m.dueSoon} accent="var(--amber)" />}
         </div>
       </div>
