@@ -17,10 +17,11 @@
       <div class="login-box">
         <div class="logo-badge">NCR</div>
         <h2>Supplier NCR Dashboard</h2>
-        <p>Nhập mật mã để truy cập hệ thống</p>
-        <input type="password" id="passInput" placeholder="Mật mã..." autocomplete="current-password" />
+        <p>Đăng nhập để truy cập hệ thống</p>
+        <input type="email" id="emailInput" placeholder="Email" autocomplete="username" />
+        <input type="password" id="passInput" placeholder="Mật khẩu" autocomplete="current-password" />
         <button id="loginBtn">Đăng nhập</button>
-        <p id="loginError">Mật mã không chính xác</p>
+        <p id="loginError">Sai email hoặc mật khẩu</p>
       </div>
     </div>
 
@@ -54,6 +55,7 @@
 
         <button id="resetButton" class="reset-btn" type="button">↺ Reset Filters</button>
         <button id="exportPdfBtn" class="export-btn" type="button">⬇ Export PDF</button>
+        <button id="logoutBtn" class="reset-btn" type="button">⎋ Đăng xuất</button>
 
         <div class="source-box">
           <div class="source-dot"></div>

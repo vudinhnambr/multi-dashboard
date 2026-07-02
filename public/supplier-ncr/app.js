@@ -5,8 +5,8 @@ let selectedSupplier = "", selectedYear = "", selectedMonth = "";
 let selectedPart = "", selectedPhenomenon = "", selectedStatus = "";
 
 const ACTIVE_SUPPLIERS = ["WUXI PAIKE", "SINHOM", "TAESANG"];
-// Bỏ hardcode mật mã ở client. Việc kiểm tra do server (/api/ncr) đảm nhận,
-// đối chiếu với biến môi trường NCR_AUTH_KEY trên Vercel.
+// Đăng nhập bằng Supabase Auth (giống Auto MT / CMM). Server (/api/ncr) kiểm tra
+// token + quyền vào dashboard 'supplier-ncr' qua bảng dashboard_access.
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const chartColor = "rgba(77,159,255,0.75)";
 const chartBorder = "#4d9fff";
@@ -27,40 +27,86 @@ const columnAliases = {
 
 let columns = {};
 
-document.addEventListener("DOMContentLoaded", () => {
+// ===== Supabase Auth (dùng project quyền chung qua /api/auth-config) =====
+let _sbPromise = null;
+function getSupabase() {
+  if (!_sbPromise) {
+    _sbPromise = (async () => {
+      const cfg = await fetch("/api/auth-config").then(r => r.json());
+      const mod = await import("https://esm.sh/@supabase/supabase-js@2");
+      return mod.createClient(cfg.url, cfg.anonKey);
+    })();
+  }
+  return _sbPromise;
+}
+async function getAccessToken() {
+  try {
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    return session?.access_token || "";
+  } catch { return ""; }
+}
+
+// Đã đăng nhập → kiểm tra quyền vào 'supplier-ncr'; có quyền thì mở dashboard.
+async function enterIfAllowed() {
+  const errBox = document.getElementById("loginError");
+  const token = await getAccessToken();
+  if (!token) return false;
+  try {
+    const resp = await fetch("/api/ncr?access=check", { headers: { Authorization: "Bearer " + token } });
+    if (resp.ok) { showDashboard(); return true; }
+    if (resp.status === 403) {
+      errBox.textContent = "Tài khoản chưa được cấp quyền vào Supplier NCR.";
+      errBox.style.display = "block";
+    }
+  } catch { /* ignore */ }
+  return false;
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
   const loginBtn = document.getElementById("loginBtn");
-  if (sessionStorage.getItem("isLoggedIn") === "true") showDashboard();
   loginBtn.addEventListener("click", checkLogin);
   document.getElementById("passInput").addEventListener("keydown", (e) => { if (e.key === "Enter") checkLogin(); });
+  document.getElementById("emailInput").addEventListener("keydown", (e) => { if (e.key === "Enter") checkLogin(); });
   document.getElementById("supplierFilter").addEventListener("change", e => { selectedSupplier = e.target.value; renderDashboard(); });
   document.getElementById("yearFilter").addEventListener("change", e => { selectedYear = e.target.value; renderDashboard(); });
   document.getElementById("resetButton").addEventListener("click", resetFilters);
   document.getElementById("exportPdfBtn").addEventListener("click", exportPDF);
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) logoutBtn.addEventListener("click", logout);
+
+  // Khôi phục phiên nếu đã đăng nhập trước đó
+  try {
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) await enterIfAllowed();
+  } catch { /* ignore */ }
 });
 
 async function checkLogin() {
   const loginBtn = document.getElementById("loginBtn");
-  const input = document.getElementById("passInput").value;
-  if (!input) { document.getElementById("loginError").style.display = "block"; return; }
+  const email = document.getElementById("emailInput").value.trim();
+  const password = document.getElementById("passInput").value;
+  const errBox = document.getElementById("loginError");
+  if (!email || !password) { errBox.textContent = "Nhập email và mật khẩu."; errBox.style.display = "block"; return; }
 
-  // Xác thực phía server: gửi mật mã lên /api/ncr, server đối chiếu NCR_AUTH_KEY.
   loginBtn.disabled = true;
+  errBox.style.display = "none";
   try {
-    const resp = await fetch("/api/ncr", { headers: { "x-auth-key": input } });
-    if (resp.status === 401) {
-      document.getElementById("loginError").style.display = "block";
-      return;
-    }
-    // 200 (đúng mật mã) hoặc lỗi khác của server (5xx) → coi như đã qua cổng xác thực;
-    // thông báo lỗi tải dữ liệu (nếu có) sẽ hiển thị trong loadData.
-    sessionStorage.setItem("isLoggedIn", "true");
-    sessionStorage.setItem("authKey", input);
-    showDashboard();
+    const sb = await getSupabase();
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { errBox.textContent = "Sai email hoặc mật khẩu."; errBox.style.display = "block"; return; }
+    await enterIfAllowed();
   } catch {
-    document.getElementById("loginError").style.display = "block";
+    errBox.textContent = "Lỗi đăng nhập, thử lại."; errBox.style.display = "block";
   } finally {
     loginBtn.disabled = false;
   }
+}
+
+async function logout() {
+  try { const sb = await getSupabase(); await sb.auth.signOut(); } catch { /* ignore */ }
+  location.reload();
 }
 
 function showDashboard() {
@@ -78,7 +124,8 @@ function showDashboard() {
 async function loadData() {
   setStatus("Đang tải dữ liệu...");
   try {
-    const response = await fetch("/api/ncr", { headers: { "x-auth-key": sessionStorage.getItem("authKey") } });
+    const token = await getAccessToken();
+    const response = await fetch("/api/ncr", { headers: { Authorization: "Bearer " + token } });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error);
     rawData = payload.rows || [];

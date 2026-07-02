@@ -1,38 +1,29 @@
 import axios from "axios";
 import * as XLSX from "xlsx";
-import crypto from "crypto";
 import { isRateLimited, getClientIp } from "../lib/rateLimit.js";
+import { checkDashboardAccess } from "../lib/dashboardAuth.js";
 
-// Endpoint có xác thực mật mã → siết chặt để chống dò mật mã (brute-force).
-const MAX_REQ = 20; // 20 request / phút / IP
+const MAX_REQ = 30; // 30 request / phút / IP
 const WINDOW_MS = 60 * 1000;
 
-// So sánh chuỗi kiểu timing-safe để tránh timing attack; an toàn cả khi lệch độ dài.
-function safeEqual(a, b) {
-  const bufA = Buffer.from(String(a));
-  const bufB = Buffer.from(String(b));
-  if (bufA.length !== bufB.length) return false;
-  return crypto.timingSafeEqual(bufA, bufB);
-}
-
 export default async function handler(req, res) {
-  // Chống dò mật mã: giới hạn số request theo IP trước khi kiểm tra key.
+  // Rate limit theo IP.
   const ip = getClientIp(req);
   if (await isRateLimited(ip, { max: MAX_REQ, windowMs: WINDOW_MS })) {
     res.setHeader("Retry-After", "60");
     return res.status(429).json({ error: "Quá nhiều yêu cầu. Thử lại sau ít phút." });
   }
 
-  // Mật mã lấy từ env NCR_AUTH_KEY (KHÔNG còn hardcode). Chưa cấu hình → 500, không fallback.
-  const expectedKey = process.env.NCR_AUTH_KEY;
-  if (!expectedKey) {
-    console.error("Missing NCR_AUTH_KEY env var");
-    return res.status(500).json({ error: "Server not configured" });
+  // Xác thực Supabase + kiểm tra quyền vào dashboard 'supplier-ncr'.
+  const access = await checkDashboardAccess(req, "supplier-ncr");
+  if (!access.ok) {
+    return res.status(access.status).json({ error: access.error });
   }
 
-  const authKey = req.headers["x-auth-key"];
-  if (!authKey || !safeEqual(authKey, expectedKey)) {
-    return res.status(401).json({ error: "Mật mã không đúng." });
+  // Ping nhẹ cho màn đăng nhập: đã xác thực + có quyền → OK ngay, không tải file.
+  if (req.query.access === "check") {
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({ ok: true, role: access.role });
   }
 
   let sourceUrl = process.env.NCR_XLSX_URL ? process.env.NCR_XLSX_URL.trim() : null;

@@ -16,10 +16,10 @@ trên Vercel + Supabase để hoàn tất.
 
 Vào **Vercel → Project → Settings → Environment Variables**, thêm:
 
-- **`NCR_AUTH_KEY`** — mật mã mới cho Supplier NCR. Đặt một chuỗi mạnh, khác
-  `CSBearing` (vì chuỗi cũ đã nằm trong lịch sử git → coi như đã lộ). Ví dụ tạo
-  bằng: `openssl rand -base64 24`.
-  > Chưa đặt biến này → trang Supplier NCR sẽ báo "Server not configured".
+- **`NCR_AUTH_KEY`** — *(KHÔNG còn dùng)* Supplier NCR giờ đăng nhập bằng Supabase
+  Auth như CMM (kiểm quyền khóa `supplier-ncr` trong bảng `dashboard_access`), dùng
+  chung `AUTH_SUPABASE_URL` / `AUTH_SUPABASE_ANON_KEY`. Có thể xóa `NCR_AUTH_KEY`
+  khỏi Vercel. `NCR_XLSX_URL` (nguồn dữ liệu Google Drive) vẫn giữ.
 
 - **`AUTH_SUPABASE_URL`** + **`AUTH_SUPABASE_ANON_KEY`** — project Supabase "quyền
   chung" cho đăng nhập tab **CMM** (và sau này NCR). Xem hướng dẫn dựng project ở
