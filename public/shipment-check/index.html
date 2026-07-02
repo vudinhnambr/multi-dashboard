@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NCR Ring Check</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <!-- LOGIN -->
+    <div id="loginGate">
+      <div class="login-box">
+        <span class="brand-mark">NCR</span>
+        <h2>Shipment Check</h2>
+        <p>Đăng nhập để truy cập hệ thống</p>
+        <input type="email" id="emailInput" placeholder="Email" autocomplete="username" />
+        <input type="password" id="passInput" placeholder="Mật khẩu" autocomplete="current-password" />
+        <button id="loginBtn">Đăng nhập</button>
+        <p id="loginError">Sai email hoặc mật khẩu</p>
+      </div>
+    </div>
+
+    <!-- APP -->
+    <div id="app" style="display:none">
+      <div class="topbar">
+        <div class="topbar-inner">
+          <div class="brand">
+            <span class="brand-mark">NCR</span>
+            <span class="brand-name" id="appName"></span>
+          </div>
+          <div style="display:flex; align-items:center;">
+            <div class="lang-toggle" role="group" aria-label="Language">
+              <button type="button" id="langVi" class="active">VN</button>
+              <button type="button" id="langEn">EN</button>
+            </div>
+            <button type="button" id="logoutBtn" class="logout-btn">Đăng xuất</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="container">
+        <h1 id="title"></h1>
+        <p class="subtitle" id="subtitle"></p>
+
+        <div class="layout">
+          <div class="part-list-panel">
+            <div class="part-list-title" id="partPanelTitle"></div>
+            <div class="part-list" id="partList"></div>
+            <div class="error small" id="partsError" style="display:none"></div>
+          </div>
+
+          <div class="main-content">
+            <div class="sn-input-card">
+              <textarea id="snText"></textarea>
+              <div class="actions">
+                <button class="primary" id="checkBtn"></button>
+                <button class="secondary" id="refreshBtn"></button>
+                <button class="secondary" id="resetBtn"></button>
+                <span class="meta" id="dataAsOf" style="display:none"></span>
+              </div>
+              <div class="error" id="error" style="display:none"></div>
+            </div>
+            <div id="results"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

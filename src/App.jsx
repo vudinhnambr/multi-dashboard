@@ -15,7 +15,7 @@ class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
-import { Activity, Database, FileWarning } from 'lucide-react';
+import { Activity, Database, FileWarning, PackageCheck } from 'lucide-react';
 import CMM from './pages/CMM.jsx';
 import { LangProvider, useLang } from './LangContext.jsx';
 import { getSupabase, getAccessToken } from './cmmSupabase';
@@ -26,6 +26,7 @@ const TABS = [
   { id: 'cmm', label: 'CMM Dashboard', icon: Activity },
   { id: 'auto-mt', label: 'Auto MT Dashboard', icon: Database },
   { id: 'supplier-ncr', label: 'Supplier NCR', icon: FileWarning },
+  { id: 'shipment-check', label: 'Shipment Check', icon: PackageCheck },
 ];
 
 // Lấy tab từ hash (#cmm / #auto-mt / #supplier-ncr). Mặc định cmm.
@@ -208,6 +209,9 @@ function AppInner() {
         )}
         {tab === 'supplier-ncr' && (
           <iframe className="shell-frame" src="/supplier-ncr/index.html" title="Supplier NCR Dashboard" />
+        )}
+        {tab === 'shipment-check' && (
+          <iframe className="shell-frame" src="/shipment-check/index.html" title="Shipment Check" />
         )}
       </main>
     </div>
