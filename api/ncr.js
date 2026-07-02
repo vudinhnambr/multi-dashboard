@@ -1,9 +1,25 @@
 import axios from "axios";
 import * as XLSX from "xlsx";
+import crypto from "crypto";
+
+// So sánh chuỗi kiểu timing-safe để tránh timing attack; an toàn cả khi lệch độ dài.
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export default async function handler(req, res) {
+  // Mật mã lấy từ env NCR_AUTH_KEY (KHÔNG còn hardcode). Chưa cấu hình → 500, không fallback.
+  const expectedKey = process.env.NCR_AUTH_KEY;
+  if (!expectedKey) {
+    console.error("Missing NCR_AUTH_KEY env var");
+    return res.status(500).json({ error: "Server not configured" });
+  }
+
   const authKey = req.headers["x-auth-key"];
-  if (authKey !== "CSBearing") {
+  if (!authKey || !safeEqual(authKey, expectedKey)) {
     return res.status(401).json({ error: "Mật mã không đúng." });
   }
 

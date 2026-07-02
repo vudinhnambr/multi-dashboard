@@ -1,13 +1,41 @@
 import axios from "axios";
 
 /**
- * Generic Google Sheets XLSX proxy — avoids browser CORS.
+ * Google Sheets XLSX proxy — avoids browser CORS.
  * GET /api/sheets?id=SPREADSHEET_ID
  * Returns raw XLSX bytes; client parses with XLSX library.
+ *
+ * BẢO MẬT: chỉ proxy các spreadsheet nằm trong allowlist để tránh biến endpoint
+ * thành open-proxy (ai cũng tải được mọi Google Sheet qua server của mình).
+ * Allowlist lấy từ env SHEETS_ALLOWED_IDS (danh sách ID, phân tách bằng dấu phẩy),
+ * cộng thêm ID mặc định của CMM. CMM vẫn mở tự do — không cần đăng nhập.
  */
+const DEFAULT_ALLOWED_IDS = [
+  "11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj", // CMM: 4. ITR & Shipment (src/config.js)
+];
+
+function allowedIds() {
+  const fromEnv = (process.env.SHEETS_ALLOWED_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return new Set([...DEFAULT_ALLOWED_IDS, ...fromEnv]);
+}
+
+// ID Google Sheets hợp lệ: chữ, số, gạch ngang, gạch dưới (chặn path traversal / ký tự lạ).
+const VALID_ID = /^[A-Za-z0-9_-]+$/;
+
 export default async function handler(req, res) {
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "Missing ?id= parameter" });
+
+  if (typeof id !== "string" || !VALID_ID.test(id)) {
+    return res.status(400).json({ error: "Invalid sheet id" });
+  }
+
+  if (!allowedIds().has(id)) {
+    return res.status(403).json({ error: "This sheet id is not allowed" });
+  }
 
   const url =
     "https://docs.google.com/spreadsheets/d/" + id + "/export?format=xlsx";

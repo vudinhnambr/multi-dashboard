@@ -5,7 +5,8 @@ let selectedSupplier = "", selectedYear = "", selectedMonth = "";
 let selectedPart = "", selectedPhenomenon = "", selectedStatus = "";
 
 const ACTIVE_SUPPLIERS = ["WUXI PAIKE", "SINHOM", "TAESANG"];
-const MASTER_PASSWORD = "CSBearing";
+// Bỏ hardcode mật mã ở client. Việc kiểm tra do server (/api/ncr) đảm nhận,
+// đối chiếu với biến môi trường NCR_AUTH_KEY trên Vercel.
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const chartColor = "rgba(77,159,255,0.75)";
 const chartBorder = "#4d9fff";
@@ -37,13 +38,29 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("exportPdfBtn").addEventListener("click", exportPDF);
 });
 
-function checkLogin() {
+async function checkLogin() {
+  const loginBtn = document.getElementById("loginBtn");
   const input = document.getElementById("passInput").value;
-  if (input === MASTER_PASSWORD) {
+  if (!input) { document.getElementById("loginError").style.display = "block"; return; }
+
+  // Xác thực phía server: gửi mật mã lên /api/ncr, server đối chiếu NCR_AUTH_KEY.
+  loginBtn.disabled = true;
+  try {
+    const resp = await fetch("/api/ncr", { headers: { "x-auth-key": input } });
+    if (resp.status === 401) {
+      document.getElementById("loginError").style.display = "block";
+      return;
+    }
+    // 200 (đúng mật mã) hoặc lỗi khác của server (5xx) → coi như đã qua cổng xác thực;
+    // thông báo lỗi tải dữ liệu (nếu có) sẽ hiển thị trong loadData.
     sessionStorage.setItem("isLoggedIn", "true");
     sessionStorage.setItem("authKey", input);
     showDashboard();
-  } else { document.getElementById("loginError").style.display = "block"; }
+  } catch {
+    document.getElementById("loginError").style.display = "block";
+  } finally {
+    loginBtn.disabled = false;
+  }
 }
 
 function showDashboard() {
