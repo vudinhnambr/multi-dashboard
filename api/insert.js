@@ -8,10 +8,11 @@
 //
 // Env vars cần: SUPABASE_URL, SUPABASE_ANON_KEY
 
-// ===== Rate limiting nhẹ theo IP =====
+import { isRateLimited, getClientIp } from '../lib/rateLimit.js'
+
+// ===== Rate limiting theo IP — Upstash nếu có, fallback in-memory (xem lib/rateLimit.js) =====
 const MAX_REQ = 30            // ghi ít hơn đọc: 30 request / phút
 const WINDOW_MS = 60 * 1000
-const hits = new Map()
 
 const MAX_ROWS = 1000        // trần số dòng / lần ghi, chống abuse
 
@@ -23,25 +24,6 @@ const ALLOWED = [
 // Bắt buộc ở tầng nghiệp vụ (DB không ép vì mọi cột đều nullable/có default).
 // Khớp đúng mức tối thiểu mà api/data.js validate phía client.
 const REQUIRED_TEXT = ['person', 'machine', 'part']
-
-function getClientIp(req) {
-  const fwd = req.headers['x-forwarded-for']
-  if (typeof fwd === 'string' && fwd.length) {
-    return fwd.split(',')[0].trim()
-  }
-  return req.headers['x-real-ip'] || 'unknown'
-}
-
-function rateLimited(ip) {
-  const now = Date.now()
-  const rec = hits.get(ip)
-  if (!rec || now - rec.start > WINDOW_MS) {
-    hits.set(ip, { count: 1, start: now })
-    return false
-  }
-  rec.count += 1
-  return rec.count > MAX_REQ
-}
 
 // Date hợp lệ + round-trip (bắt được 2024-02-31).
 function isValidIsoDate(s) {
@@ -108,7 +90,7 @@ export default async function handler(req, res) {
 
   // Rate limit
   const ip = getClientIp(req)
-  if (rateLimited(ip)) {
+  if (await isRateLimited(ip, { max: MAX_REQ, windowMs: WINDOW_MS })) {
     res.setHeader('Retry-After', '60')
     return res.status(429).json({ error: 'Too many requests. Try again shortly.' })
   }

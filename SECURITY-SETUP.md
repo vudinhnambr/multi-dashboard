@@ -62,16 +62,57 @@ Kiểm tra trong **Supabase → Table Editor** và **Authentication → Policies
 4. **Test thực tế**: đăng nhập bằng tài khoản `viewer` rồi thử ghi/xóa — phải bị
    từ chối (401/403 hoặc xóa 0 dòng).
 
-## 4. Nên làm sớm sau đợt này (nhắc lại)
+## 4. Đợt trung hạn (VỪA áp dụng trong code)
 
-- Xoay (rotate) mật mã NCR và cân nhắc **gộp đăng nhập Supabase Auth** cho cả 3
-  dashboard, bỏ hẳn lớp mật mã tĩnh.
-- Rate-limit hiện dùng `Map` trong RAM → **không hiệu quả trên serverless**.
-  Chuyển sang Vercel KV / Upstash Redis.
-- Thêm **SRI** hoặc self-host cho script CDN; bỏ `cdn.tailwindcss.com` bản dev.
-- Nâng cấp **`xlsx@0.18.5`** (có CVE prototype-pollution / ReDoS).
+Đã làm xong trong code — nhưng có 2 việc bạn PHẢI làm thêm để hoàn tất:
 
-## 5. Lưu ý về CSP
+### 4a. Rate-limit dùng chung, sẵn sàng cho KV
+- Tạo `lib/rateLimit.js`; cả 5 API (`data`, `insert`, `delete`, `sheets`, `ncr`)
+  giờ dùng chung. `sheets` và `ncr` trước đây **không có** rate-limit nay đã có
+  (đặc biệt `ncr` siết 20 req/phút để chống dò mật mã).
+- **Mặc định vẫn chạy in-memory như cũ** (không vỡ gì). Muốn hiệu quả thật trên
+  serverless: tạo **Upstash Redis** (hoặc Vercel KV), rồi thêm 2 env var trên Vercel:
+  - `UPSTASH_REDIS_REST_URL`
+  - `UPSTASH_REDIS_REST_TOKEN`
+  Có 2 biến này → tự động chuyển sang đếm tập trung, không cần sửa code. Không có →
+  vẫn chạy bình thường.
+
+### 4b. Nâng cấp `xlsx` (CVE) — CẦN BẠN CHẠY LỆNH
+- `package.json`: `xlsx` đã đổi từ `^0.18.5` (npm, còn CVE) sang bản SheetJS đã vá:
+  `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`.
+- `public/auto-mt.html`: script xlsx trên CDN cũng đã đổi sang
+  `cdn.sheetjs.com/xlsx-0.20.3/...` (đây là chỗ quan trọng nhất — parse file Excel
+  người dùng upload).
+- **Bạn cần chạy local để cập nhật lock file rồi commit:**
+  ```bash
+  npm install
+  npm run build   # xác nhận build không lỗi
+  ```
+  (`.npmrc` đã có `legacy-peer-deps=true` nên cứ chạy bình thường.)
+
+### 4c. Pin phiên bản CDN
+- `auto-mt.html`: `tailwind`, `echarts`, `flatpickr` trước đây thả nổi phiên bản
+  nay đã pin cố định (chặn CDN tự cập nhật ngầm). `supplier-ncr` vốn đã pin sẵn.
+- `vercel.json`: CSP đã thêm `https://cdn.sheetjs.com` vào `script-src`.
+
+## 5. Cần smoke-test sau khi deploy (do tôi không render-test được)
+
+Mở từng tab và kiểm tra Console không có lỗi:
+- **Auto MT**: biểu đồ echarts hiện, lịch flatpickr mở được, **upload 1 file Excel**
+  chạy đúng (kiểm tra bản xlsx mới), đăng nhập Supabase OK.
+- **Supplier NCR**: đăng nhập bằng mật mã mới, biểu đồ + **export PDF** chạy.
+- **CMM**: dữ liệu vẫn tải qua `/api/sheets`.
+- Không thấy cảnh báo `Content Security Policy` chặn script/style nào.
+
+## 6. Còn lại — để sau (refactor lớn)
+
+- **Gộp đăng nhập Supabase Auth** cho cả 3 dashboard, bỏ hẳn lớp mật mã tĩnh của
+  NCR và mở tự do của CMM. Rủi ro cao, nên tách riêng và test kỹ.
+- Thêm **SRI** cho script CDN (cần tính hash toàn vẹn), và cân nhắc self-host để
+  bỏ hẳn `cdn.tailwindcss.com` bản dev.
+- Thêm **audit logging** cho thao tác ghi/xóa.
+
+## 7. Lưu ý về CSP
 
 CSP đã whitelist đúng các CDN đang dùng (`cdn.tailwindcss.com`,
 `cdn.jsdelivr.net`, `cdnjs.cloudflare.com`, `esm.sh`) và domain Supabase. Nếu

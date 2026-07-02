@@ -1,4 +1,8 @@
 import axios from "axios";
+import { isRateLimited, getClientIp } from "../lib/rateLimit.js";
+
+const MAX_REQ = 60; // đọc: 60 request / phút / IP
+const WINDOW_MS = 60 * 1000;
 
 /**
  * Google Sheets XLSX proxy — avoids browser CORS.
@@ -26,6 +30,12 @@ function allowedIds() {
 const VALID_ID = /^[A-Za-z0-9_-]+$/;
 
 export default async function handler(req, res) {
+  const ip = getClientIp(req);
+  if (await isRateLimited(ip, { max: MAX_REQ, windowMs: WINDOW_MS })) {
+    res.setHeader("Retry-After", "60");
+    return res.status(429).json({ error: "Too many requests. Try again shortly." });
+  }
+
   const { id } = req.query;
   if (!id) return res.status(400).json({ error: "Missing ?id= parameter" });
 

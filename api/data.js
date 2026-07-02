@@ -5,29 +5,11 @@
 // Env vars cần: SUPABASE_URL, SUPABASE_ANON_KEY
 // (KHÔNG còn dùng DASHBOARD_PASSWORD và SUPABASE_SERVICE_ROLE_KEY cho endpoint này)
 
-// ===== Rate limiting nhẹ theo IP (chống abuse, không còn để chặn brute-force password) =====
+import { isRateLimited, getClientIp } from '../lib/rateLimit.js'
+
+// ===== Rate limiting theo IP — Upstash nếu có, fallback in-memory (xem lib/rateLimit.js) =====
 const MAX_REQ = 60            // tối đa 60 request mỗi cửa sổ
 const WINDOW_MS = 60 * 1000   // cửa sổ 1 phút
-const hits = new Map()
-
-function getClientIp(req) {
-  const fwd = req.headers['x-forwarded-for']
-  if (typeof fwd === 'string' && fwd.length) {
-    return fwd.split(',')[0].trim()
-  }
-  return req.headers['x-real-ip'] || 'unknown'
-}
-
-function rateLimited(ip) {
-  const now = Date.now()
-  const rec = hits.get(ip)
-  if (!rec || now - rec.start > WINDOW_MS) {
-    hits.set(ip, { count: 1, start: now })
-    return false
-  }
-  rec.count += 1
-  return rec.count > MAX_REQ
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -45,7 +27,7 @@ export default async function handler(req, res) {
 
   // Rate limit
   const ip = getClientIp(req)
-  if (rateLimited(ip)) {
+  if (await isRateLimited(ip, { max: MAX_REQ, windowMs: WINDOW_MS })) {
     res.setHeader('Retry-After', '60')
     return res.status(429).json({ error: 'Too many requests. Try again shortly.' })
   }

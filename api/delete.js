@@ -6,30 +6,12 @@
 //
 // Env vars cần: SUPABASE_URL, SUPABASE_ANON_KEY
 
+import { isRateLimited, getClientIp } from '../lib/rateLimit.js'
+
 const MAX_REQ = 30
 const WINDOW_MS = 60 * 1000
-const hits = new Map()
 
 const MAX_IDS = 100   // trần số id mỗi lần xóa
-
-function getClientIp(req) {
-  const fwd = req.headers['x-forwarded-for']
-  if (typeof fwd === 'string' && fwd.length) {
-    return fwd.split(',')[0].trim()
-  }
-  return req.headers['x-real-ip'] || 'unknown'
-}
-
-function rateLimited(ip) {
-  const now = Date.now()
-  const rec = hits.get(ip)
-  if (!rec || now - rec.start > WINDOW_MS) {
-    hits.set(ip, { count: 1, start: now })
-    return false
-  }
-  rec.count += 1
-  return rec.count > MAX_REQ
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -46,7 +28,7 @@ export default async function handler(req, res) {
   }
 
   const ip = getClientIp(req)
-  if (rateLimited(ip)) {
+  if (await isRateLimited(ip, { max: MAX_REQ, windowMs: WINDOW_MS })) {
     res.setHeader('Retry-After', '60')
     return res.status(429).json({ error: 'Too many requests. Try again shortly.' })
   }

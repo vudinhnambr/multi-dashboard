@@ -1,6 +1,11 @@
 import axios from "axios";
 import * as XLSX from "xlsx";
 import crypto from "crypto";
+import { isRateLimited, getClientIp } from "../lib/rateLimit.js";
+
+// Endpoint có xác thực mật mã → siết chặt để chống dò mật mã (brute-force).
+const MAX_REQ = 20; // 20 request / phút / IP
+const WINDOW_MS = 60 * 1000;
 
 // So sánh chuỗi kiểu timing-safe để tránh timing attack; an toàn cả khi lệch độ dài.
 function safeEqual(a, b) {
@@ -11,6 +16,13 @@ function safeEqual(a, b) {
 }
 
 export default async function handler(req, res) {
+  // Chống dò mật mã: giới hạn số request theo IP trước khi kiểm tra key.
+  const ip = getClientIp(req);
+  if (await isRateLimited(ip, { max: MAX_REQ, windowMs: WINDOW_MS })) {
+    res.setHeader("Retry-After", "60");
+    return res.status(429).json({ error: "Quá nhiều yêu cầu. Thử lại sau ít phút." });
+  }
+
   // Mật mã lấy từ env NCR_AUTH_KEY (KHÔNG còn hardcode). Chưa cấu hình → 500, không fallback.
   const expectedKey = process.env.NCR_AUTH_KEY;
   if (!expectedKey) {
