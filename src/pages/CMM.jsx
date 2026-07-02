@@ -406,6 +406,8 @@ const PLANNER_PARTS = [
   { part: '14MW Yaw Ring',                  stdMin: 390 },
   { part: 'D8 YAW RING',                   stdMin: 270 },
   { part: 'GEV - 1.X-91 Pitch',            stdMin: 310 },
+  { part: '1.x-91 Pitch Bearing',          stdMin: 310 },  // tên chuẩn (Standard Part Name)
+  { part: 'WT19 Cypress Yaw Bearing',      stdMin: 530 },  // tên chuẩn (= Cypress Yaw Bearing)
   { part: 'GEV - 2.7-132 Pitch',           stdMin: 420 },
   // ── Vendor-prefix aliases ─────────────────────────────────────────────────
   { part: 'VESTAS 15MW Yaw Ring',          stdMin: 625 },
@@ -1380,6 +1382,7 @@ export default function CMM() {
   const [sort, setSort] = useState({ key: 'category', dir: 1 });
   const [toggled, setToggled] = useState(() => new Set());
   const [showUnmatched, setShowUnmatched] = useState(false);
+  const [stdTable, setStdTable] = useState(null); // std time từ file 'Combined ST' (data-driven)
 
   const [avail, setAvail] = React.useState(95); // Machine Availability % (shared)
 
@@ -1416,7 +1419,10 @@ export default function CMM() {
       setState({ status: 'error', message: e.message });
     }
   }
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+    loadCmmStdTable().then(setStdTable).catch(() => {}); // std time linh động từ Combined ST
+  }, []);
 
   const items = state.items || [];
   const m = useMemo(() => computeMetrics(items), [items]);
@@ -1437,34 +1443,61 @@ export default function CMM() {
   }, [items]);
 
   const remainingLoad = useMemo(() => {
-    // V172 Blade Bearing: std time per model step (not full set)
-    const V172_MODEL_STD = {
-      'inner 2': 240, 'inner 1': 250, 'outer': 180,
-      'inner assemply': 45, 'outer radial + gap': 45, 'assemply': 120,
-    };
-    const stdMap = Object.fromEntries(PLANNER_PARTS.map(p => [p.part.toLowerCase(), p.stdMin]));
+    // std time LINH ĐỘNG từ file 'Combined ST' (cột Part Name chuẩn + các bước đo + CMM Total).
+    // Nhờ vậy thêm/sửa part chỉ cần sửa Excel, không đụng code. Fallback: PLANNER_PARTS.
+    const norm = (s) => String(s || '').trim().toLowerCase().replace('assemply', 'assembly');
+    const totalByPart = {};      // partLower -> CMM Total (min/set)
+    const stepsByPart = {};      // partLower -> { modelKey -> min }
+    const perModel = new Set();  // part đo theo từng bước (blade bearing: V172/EP3/EP5...)
+
+    if (stdTable && stdTable.length) {
+      stdTable.forEach(r => {
+        const p = norm(r.part);
+        if (r.total != null) totalByPart[p] = r.total;
+        const raw = {
+          'outer': r.outer, 'itr': r.itr, 'single ring': r.singleRing,
+          'inner': r.inner, 'inner 1': r.inner1, 'inner 2': r.inner2,
+          'inner assembly': r.innerAsm, 'outer radial + gap': r.outerRGap,
+          'assembly': r.assembly,
+        };
+        const steps = {};
+        Object.entries(raw).forEach(([k, v]) => { if (v != null && v !== '') steps[k] = v; });
+        stepsByPart[p] = steps;
+        // Có bước lắp ráp → coi là đo theo từng bước (như V172).
+        if (steps['assembly'] != null || steps['inner assembly'] != null || steps['outer radial + gap'] != null) {
+          perModel.add(p);
+        }
+      });
+    } else {
+      // Fallback khi sheet chưa tải được: dùng danh sách cứng.
+      PLANNER_PARTS.forEach(p => { totalByPart[norm(p.part)] = p.stdMin; });
+      stepsByPart['v172 blade bearing'] = { 'inner 2': 240, 'inner 1': 250, 'outer': 180, 'inner assembly': 45, 'outer radial + gap': 45, 'assembly': 120 };
+      perModel.add('v172 blade bearing');
+    }
+
     let totalMin = 0, byPart = {};
     const unmatchedParts = {};
     items.forEach(r => {
       if (r.status.toLowerCase() === 'completed') return;
       const bal = r.balance || 0;
       if (bal <= 0) return;
-      const key = r.partName?.toLowerCase() || '';
-      // V172: use per-model std time
-      if (key === 'v172 blade bearing' && r.model) {
-        const modelStd = V172_MODEL_STD[r.model.toLowerCase()];
-        if (modelStd) {
-          const min = bal * modelStd;
+      const key = norm(r.partName);
+      const known = (key in totalByPart) || (key in stepsByPart);
+      // Part đo theo bước + có model → dùng std của bước tương ứng
+      if (known && perModel.has(key) && r.model) {
+        const stepVal = stepsByPart[key]?.[norm(r.model)];
+        const label = `${r.partName} (${r.model})`;
+        if (stepVal != null) {
+          const min = bal * stepVal;
           totalMin += min;
-          const label = `V172 (${r.model})`;
           byPart[label] = (byPart[label] || 0) + min;
         } else {
-          unmatchedParts[`V172 (${r.model})`] = (unmatchedParts[`V172 (${r.model})`] || 0) + 1;
+          unmatchedParts[label] = (unmatchedParts[label] || 0) + 1;
         }
         return;
       }
-      const std = stdMap[key];
-      if (std) {
+      const std = totalByPart[key];
+      if (std != null) {
         const min = bal * std;
         totalMin += min;
         byPart[r.partName] = (byPart[r.partName] || 0) + min;
@@ -1479,7 +1512,7 @@ export default function CMM() {
       .map(([p, m]) => ({ part: p, hours: Math.round(m / 60 * 10) / 10 }));
     const unmatchedList = Object.entries(unmatchedParts).map(([part, count]) => ({ part, count }));
     return { totalH, totalDays, totalWeeks, top, unmatchedList, unmatched: unmatchedList.length };
-  }, [items]);
+  }, [items, stdTable]);
 
   const filtered = useMemo(() => {
     let r = items;
