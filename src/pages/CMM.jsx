@@ -220,8 +220,8 @@ function StdTimeSection({ avail = 95 }) {
             <span style={{ color: 'var(--violet)' }}>■ CMM Daily Inspection</span>&nbsp;·&nbsp;
             <span style={{ color: 'var(--rose)' }}>— {effectiveCapStd}h/tuan ({avail}%)</span>&nbsp;·&nbsp;
             <span style={{ color: 'var(--amber)' }}>— % Utilization</span>&nbsp;·&nbsp;
-            Tong: {cmmStdTimeData2026.grandTotalHours}h · {cmmStdTimeData2026.fwRange} 2026
-            &nbsp;·&nbsp;<span style={{ color: 'var(--txt-low)', fontSize: 10 }}>Sync: {cmmStdTimeData2026.lastSynced}</span>
+            Tong: {data2026.grandTotalHours}h · {data2026.fwRange} 2026
+            &nbsp;·&nbsp;<span style={{ color: 'var(--txt-low)', fontSize: 10 }}>Sync: CMM Daily Inspection _2026.xlsx</span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart
@@ -235,7 +235,7 @@ function StdTimeSection({ avail = 95 }) {
               }}
               style={{ cursor: 'pointer' }}
             >
-              <XAxis dataKey="week" tick={{ fill: 'var(--txt-mid)', fontSize: 9 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} interval={1} />
+              <XAxis dataKey="week" tick={{ fill: 'var(--txt-mid)', fontSize: 9 }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} interval={0} angle={-45} textAnchor="end" height={40} />
               <YAxis yAxisId="left" tick={{ fill: 'var(--txt-low)', fontSize: 10 }} axisLine={false} tickLine={false} unit="h" domain={[0, 175]} />
               <YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--amber)', fontSize: 9 }} axisLine={false} tickLine={false} unit="%" domain={[0, (() => { const maxU = Math.max(...(chartData2026.map(d => d.utilization||0))); return maxU > 100 ? Math.ceil(maxU/10)*10+10 : 110; })()]} />
               <Tooltip
@@ -245,7 +245,7 @@ function StdTimeSection({ avail = 95 }) {
                   return `${label} — ${payload[0].payload.source || ''} · click để xem chi tiết`;
                 }}
               />
-              <Bar yAxisId="left" dataKey="totalHours" name="CMM Hours" radius={[3, 3, 0, 0]}>
+              <Bar yAxisId="left" dataKey="totalHours" name="CMM Hours" radius={[3, 3, 0, 0]} activeBar={false}>
                 <LabelList dataKey="totalHours" position="top" formatter={v => v > 0 ? `${v}h` : ''} style={{ fontSize: 8, fill: 'var(--txt-mid)' }} />
                 {chartData2026.map((d, i) => {
                   const src = d.source || '';
@@ -264,7 +264,7 @@ function StdTimeSection({ avail = 95 }) {
           </ResponsiveContainer>
           {/* Week drill-down */}
           {selected2026FW && (() => {
-            const wk = cmmStdTimeData2026.weeklySummary.find(w => w.week === selected2026FW);
+            const wk = data2026.weeklySummary.find(w => w.week === selected2026FW);
             if (!wk) return null;
             const srcColor = wk.source === 'CMM Daily Inspection' ? 'var(--violet)' : 'var(--azure)';
             return (
@@ -314,7 +314,7 @@ function StdTimeSection({ avail = 95 }) {
                 <th>{t('std.col_week')}</th><th>{t('std.col_source')}</th><th>{t('std.col_cmm_h')}</th><th style={{ minWidth: 160 }}>{t('std.col_util')}</th>
               </tr></thead>
               <tbody>
-                {cmmStdTimeData2026.weeklySummary.map((w, i) => {
+                {data2026.weeklySummary.map((w, i) => {
                   const src = w.source || '';
                   const srcColor = src === 'CMM Daily Inspection' ? 'var(--violet)' : 'var(--azure)';
                   return (
