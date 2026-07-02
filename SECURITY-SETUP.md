@@ -22,9 +22,14 @@ Vào **Vercel → Project → Settings → Environment Variables**, thêm:
   > Chưa đặt biến này → trang Supplier NCR sẽ báo "Server not configured".
 
 - **`SHEETS_ALLOWED_IDS`** *(tùy chọn)* — nếu sau này CMM/endpoint dùng thêm
-  Google Sheet mới, thêm ID vào đây, phân tách bằng dấu phẩy. ID mặc định của
-  CMM (`11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj`) đã được nhúng sẵn trong code nên
-  CMM chạy ngay không cần khai báo.
+  Google Sheet mới, thêm ID vào đây, phân tách bằng dấu phẩy. **3 sheet CMM đang
+  dùng đã được nhúng sẵn** trong `api/sheets.js` nên CMM chạy ngay không cần khai báo:
+  `11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj` (Mass Product/ITR),
+  `1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8` (Combined ST),
+  `1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby` (PO Forecast).
+  > Thêm sheet mới mà quên khai báo → `/api/sheets` trả **403** và phần dữ liệu đó
+  > không tải được (đúng lỗi này). Cách khắc phục: thêm ID vào `DEFAULT_ALLOWED_IDS`
+  > trong code hoặc vào biến `SHEETS_ALLOWED_IDS`.
 
 Các biến cũ vẫn giữ nguyên: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `NCR_XLSX_URL`.
 

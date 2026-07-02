@@ -15,7 +15,9 @@ const WINDOW_MS = 60 * 1000;
  * cộng thêm ID mặc định của CMM. CMM vẫn mở tự do — không cần đăng nhập.
  */
 const DEFAULT_ALLOWED_IDS = [
-  "11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj", // CMM: 4. ITR & Shipment (src/config.js)
+  "11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj", // CMM: 1. Mass Product, Test Inspection (src/config.js + dynamicLoaders)
+  "1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8", // CMM: Combined ST Auto MT and CMM (dynamicLoaders)
+  "1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby", // CMM: PO Forecast 2026 Clean (dynamicLoaders)
 ];
 
 function allowedIds() {
