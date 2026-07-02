@@ -21,6 +21,16 @@ Vào **Vercel → Project → Settings → Environment Variables**, thêm:
   bằng: `openssl rand -base64 24`.
   > Chưa đặt biến này → trang Supplier NCR sẽ báo "Server not configured".
 
+- **`CMM_AUTH_KEY`** — mật khẩu đăng nhập tab **CMM**. Server (`/api/sheets`) chỉ
+  trả dữ liệu khi header `x-auth-key` khớp biến này. Đặt một chuỗi mạnh riêng
+  (khác NCR).
+  > ⚠️ **Fail-closed**: chưa đặt `CMM_AUTH_KEY` → `/api/sheets` trả 500 và CMM
+  > không tải được dữ liệu. Vì vậy **tạo biến này TRƯỚC**, rồi mới push code (biến
+  > có thể tạo trên Vercel trước cả khi code lên → deploy xong là gate hoạt động
+  > ngay, không gián đoạn). Đổi/xóa mật khẩu: sửa biến rồi Redeploy; người dùng
+  > đang đăng nhập sẽ phải nhập lại (mật khẩu lưu tạm trong sessionStorage, đóng
+  > tab là mất).
+
 - **`SHEETS_ALLOWED_IDS`** *(tùy chọn)* — nếu sau này CMM/endpoint dùng thêm
   Google Sheet mới, thêm ID vào đây, phân tách bằng dấu phẩy. **3 sheet CMM đang
   dùng đã được nhúng sẵn** trong `api/sheets.js` nên CMM chạy ngay không cần khai báo:

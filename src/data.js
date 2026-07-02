@@ -139,7 +139,9 @@ export async function loadData() {
   }
 
   try {
-    const res = await fetch(dataUrl());
+    // Gửi kèm mật khẩu tab CMM (server đối chiếu CMM_AUTH_KEY).
+    const key = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cmm_auth_key')) || '';
+    const res = await fetch(dataUrl(), { headers: { 'x-auth-key': key } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });

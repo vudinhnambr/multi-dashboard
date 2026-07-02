@@ -1,8 +1,17 @@
 import axios from "axios";
+import crypto from "crypto";
 import { isRateLimited, getClientIp } from "../lib/rateLimit.js";
 
 const MAX_REQ = 60; // đọc: 60 request / phút / IP
 const WINDOW_MS = 60 * 1000;
+
+// So sánh chuỗi timing-safe (chống timing attack; an toàn cả khi lệch độ dài).
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 /**
  * Google Sheets XLSX proxy — avoids browser CORS.
@@ -12,7 +21,11 @@ const WINDOW_MS = 60 * 1000;
  * BẢO MẬT: chỉ proxy các spreadsheet nằm trong allowlist để tránh biến endpoint
  * thành open-proxy (ai cũng tải được mọi Google Sheet qua server của mình).
  * Allowlist lấy từ env SHEETS_ALLOWED_IDS (danh sách ID, phân tách bằng dấu phẩy),
- * cộng thêm ID mặc định của CMM. CMM vẫn mở tự do — không cần đăng nhập.
+ * cộng thêm ID mặc định của CMM.
+ *
+ * XÁC THỰC: endpoint yêu cầu header x-auth-key === env CMM_AUTH_KEY (mật khẩu tab CMM).
+ * Chưa cấu hình CMM_AUTH_KEY → trả 500 (fail-closed, không mở dữ liệu).
+ * Ping nhẹ cho màn đăng nhập: GET /api/sheets?auth=check (chỉ kiểm tra mật khẩu, không tải sheet).
  */
 const DEFAULT_ALLOWED_IDS = [
   "11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj", // CMM: 1. Mass Product, Test Inspection (src/config.js + dynamicLoaders)
@@ -36,6 +49,23 @@ export default async function handler(req, res) {
   if (await isRateLimited(ip, { max: MAX_REQ, windowMs: WINDOW_MS })) {
     res.setHeader("Retry-After", "60");
     return res.status(429).json({ error: "Too many requests. Try again shortly." });
+  }
+
+  // Xác thực mật khẩu tab CMM.
+  const expectedKey = process.env.CMM_AUTH_KEY;
+  if (!expectedKey) {
+    console.error("Missing CMM_AUTH_KEY env var");
+    return res.status(500).json({ error: "Server not configured" });
+  }
+  const authKey = req.headers["x-auth-key"];
+  if (!authKey || !safeEqual(authKey, expectedKey)) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  // Ping xác thực nhẹ cho màn đăng nhập — mật khẩu đúng thì trả OK ngay, không tải sheet.
+  if (req.query.auth === "check") {
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({ ok: true });
   }
 
   const { id } = req.query;

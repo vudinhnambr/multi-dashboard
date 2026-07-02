@@ -22,7 +22,9 @@ const PO_FORECAST_ID      = '1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby'; // PO_Forecast_
 async function fetchXlsx(id) {
   // Route through /api/sheets proxy to avoid CORS when fetching from browser
   const url = '/api/sheets?id=' + id;
-  const res = await fetch(url);
+  // Gửi kèm mật khẩu tab CMM (server đối chiếu CMM_AUTH_KEY).
+  const key = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cmm_auth_key')) || '';
+  const res = await fetch(url, { headers: { 'x-auth-key': key } });
   if (!res.ok) throw new Error('HTTP ' + res.status + ' fetching sheet ' + id);
   const buf = await res.arrayBuffer();
   return XLSX.read(buf, { type: 'array' });
