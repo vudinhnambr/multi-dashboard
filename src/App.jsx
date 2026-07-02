@@ -18,6 +18,7 @@ class ErrorBoundary extends Component {
 import { Activity, Database, FileWarning } from 'lucide-react';
 import CMM from './pages/CMM.jsx';
 import { LangProvider, useLang } from './LangContext.jsx';
+import { getSupabase, getAccessToken } from './cmmSupabase';
 import './app-shell.css';
 
 // Dashboard nhúng iframe đều là file tĩnh trong /public.
@@ -33,57 +34,113 @@ function tabFromHash() {
   return TABS.some((t) => t.id === h) ? h : 'cmm';
 }
 
-// Cổng đăng nhập cho tab CMM. Mật khẩu kiểm tra ở server (/api/sheets, env CMM_AUTH_KEY).
-// Không hardcode mật khẩu ở client; chỉ lưu key đã nhập vào sessionStorage để gửi kèm các request.
+// Cổng đăng nhập cho tab CMM — dùng Supabase Auth (giống Auto MT).
+// Server (/api/sheets) kiểm tra token + quyền vào dashboard 'cmm' qua bảng dashboard_access.
 function CmmGate({ children }) {
-  const [authed, setAuthed] = useState(() => {
-    try { return !!sessionStorage.getItem('cmm_auth_key'); } catch { return false; }
-  });
+  const [phase, setPhase] = useState('loading'); // loading | login | noaccess | authed
+  const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (authed) return children;
+  // Đã đăng nhập → xác nhận quyền vào 'cmm' qua ping nhẹ.
+  async function verifyAccess() {
+    try {
+      const token = await getAccessToken();
+      const res = await fetch('/api/sheets?access=check', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setPhase('authed');
+      else if (res.status === 403) setPhase('noaccess');
+      else setPhase('login');
+    } catch { setPhase('login'); }
+  }
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: { session } } = await sb.auth.getSession();
+        if (!alive) return;
+        if (session) await verifyAccess();
+        else setPhase('login');
+      } catch {
+        if (alive) setPhase('login');
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const submit = async () => {
-    if (!pw) { setErr(true); return; }
-    setBusy(true); setErr(false);
+    if (!email || !pw) { setErr('Nhập email và mật khẩu.'); return; }
+    setBusy(true); setErr('');
     try {
-      const res = await fetch('/api/sheets?auth=check', { headers: { 'x-auth-key': pw } });
-      if (res.ok) {
-        sessionStorage.setItem('cmm_auth_key', pw);
-        setAuthed(true);
-      } else {
-        setErr(true);
-      }
+      const sb = await getSupabase();
+      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: pw });
+      if (error) { setErr('Sai email hoặc mật khẩu.'); return; }
+      await verifyAccess();
     } catch {
-      setErr(true);
+      setErr('Lỗi đăng nhập, thử lại.');
     } finally {
       setBusy(false);
     }
   };
 
+  const logout = async () => {
+    try { const sb = await getSupabase(); await sb.auth.signOut(); } catch { /* ignore */ }
+    setPw(''); setErr(''); setPhase('login');
+  };
+
+  const wrap = { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', padding: 24 };
+  const card = { width: '100%', maxWidth: 340, background: 'var(--surface, #111827)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, padding: 28 };
+  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', marginTop: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.04)', color: '#e5e7eb', fontSize: 14, outline: 'none' };
+
+  if (phase === 'authed') return children;
+
+  if (phase === 'loading') {
+    return <div style={{ ...wrap, color: '#94a3b8', fontSize: 14 }}>Đang tải…</div>;
+  }
+
+  if (phase === 'noaccess') {
+    return (
+      <div style={wrap}>
+        <div style={card}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 18, color: '#e5e7eb' }}>CMM Dashboard</h2>
+          <p style={{ margin: '0 0 18px', fontSize: 13, color: '#f87171' }}>Tài khoản của bạn chưa được cấp quyền vào CMM. Liên hệ quản trị viên.</p>
+          <button onClick={logout} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: '#e5e7eb', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Đăng xuất</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 340, background: 'var(--surface, #111827)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, padding: 28 }}>
+    <div style={wrap}>
+      <div style={card}>
         <h2 style={{ margin: '0 0 4px', fontSize: 18, color: '#e5e7eb' }}>CMM Dashboard</h2>
-        <p style={{ margin: '0 0 18px', fontSize: 13, color: '#94a3b8' }}>Nhập mật khẩu để truy cập</p>
+        <p style={{ margin: '0 0 8px', fontSize: 13, color: '#94a3b8' }}>Đăng nhập để truy cập</p>
+        <input
+          type="email"
+          value={email}
+          autoFocus
+          onChange={(e) => { setEmail(e.target.value); setErr(''); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+          placeholder="Email"
+          style={inputStyle}
+        />
         <input
           type="password"
           value={pw}
-          autoFocus
-          onChange={(e) => { setPw(e.target.value); setErr(false); }}
+          onChange={(e) => { setPw(e.target.value); setErr(''); }}
           onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
           placeholder="Mật khẩu"
-          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.04)', color: '#e5e7eb', fontSize: 14, outline: 'none' }}
+          style={inputStyle}
         />
-        {err && <div style={{ marginTop: 10, color: '#f87171', fontSize: 12 }}>Mật khẩu không đúng.</div>}
+        {err && <div style={{ marginTop: 10, color: '#f87171', fontSize: 12 }}>{err}</div>}
         <button
           onClick={submit}
           disabled={busy}
           style={{ width: '100%', marginTop: 16, padding: '10px 12px', borderRadius: 8, border: 'none', background: busy ? '#334155' : '#38bdf8', color: '#0f172a', fontWeight: 700, fontSize: 14, cursor: busy ? 'default' : 'pointer' }}
         >
-          {busy ? 'Đang kiểm tra…' : 'Đăng nhập'}
+          {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </button>
       </div>
     </div>

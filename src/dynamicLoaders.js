@@ -13,6 +13,7 @@
 
 import * as XLSX from 'xlsx';
 import { cmmStdTimeData2026 } from './cmmStdTimeData2026';
+import { getAccessToken } from './cmmSupabase';
 
 // ─── Sheet IDs ───────────────────────────────────────────────────────────────
 const MASS_PRODUCT_ID     = '11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj'; // 1. Mass Product, Test Inspection
@@ -22,9 +23,9 @@ const PO_FORECAST_ID      = '1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby'; // PO_Forecast_
 async function fetchXlsx(id) {
   // Route through /api/sheets proxy to avoid CORS when fetching from browser
   const url = '/api/sheets?id=' + id;
-  // Gửi kèm mật khẩu tab CMM (server đối chiếu CMM_AUTH_KEY).
-  const key = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cmm_auth_key')) || '';
-  const res = await fetch(url, { headers: { 'x-auth-key': key } });
+  // Gửi kèm token phiên Supabase (server kiểm tra quyền dashboard 'cmm').
+  const token = await getAccessToken();
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error('HTTP ' + res.status + ' fetching sheet ' + id);
   const buf = await res.arrayBuffer();
   return XLSX.read(buf, { type: 'array' });

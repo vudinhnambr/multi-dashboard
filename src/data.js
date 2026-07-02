@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { dataUrl, SHEET_NAME, GSHEET_ID, USE_SAMPLE_FALLBACK } from './config';
 import { sampleData } from './sampleData';
+import { getAccessToken } from './cmmSupabase';
 
 // ---- Date helpers --------------------------------------------------
 // Excel lưu ngày dạng serial number (số ngày kể từ 1899-12-30).
@@ -139,9 +140,9 @@ export async function loadData() {
   }
 
   try {
-    // Gửi kèm mật khẩu tab CMM (server đối chiếu CMM_AUTH_KEY).
-    const key = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('cmm_auth_key')) || '';
-    const res = await fetch(dataUrl(), { headers: { 'x-auth-key': key } });
+    // Gửi kèm token phiên Supabase (server kiểm tra quyền dashboard 'cmm').
+    const token = await getAccessToken();
+    const res = await fetch(dataUrl(), { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buf = await res.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });

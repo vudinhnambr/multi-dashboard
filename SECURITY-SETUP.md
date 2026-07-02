@@ -21,15 +21,15 @@ Vào **Vercel → Project → Settings → Environment Variables**, thêm:
   bằng: `openssl rand -base64 24`.
   > Chưa đặt biến này → trang Supplier NCR sẽ báo "Server not configured".
 
-- **`CMM_AUTH_KEY`** — mật khẩu đăng nhập tab **CMM**. Server (`/api/sheets`) chỉ
-  trả dữ liệu khi header `x-auth-key` khớp biến này. Đặt một chuỗi mạnh riêng
-  (khác NCR).
-  > ⚠️ **Fail-closed**: chưa đặt `CMM_AUTH_KEY` → `/api/sheets` trả 500 và CMM
-  > không tải được dữ liệu. Vì vậy **tạo biến này TRƯỚC**, rồi mới push code (biến
-  > có thể tạo trên Vercel trước cả khi code lên → deploy xong là gate hoạt động
-  > ngay, không gián đoạn). Đổi/xóa mật khẩu: sửa biến rồi Redeploy; người dùng
-  > đang đăng nhập sẽ phải nhập lại (mật khẩu lưu tạm trong sessionStorage, đóng
-  > tab là mất).
+- **`AUTH_SUPABASE_URL`** + **`AUTH_SUPABASE_ANON_KEY`** — project Supabase "quyền
+  chung" cho đăng nhập tab **CMM** (và sau này NCR). Xem hướng dẫn dựng project ở
+  `SUPABASE-CMM-SETUP.md`. `AUTH_SUPABASE_ANON_KEY` dùng khóa **Publishable**
+  (`sb_publishable_...`), KHÔNG dùng Secret.
+  > ⚠️ **Fail-closed**: chưa đặt 2 biến này → `/api/sheets` và `/api/auth-config`
+  > trả 500, CMM không vào được. Vì vậy **tạo 2 biến TRƯỚC**, rồi mới push code.
+  > CMM giờ đăng nhập bằng **email/mật khẩu Supabase** + kiểm quyền qua bảng
+  > `dashboard_access` (khóa `cmm`). Biến `CMM_AUTH_KEY` cũ **không còn dùng** — có
+  > thể xóa khỏi Vercel.
 
 - **`SHEETS_ALLOWED_IDS`** *(tùy chọn)* — nếu sau này CMM/endpoint dùng thêm
   Google Sheet mới, thêm ID vào đây, phân tách bằng dấu phẩy. **3 sheet CMM đang
