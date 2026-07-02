@@ -149,7 +149,9 @@ const CMM_STD_TABLE = [
   { customer:'ITR',    part:'ITR',                             outer:null, itr:120,  singleRing:null, inner:null, inner1:null, inner2:null, innerAsm:null, outerRGap:null, assembly:null, total:120 },
 ];
 
-function StdTimeSection({ avail = 80 }) {
+// Biểu đồ này so sánh giờ máy CHẠY THỰC TẾ (đã gồm ITR) → capacity dùng 95% (chỉ trừ 5% cleanup/bảo trì/vệ sinh),
+// khác với PO Capacity/Planner (80% = trừ thêm 15% ITR).
+function StdTimeSection({ avail = 95 }) {
   const [show2026Chart, setShow2026Chart] = useState(true);
   const [show2026Table, setShow2026Table] = useState(false);
   const [selected2026FW, setSelected2026FW] = useState(null);
@@ -223,6 +225,7 @@ function StdTimeSection({ avail = 80 }) {
             Tong: {data2026.grandTotalHours}h · {data2026.fwRange} 2026
             &nbsp;·&nbsp;<span style={{ color: 'var(--txt-low)', fontSize: 10 }}>Sync: CMM Daily Inspection _2026.xlsx</span>
           </div>
+          <div className="panel-sub" style={{ marginTop: -4, color: 'var(--txt-low)', fontSize: 10 }}>{t('std.avail_note', { a: avail })}</div>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart
               data={chartData2026}
@@ -1609,7 +1612,7 @@ export default function CMM() {
       </CollapsibleSection>
 
       <CollapsibleSection eyebrow={t('s02.eyebrow')} title={t('s02.title')} defaultOpen={true}>
-        <StdTimeSection avail={avail} />
+        <StdTimeSection avail={95} />
       </CollapsibleSection>
 
       <CollapsibleSection eyebrow={t('s02b.eyebrow')} title={t('s02b.title')}>

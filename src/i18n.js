@@ -96,6 +96,7 @@ export const translations = {
   'po.avail_formula':  { vi: '620 min × 2 ca × 7 ngày × {a}%', en: '620 min × 2 shifts × 7 days × {a}%' },
   'po.avail_note':     { vi: 'Mặc định {a}% = 100% − 5% (dọn dẹp, bảo trì, vệ sinh) − 15% (Inspection Test Request).', en: 'Default {a}% = 100% − 5% (cleanup, maintenance, cleaning) − 15% (Inspection Test Request).' },
   'po.avail_label':    { vi: '⚙ Khả dụng máy:', en: '⚙ Machine Availability:' },
+  'std.avail_note':    { vi: 'Capacity dùng {a}% = 100% − 5% (dọn dẹp, bảo trì, vệ sinh); đã bao gồm Inspection Test Request (giờ máy chạy thực tế).', en: 'Capacity uses {a}% = 100% − 5% (cleanup, maintenance, cleaning); includes Inspection Test Request (actual machine run time).' },
   'po.by_month':       { vi: 'Theo thang',           en: 'By Month' },
   'po.by_week':        { vi: 'Theo tuan',            en: 'By Week' },
   'po.by_part':        { vi: 'Theo part',            en: 'By Part' },
