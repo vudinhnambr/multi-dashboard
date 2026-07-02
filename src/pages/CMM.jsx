@@ -149,7 +149,7 @@ const CMM_STD_TABLE = [
   { customer:'ITR',    part:'ITR',                             outer:null, itr:120,  singleRing:null, inner:null, inner1:null, inner2:null, innerAsm:null, outerRGap:null, assembly:null, total:120 },
 ];
 
-function StdTimeSection({ avail = 95 }) {
+function StdTimeSection({ avail = 80 }) {
   const [show2026Chart, setShow2026Chart] = useState(true);
   const [show2026Table, setShow2026Table] = useState(false);
   const [selected2026FW, setSelected2026FW] = useState(null);
@@ -540,6 +540,9 @@ function POCapacitySection({ avail, setAvail }) {
           620 min × 2 ca × 7 ngày × {avail}%
         </span>
       </div>
+      <div style={{ fontSize: 11, color: 'var(--txt-low)', margin: '-4px 0 12px', paddingLeft: 4 }}>
+        Mặc định <strong style={{ color: 'var(--txt-mid)' }}>80%</strong> = 100% − 5% (dọn dẹp, bảo trì, vệ sinh) − 15% (Inspection Test Request).
+      </div>
 
       {/* View toggle */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
@@ -880,13 +883,13 @@ function POCapacitySection({ avail, setAvail }) {
   );
 }
 
-function DailyPlannerSection() {
+function DailyPlannerSection({ avail = 80 }) {
   const { t } = useLang();
   const [sets, setSets]   = React.useState({});
   const [shifts, setShifts] = React.useState(2);
 
-  const capMin  = shifts * 620;        // 620 min/ca
-  const capHours = +(shifts * 620 / 60).toFixed(2);
+  const capMin  = Math.round(shifts * 620 * avail / 100);        // 620 min/ca × availability
+  const capHours = +(shifts * 620 * avail / 100 / 60).toFixed(2);
 
   const rows = PLANNER_PARTS.map((p) => {
     const s   = Number(sets[p.part] || 0);
@@ -929,7 +932,7 @@ function DailyPlannerSection() {
             {totalHours}<small>h</small>
           </div>
           <div className={`foot ${overload ? 'alert' : 'ok'}`}>
-            <Activity size={13} /> {t('dp.capacity', { h: capHours, n: shifts })}
+            <Activity size={13} /> {t('dp.capacity', { h: capHours, n: shifts })} · {avail}% avail
           </div>
         </div>
         <div className="kpi" style={{ '--accent': barColor }}>
@@ -1063,16 +1066,16 @@ const DAYS = [
   { key: 'sun', label: 'Sun' },
 ];
 
-function WeeklyPlannerSection() {
+function WeeklyPlannerSection({ avail = 80 }) {
   const { t } = useLang();
   const [sets, setSets]           = React.useState({});
   const [totalManual, setTotalManual] = React.useState({}); // part -> manual total sets override
   const [shifts, setShifts]       = React.useState(2);
   const [weekLabel, setWeekLabel] = React.useState('');
 
-  const capDayMin  = shifts * 620;       // 620 min/ca
+  const capDayMin  = Math.round(shifts * 620 * avail / 100);       // 620 min/ca × availability
   const capWeekMin = capDayMin * 7;
-  const capDayH    = +(shifts * 620 / 60).toFixed(2);
+  const capDayH    = +(shifts * 620 * avail / 100 / 60).toFixed(2);
 
   const getVal = (part, day) => Number(sets[part + '||' + day] || 0);
 
@@ -1149,7 +1152,7 @@ function WeeklyPlannerSection() {
             {weekTotalH}<small>h</small>
           </div>
           <div className={`foot ${weekOverload ? 'alert' : 'ok'}`}>
-            <Activity size={13} /> {t('dp.capacity', { h: capDayH * 7, n: shifts })}
+            <Activity size={13} /> {t('dp.capacity', { h: capDayH * 7, n: shifts })} · {avail}% avail
           </div>
         </div>
         <div className="kpi" style={{ '--accent': weekBarColor }}>
@@ -1384,7 +1387,7 @@ export default function CMM() {
   const [showUnmatched, setShowUnmatched] = useState(false);
   const [stdTable, setStdTable] = useState(null); // std time từ file 'Combined ST' (data-driven)
 
-  const [avail, setAvail] = React.useState(95); // Machine Availability % (shared)
+  const [avail, setAvail] = React.useState(80); // Machine Availability % (shared) — mặc định 80% (100% − 5% dọn dẹp/bảo trì/vệ sinh − 15% ITR)
 
   function toggleExpand(id) {
     setToggled((prev) => {
@@ -1598,11 +1601,11 @@ export default function CMM() {
       )}
 
       <CollapsibleSection eyebrow={t('s01.eyebrow')} title={t('s01.title')} defaultOpen={false}>
-        <DailyPlannerSection />
+        <DailyPlannerSection avail={avail} />
       </CollapsibleSection>
 
       <CollapsibleSection eyebrow={t('s01b.eyebrow')} title={t('s01b.title')} defaultOpen={false}>
-        <WeeklyPlannerSection />
+        <WeeklyPlannerSection avail={avail} />
       </CollapsibleSection>
 
       <CollapsibleSection eyebrow={t('s02.eyebrow')} title={t('s02.title')} defaultOpen={true}>
