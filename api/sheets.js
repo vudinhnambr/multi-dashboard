@@ -21,7 +21,7 @@ const WINDOW_MS = 60 * 1000;
  * Ping nhẹ cho màn đăng nhập: GET /api/sheets?access=check (chỉ xác thực + kiểm quyền, không tải sheet).
  */
 const DEFAULT_ALLOWED_IDS = [
-  "11pT3Oi21Q5qmXZ6Jhn09ZR2q-G9C7EJj", // CMM: 1. Mass Product, Test Inspection (src/config.js + dynamicLoaders)
+  "1M0cBUpk77DWW3gAaXe9WnNMW6YPPVy1d", // CMM: 1. Mass Product, Test Inspection (src/config.js + dynamicLoaders)
   "1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8", // CMM: Combined ST Auto MT and CMM (dynamicLoaders)
   "1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby", // CMM: PO Forecast 2026 Clean (dynamicLoaders)
 ];
