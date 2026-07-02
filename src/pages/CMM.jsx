@@ -530,18 +530,18 @@ function POCapacitySection({ avail, setAvail }) {
 
       {/* Availability input */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '8px 14px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: 'var(--txt-mid)', fontWeight: 600 }}>⚙ Machine Availability:</span>
+        <span style={{ fontSize: 12, color: 'var(--txt-mid)', fontWeight: 600 }}>{t('po.avail_label')}</span>
         <input type="range" min={50} max={100} step={1} value={avail} onChange={e => setAvail(+e.target.value)}
           style={{ width: 130, accentColor: 'var(--azure)', cursor: 'pointer' }} />
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--azure)', minWidth: 40 }}>{avail}%</span>
         <span style={{ fontSize: 11, color: 'var(--txt-low)' }}>
-          → Cap/tuần: <strong style={{ color: 'var(--signal)' }}>{effectiveCapWeek}h</strong>
+          → {t('po.cap_week_arrow')}: <strong style={{ color: 'var(--signal)' }}>{effectiveCapWeek}h</strong>
           &nbsp;<span style={{ color: 'var(--border)' }}>|</span>&nbsp;
-          620 min × 2 ca × 7 ngày × {avail}%
+          {t('po.avail_formula', { a: avail })}
         </span>
       </div>
       <div style={{ fontSize: 11, color: 'var(--txt-low)', margin: '-4px 0 12px', paddingLeft: 4 }}>
-        Mặc định <strong style={{ color: 'var(--txt-mid)' }}>80%</strong> = 100% − 5% (dọn dẹp, bảo trì, vệ sinh) − 15% (Inspection Test Request).
+        {t('po.avail_note', { a: avail })}
       </div>
 
       {/* View toggle */}
@@ -916,7 +916,7 @@ function DailyPlannerSection({ avail = 80 }) {
           {[1, 2].map((n) => (
             <button key={n} className={`chip ${shifts === n ? 'active' : ''}`}
               onClick={() => setShifts(n)}>
-              {t('dp.shift_n', { n, h: +(n * 620 / 60).toFixed(1) })}
+              {t('dp.shift_n', { n, h: +(n * 620 * avail / 100 / 60).toFixed(1) })}
             </button>
           ))}
         </div>
@@ -1137,7 +1137,7 @@ function WeeklyPlannerSection({ avail = 80 }) {
           <span style={{ color: 'var(--txt-mid)', fontSize: 13 }}>{t('dp.shifts')}</span>
           {[1, 2].map(n => (
             <button key={n} className={`chip ${shifts === n ? 'active' : ''}`} onClick={() => setShifts(n)}>
-              {t('dp.shift_n', { n, h: +(n * 620 / 60).toFixed(1) })}
+              {t('dp.shift_n', { n, h: +(n * 620 * avail / 100 / 60).toFixed(1) })}
             </button>
           ))}
         </div>
