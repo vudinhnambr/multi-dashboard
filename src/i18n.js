@@ -5,6 +5,7 @@ export const translations = {
   'tab.auto-mt':         { vi: 'Auto MT Dashboard',      en: 'Auto MT Dashboard' },
   'tab.supplier-ncr':    { vi: 'Supplier NCR',           en: 'Supplier NCR' },
   'tab.shipment-check':  { vi: 'Shipment Check',         en: 'Shipment Check' },
+  'tab.inspection-notice': { vi: 'Inspection Notice',    en: 'Inspection Notice' },
 
   // ── Section heads ─────────────────────────────────────────────────────────
   's01.eyebrow':  { vi: '01 - CMM Daily Planner',    en: '01 - CMM Daily Planner' },
