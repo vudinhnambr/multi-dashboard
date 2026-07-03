@@ -160,6 +160,7 @@ export async function loadCmmWeeklyData() {
 
   const CAPACITY = 154;
   const weekMap = {};
+  let maxDate = null; // ngày cuối cùng ở cột A "CMM Date"
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -174,6 +175,7 @@ export async function loadCmmWeeklyData() {
     }
     if (!(date instanceof Date) || isNaN(date)) continue;
     if (date.getFullYear() !== 2026) continue;
+    if (!maxDate || date > maxDate) maxDate = date; // theo dõi ngày lớn nhất
 
     // col3 = Part Name, col4 = Step name, col5 = Ring SN
     const rawPart = row[3];
@@ -258,6 +260,9 @@ export async function loadCmmWeeklyData() {
     totalSets,
     fwRange: `FW01–${lastFW}`,
     year: 2026,
+    dataDate: maxDate
+      ? `${String(maxDate.getDate()).padStart(2, '0')}/${String(maxDate.getMonth() + 1).padStart(2, '0')}/${maxDate.getFullYear()}`
+      : null,
     lastSynced: `Google Sheets · 1. Mass Product (CMM Daily) · ${today} · đến FW${lastFW.replace('FW','')}`,
   };
 }

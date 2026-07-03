@@ -188,6 +188,7 @@ export const translations = {
   'misc.loading':     { vi: 'Dang tai du lieu CMM...', en: 'Loading CMM data...' },
   'misc.sample_data': { vi: 'Du lieu mau',    en: 'Sample Data' },
   'misc.updated_at':  { vi: 'Cap nhat',       en: 'Updated' },
+  'misc.data_date':   { vi: 'Data date:',     en: 'Data date:' },
   'misc.filter_all':  { vi: 'Tat ca',         en: 'All' },
   'misc.search':      { vi: 'Tim kiem...',    en: 'Search...' },
 };

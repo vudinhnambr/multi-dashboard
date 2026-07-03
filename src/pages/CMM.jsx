@@ -1408,6 +1408,7 @@ export default function CMM() {
   const [toggled, setToggled] = useState(() => new Set());
   const [showUnmatched, setShowUnmatched] = useState(false);
   const [stdTable, setStdTable] = useState(null); // std time từ file 'Combined ST' (data-driven)
+  const [dataDate, setDataDate] = useState(null); // ngày cuối cùng cột A "CMM Date" (sheet CMM Daily)
 
   const [avail, setAvail] = React.useState(80); // Machine Availability % (shared) — mặc định 80% (100% − 5% dọn dẹp/bảo trì/vệ sinh − 15% ITR)
 
@@ -1447,6 +1448,7 @@ export default function CMM() {
   useEffect(() => {
     fetchAll();
     loadCmmStdTable().then(setStdTable).catch(() => {}); // std time linh động từ Combined ST
+    loadCmmWeeklyData().then(d => { if (d?.dataDate) setDataDate(d.dataDate); }).catch(() => {}); // Data date (CMM Daily)
   }, []);
 
   const items = state.items || [];
@@ -1611,6 +1613,11 @@ export default function CMM() {
             <span className="dot" />{state.source === 'sheets' ? 'Google Sheets' : t('misc.sample_data')}
           </span>
           <div style={{ marginTop: 6 }}>{t('misc.updated_at')} {state.loadedAt.toLocaleTimeString('vi-VN')}</div>
+          {dataDate && (
+            <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: 'var(--azure)' }}>
+              {t('misc.data_date')} {dataDate}
+            </div>
+          )}
           <button className="refresh-btn" onClick={fetchAll}><RefreshCw size={13} /> {t('btn.reload')}</button>
         </div>
       </header>
