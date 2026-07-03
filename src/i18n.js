@@ -120,6 +120,7 @@ export const translations = {
   'std.chart_title':   { vi: 'Giờ CMM theo tuần vs Capacity ({h}h/tuần @ {a}%) — 2026', en: 'CMM Hours/week vs Capacity ({h}h/week @ {a}%) — 2026' },
   'std.legend_cap':    { vi: '— {h}h/tuần ({a}%)', en: '— {h}h/week ({a}%)' },
   'std.pct_week':      { vi: '% tuần', en: '% week' },
+  'std.rings_steps':   { vi: 'Số ring/bước', en: 'Rings/Steps' },
   'wp.tip_manual':     { vi: 'Tổng nhập tay (nhấn để sửa)', en: 'Manual total (click to edit)' },
   'wp.tip_auto':       { vi: 'Tự tính từ các ngày — nhấn để ghi đè', en: 'Auto-summed from days — click to override' },
   'err.load_failed':   { vi: 'Không tải được dữ liệu.', en: 'Failed to load data.' },

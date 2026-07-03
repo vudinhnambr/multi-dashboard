@@ -284,7 +284,7 @@ function StdTimeSection({ avail = 95 }) {
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--txt-low)' }}>
                       <th style={{ textAlign: 'left', padding: '3px 6px', fontWeight: 500 }}>Part</th>
-                      <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>Steps / Sets</th>
+                      <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>{t('std.rings_steps')}</th>
                       <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>CMM Hours</th>
                       <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>{t('std.pct_week')}</th>
                     </tr>

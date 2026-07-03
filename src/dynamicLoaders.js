@@ -187,8 +187,9 @@ export async function loadCmmWeeklyData() {
     const displayPart = getDisplayName(rawPart);
 
     if (!weekMap[fw]) weekMap[fw] = {};
-    if (weekMap[fw][displayPart] === undefined) weekMap[fw][displayPart] = 0;
-    weekMap[fw][displayPart] += stepStd[col];
+    if (!weekMap[fw][displayPart]) weekMap[fw][displayPart] = { min: 0, count: 0 };
+    weekMap[fw][displayPart].min += stepStd[col];   // tổng std time (phút)
+    weekMap[fw][displayPart].count += 1;            // số ring/bước đã đo
   }
 
   // Build weeklySummary entries for actual weeks (source = 'CMM Daily Inspection')
@@ -196,12 +197,12 @@ export async function loadCmmWeeklyData() {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([week, byPartMap]) => {
       const byPart = Object.entries(byPartMap)
-        .filter(([, m]) => m > 0)
-        .sort(([, a], [, b]) => b - a)
-        .map(([part, minTotal]) => ({
+        .filter(([, v]) => v.min > 0)
+        .sort(([, a], [, b]) => b.min - a.min)
+        .map(([part, v]) => ({
           part,
-          sets: 1,
-          hours: Math.round(minTotal / 60 * 10) / 10,
+          sets: v.count,   // số ring/bước đã đo thực tế trong tuần
+          hours: Math.round(v.min / 60 * 10) / 10,
           std_min: null,
         }));
       const totalHours = Math.round(byPart.reduce((s, p) => s + p.hours, 0) * 10) / 10;
