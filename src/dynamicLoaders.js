@@ -145,6 +145,13 @@ const STEP_TO_COL = {
   'assembly': 12,
 };
 
+// Nhãn hiển thị cho từng cột bước đo (dùng cho breakdown theo model)
+const COL_LABEL = {
+  4: 'ITR', 5: 'Single Ring', 6: 'Outer', 7: 'Inner',
+  8: 'Inner 1', 9: 'Inner 2', 10: 'Inner Assembly',
+  11: 'Outer Radial + Gap', 12: 'Assembly',
+};
+
 export async function loadCmmWeeklyData() {
   const wb = await fetchXlsx(MASS_PRODUCT_ID);
   // Sheet 'CMM Daily' in 1. Mass Product, Test Inspection
@@ -186,10 +193,16 @@ export async function loadCmmWeeklyData() {
     const fw = isoWeek(date);
     const displayPart = getDisplayName(rawPart);
 
+    const stepLabel = COL_LABEL[col] || stepName;
     if (!weekMap[fw]) weekMap[fw] = {};
-    if (!weekMap[fw][displayPart]) weekMap[fw][displayPart] = { min: 0, count: 0 };
-    weekMap[fw][displayPart].min += stepStd[col];   // tổng std time (phút)
-    weekMap[fw][displayPart].count += 1;            // số ring/bước đã đo
+    if (!weekMap[fw][displayPart]) weekMap[fw][displayPart] = { min: 0, count: 0, steps: {} };
+    const bucket = weekMap[fw][displayPart];
+    bucket.min += stepStd[col];   // tổng std time (phút)
+    bucket.count += 1;            // số ring/bước đã đo
+    // breakdown theo từng model/bước (Outer, Inner 1, Assembly...)
+    if (!bucket.steps[stepLabel]) bucket.steps[stepLabel] = { count: 0, min: 0 };
+    bucket.steps[stepLabel].count += 1;
+    bucket.steps[stepLabel].min += stepStd[col];
   }
 
   // Build weeklySummary entries for actual weeks (source = 'CMM Daily Inspection')
@@ -204,6 +217,9 @@ export async function loadCmmWeeklyData() {
           sets: v.count,   // số ring/bước đã đo thực tế trong tuần
           hours: Math.round(v.min / 60 * 10) / 10,
           std_min: null,
+          byStep: Object.entries(v.steps || {})
+            .sort(([, a], [, b]) => b.min - a.min)
+            .map(([step, s]) => ({ step, count: s.count, hours: Math.round(s.min / 60 * 10) / 10 })),
         }));
       const totalHours = Math.round(byPart.reduce((s, p) => s + p.hours, 0) * 10) / 10;
       const totalSets  = byPart.reduce((s, p) => s + p.sets, 0);

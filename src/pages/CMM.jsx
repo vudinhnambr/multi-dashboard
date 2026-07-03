@@ -157,6 +157,7 @@ function StdTimeSection({ avail = 95 }) {
   const [show2026Table, setShow2026Table] = useState(false);
   const [selected2026FW, setSelected2026FW] = useState(null);
   const [showStdRef, setShowStdRef] = useState(false);
+  const [expandedPart, setExpandedPart] = useState(null); // part đang bung breakdown theo model
   const [liveWeeklyData, setLiveWeeklyData] = useState(null);
   const [liveStdTable, setLiveStdTable] = useState(null);
   const { t } = useLang();
@@ -290,16 +291,33 @@ function StdTimeSection({ avail = 95 }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {(wk.byPart || []).map((p, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '4px 6px', color: 'var(--txt-hi)' }}>{p.part}</td>
-                        <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--txt-mid)' }}>{p.sets}</td>
-                        <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 600 }}>{p.hours}h</td>
-                        <td style={{ textAlign: 'right', padding: '4px 6px' }}>
-                          <span style={{ fontSize: 10, color: 'var(--txt-low)' }}>{Math.round(p.hours / wk.totalHours * 100)}%</span>
-                        </td>
-                      </tr>
-                    ))}
+                    {(wk.byPart || []).map((p, i) => {
+                      const hasSteps = p.byStep && p.byStep.length > 1;
+                      const isExp = expandedPart === p.part;
+                      return (
+                        <React.Fragment key={i}>
+                          <tr style={{ borderBottom: '1px solid var(--border-subtle)', cursor: hasSteps ? 'pointer' : 'default' }}
+                              onClick={() => hasSteps && setExpandedPart(isExp ? null : p.part)}>
+                            <td style={{ padding: '4px 6px', color: 'var(--txt-hi)' }}>
+                              {hasSteps ? (isExp ? '▾ ' : '▸ ') : ''}{p.part}
+                            </td>
+                            <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--txt-mid)' }}>{p.sets}</td>
+                            <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 600 }}>{p.hours}h</td>
+                            <td style={{ textAlign: 'right', padding: '4px 6px' }}>
+                              <span style={{ fontSize: 10, color: 'var(--txt-low)' }}>{Math.round(p.hours / wk.totalHours * 100)}%</span>
+                            </td>
+                          </tr>
+                          {hasSteps && isExp && p.byStep.map((s, j) => (
+                            <tr key={`${i}-${j}`} style={{ background: 'var(--surface-2)' }}>
+                              <td style={{ padding: '2px 6px 2px 24px', color: 'var(--txt-low)', fontSize: 10 }}>{s.step}</td>
+                              <td className="mono" style={{ textAlign: 'right', padding: '2px 6px', color: 'var(--txt-low)', fontSize: 10 }}>×{s.count}</td>
+                              <td className="mono" style={{ textAlign: 'right', padding: '2px 6px', color: 'var(--txt-mid)', fontSize: 10 }}>{s.hours}h</td>
+                              <td></td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
