@@ -1659,6 +1659,21 @@
     let effVisible = false
     let effMinutesPerDay = 620
 
+    // Nạp bảng standard time từ file Combined ST (data-driven). Lỗi → giữ bảng mặc định.
+    async function loadStandardTableFromSheet() {
+      try {
+        const r = await fetch('/api/mt-standard')
+        if (!r.ok) return
+        const j = await r.json()
+        if (Array.isArray(j.standard) && j.standard.length) {
+          standardTable = j.standard
+          const wrap = document.getElementById('effTableWrap')
+          if (wrap && !wrap.classList.contains('hidden')) renderStandardTable()
+          if (typeof effVisible !== 'undefined' && effVisible) renderEfficiency()
+        }
+      } catch { /* giữ bảng mặc định */ }
+    }
+
     // Tra std time cho 1 record. Trả null nếu không map được model hoặc type.
     function lookupStandard(partDisplay, typeDisplay) {
       const modelKey = String(partDisplay || '').trim().toUpperCase()
@@ -2002,6 +2017,7 @@
       })
       document.getElementById('logoutButton').addEventListener('click', logout)
       initInputUI()
+      await loadStandardTableFromSheet()   // std time data-driven từ Combined ST
 
       // Khôi phục phiên nếu đã đăng nhập trước đó (không bắt nhập lại sau khi reload)
       const { data: { session } } = await supabase.auth.getSession()
