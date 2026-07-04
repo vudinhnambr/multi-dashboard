@@ -408,6 +408,7 @@
 
         <div id="mtcapActual" class="requires-admin hidden mb-4 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-xs text-slate-300"></div>
 
+        <div class="mb-2 text-xs text-amber-300">💡 Bấm một cột để xem chi tiết theo tuần → bấm tuần để xem part</div>
         <div class="mb-4 flex gap-2">
           <button data-mtview="month" class="mtcap-view rounded-lg px-3 py-1 text-sm">By Month</button>
           <button data-mtview="week"  class="mtcap-view rounded-lg px-3 py-1 text-sm">By Week</button>
@@ -415,6 +416,25 @@
         </div>
 
         <div id="mtcapChart" style="height:360px;width:100%;"></div>
+
+        <!-- Weekly detail (hiện khi bấm 1 tháng) -->
+        <div id="mtcapWeekPanel" class="hidden mt-5 rounded-xl border border-blue-400/30 bg-blue-950/20 p-4">
+          <div class="mb-2 flex items-center justify-between">
+            <div class="text-sm font-bold text-blue-300" id="mtcapWeekTitle"></div>
+            <button id="mtcapWeekClose" class="rounded border border-slate-700 px-2 py-0.5 text-xs text-slate-400">✕</button>
+          </div>
+          <div id="mtcapWeekChart" style="height:240px;width:100%;"></div>
+        </div>
+
+        <!-- Chi tiết part theo tuần (hiện khi bấm 1 tuần) -->
+        <div id="mtcapPartPanel" class="hidden mt-4 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
+          <div class="mb-3 flex items-center gap-3">
+            <div class="text-sm font-bold" id="mtcapPartTitle"></div>
+            <span id="mtcapPartBadge"></span>
+          </div>
+          <div id="mtcapPartTable" class="overflow-x-auto"></div>
+        </div>
+
         <div id="mtcapStatus" class="mt-2 text-xs text-slate-500"></div>
       </section>
 
@@ -2063,6 +2083,10 @@
       renderMtActual();
       ['mtcapMorning', 'mtcapNight'].forEach(id => document.getElementById(id).addEventListener('input', renderMtCapacity));
       document.querySelectorAll('.mtcap-view').forEach(b => b.addEventListener('click', () => { mtcapView = b.dataset.mtview; renderMtCapacity(); }));
+      document.getElementById('mtcapWeekClose').addEventListener('click', () => {
+        document.getElementById('mtcapWeekPanel').classList.add('hidden');
+        document.getElementById('mtcapPartPanel').classList.add('hidden');
+      });
       renderMtCapacity();
     }
     // Trung bình thực tế từ 01/01/2026 (từ historical data allData):
@@ -2151,14 +2175,21 @@
         cats = sorted.map(x => x[0]); demand = sorted.map(x => Math.round(x[1] * 10) / 10);
       }
 
+      // Đổi view thì ẩn các panel drill-down cũ
+      document.getElementById('mtcapWeekPanel').classList.add('hidden');
+      document.getElementById('mtcapPartPanel').classList.add('hidden');
+
+      // Màu overload cho từng cột (dùng ở week/part khi vượt cap)
+      const colors = demand.map((v, i) => {
+        if (mtcapView === 'week') return demW[i] > capW ? '#f87171' : '#34d399';
+        return '#34d399';
+      });
+
       const series = [{
-        name: 'Demand', type: 'bar', data: demand,
-        itemStyle: { color: '#34d399' },
+        name: 'Demand', type: 'bar', data: demand.map((v, i) => ({ value: v, itemStyle: { color: colors[i] } })),
         label: {
-          show: true, position: 'top', color: '#cbd5e1',
-          fontSize: mtcapView === 'week' ? 8 : 10,
-          rotate: mtcapView === 'week' ? 90 : 0,
-          formatter: p => (p.value ? (mtcapView === 'week' ? Math.round(p.value) : p.value + 'h') : ''),
+          show: mtcapView !== 'week', position: 'top', color: '#cbd5e1', fontSize: 10,
+          formatter: p => (p.value ? p.value + 'h' : ''),
         },
       }];
       if (cap) series.push({ name: 'Capacity', type: 'line', data: cap, itemStyle: { color: '#38bdf8' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none' });
@@ -2166,24 +2197,108 @@
       const chart = getChart('mtcapChart');
       chart.setOption({
         textStyle: baseTextStyle(),
-        tooltip: { trigger: 'axis' },
+        tooltip: { trigger: 'axis', valueFormatter: v => (v == null ? '' : v + 'h') },
         legend: { data: cap ? ['Demand', 'Capacity'] : ['Demand'], top: 0, textStyle: { color: '#cbd5e1' } },
-        grid: { left: 55, right: 20, top: 40, bottom: mtcapView === 'part' ? 110 : (mtcapView === 'week' ? 60 : 40) },
+        grid: { left: 55, right: 20, top: 40, bottom: mtcapView === 'part' ? 110 : (mtcapView === 'week' ? 55 : 40) },
         xAxis: {
           type: 'category', data: cats,
-          axisLabel: {
-            interval: 0,                                   // hiện đủ mọi nhãn (W1, W2, W3...)
-            rotate: mtcapView === 'week' ? 60 : (mtcapView === 'part' ? 45 : 0),
-            fontSize: mtcapView === 'week' ? 9 : 10,
-          },
+          axisLabel: { interval: 0, rotate: mtcapView === 'week' ? 60 : (mtcapView === 'part' ? 45 : 0), fontSize: mtcapView === 'week' ? 9 : 10 },
         },
         yAxis: { type: 'value', name: 'h' },
         series,
       }, true);
-      // Bấm cột (ở By Month) → chuyển sang By Week
+
+      // Drill: By Month → bấm tháng ra weekly detail; By Week → bấm tuần ra bảng part
       chart.off('click');
-      chart.on('click', () => { if (mtcapView === 'month') { mtcapView = 'week'; renderMtCapacity(); } });
+      chart.on('click', p => {
+        if (p.componentType !== 'series') return;
+        if (mtcapView === 'month') renderMtWeekPanel(p.dataIndex);
+        else if (mtcapView === 'week') renderMtPartTable(p.dataIndex);
+      });
       chart.resize();
+    }
+
+    // Danh sách part của 1 tuần (Auto MT kiểm 100%): {customer, model, sets, hours, pct}
+    function mtcapWeekParts(w) {
+      const demW = mtcapDemandByWeek();
+      const weekH = demW[w] || 0;
+      const rows = [];
+      for (const p of mtcapData.parts) {
+        if (!p.mtStd) continue;
+        const s = p.sets[w] || 0;
+        if (s <= 0) continue;
+        const hours = Math.round(s * p.mtStd / 60 * 10) / 10;
+        rows.push({ customer: p.customer, model: p.model, sets: s, hours, pct: weekH ? Math.round(hours / weekH * 100) : 0 });
+      }
+      return rows.sort((a, b) => b.hours - a.hours);
+    }
+
+    // Weekly detail cho 1 tháng (giống CMM): các tuần trong tháng, overload đỏ, bấm tuần → bảng part
+    function renderMtWeekPanel(monthIdx) {
+      const [name, s, e] = mtcapData.months[monthIdx];
+      const capW = mtcapCapWeek();
+      const demW = mtcapDemandByWeek();
+      const cats = [], demand = [], cap = [];
+      for (let w = s; w <= e; w++) {
+        cats.push('W' + (w + 1));
+        demand.push({ value: demW[w] || 0, itemStyle: { color: (demW[w] || 0) > capW ? '#f87171' : '#34d399' } });
+        cap.push(capW);
+      }
+      document.getElementById('mtcapWeekTitle').innerText = `${name} — Chi tiết theo tuần · bấm tuần để xem part`;
+      document.getElementById('mtcapWeekPanel').classList.remove('hidden');
+      document.getElementById('mtcapPartPanel').classList.add('hidden');
+
+      const chart = getChart('mtcapWeekChart');
+      chart.setOption({
+        textStyle: baseTextStyle(),
+        tooltip: { trigger: 'axis', valueFormatter: v => (v == null ? '' : v + 'h') },
+        grid: { left: 50, right: 20, top: 24, bottom: 30 },
+        xAxis: { type: 'category', data: cats, axisLabel: { interval: 0, fontSize: 11 } },
+        yAxis: { type: 'value', name: 'h' },
+        series: [
+          { name: 'Demand', type: 'bar', data: demand, label: { show: true, position: 'top', color: '#cbd5e1', fontSize: 11, formatter: p => (p.value ? p.value + 'h' : '') } },
+          { name: 'Capacity', type: 'line', data: cap, itemStyle: { color: '#38bdf8' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none' },
+        ],
+      }, true);
+      chart.off('click');
+      chart.on('click', p => { if (p.componentType === 'series' && p.seriesName === 'Demand') renderMtPartTable(s + p.dataIndex); });
+      chart.resize();
+    }
+
+    // Bảng part chi tiết của 1 tuần
+    function renderMtPartTable(w) {
+      const capW = mtcapCapWeek();
+      const demW = mtcapDemandByWeek();
+      const weekH = Math.round((demW[w] || 0) * 10) / 10;
+      const over = weekH > capW;
+      const rows = mtcapWeekParts(w);
+
+      document.getElementById('mtcapPartTitle').innerText = `W${w + 1} — ${weekH}h / ${capW}h`;
+      document.getElementById('mtcapPartBadge').innerHTML = over
+        ? '<span class="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400">OVERLOAD</span>'
+        : '<span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">OK</span>';
+
+      const body = rows.length ? rows.map(r => `
+        <tr class="border-t border-slate-800">
+          <td class="py-1.5 pr-3"><span class="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-300">${r.customer}</span></td>
+          <td class="py-1.5 pr-3 font-medium text-slate-100">${r.model}</td>
+          <td class="py-1.5 pr-3 text-right">${r.sets}</td>
+          <td class="py-1.5 pr-3 text-right">${r.sets}</td>
+          <td class="py-1.5 pr-3 text-right font-semibold text-sky-300">${r.hours}h</td>
+          <td class="py-1.5 pr-3 text-right text-slate-400">${r.pct}%</td>
+        </tr>`).join('') : '<tr><td class="py-2 text-slate-500" colspan="6">Không có part nào trong tuần này.</td></tr>';
+
+      document.getElementById('mtcapPartTable').innerHTML = `
+        <table class="w-full text-left text-xs">
+          <thead><tr class="text-[10px] uppercase tracking-wide text-slate-400">
+            <th class="pb-1 pr-3">Customer</th><th class="pb-1 pr-3">Model</th>
+            <th class="pb-1 pr-3 text-right">PO Sets</th><th class="pb-1 pr-3 text-right">Eff. Sets</th>
+            <th class="pb-1 pr-3 text-right">MT Hours</th><th class="pb-1 pr-3 text-right">% Week</th>
+          </tr></thead>
+          <tbody>${body}</tbody>
+        </table>`;
+      document.getElementById('mtcapPartPanel').classList.remove('hidden');
+      document.getElementById('mtcapPartPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     async function initLogin() {
