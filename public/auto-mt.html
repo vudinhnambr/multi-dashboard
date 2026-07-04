@@ -392,6 +392,30 @@
 
 
 
+      <!-- ===== PO + Forecast 2026 vs Auto MT Capacity ===== -->
+      <section class="glass mb-8 rounded-2xl p-6">
+        <div class="mb-1 text-2xl font-bold">PO + Forecast 2026 vs Auto MT Capacity</div>
+        <div class="mb-4 text-xs text-slate-400">Demand = số set × MT Total (min/set), kiểm 100%. Nguồn: PO Forecast 2026 + Combined ST.</div>
+
+        <div id="mtcapKpis" class="mb-4 grid grid-cols-2 gap-4 md:grid-cols-5"></div>
+
+        <div class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm">
+          <span class="font-semibold text-slate-300">⚙ Nhân lực / ngày:</span>
+          <label class="flex items-center gap-1">Sáng <input id="mtcapMorning" type="number" min="0" value="4" class="w-14 rounded bg-slate-800 px-2 py-1 text-center text-slate-100"></label>
+          <label class="flex items-center gap-1">Đêm <input id="mtcapNight" type="number" min="0" value="3" class="w-14 rounded bg-slate-800 px-2 py-1 text-center text-slate-100"></label>
+          <span class="text-xs text-slate-400" id="mtcapFormula"></span>
+        </div>
+
+        <div class="mb-4 flex gap-2">
+          <button data-mtview="month" class="mtcap-view rounded-lg px-3 py-1 text-sm">By Month</button>
+          <button data-mtview="week"  class="mtcap-view rounded-lg px-3 py-1 text-sm">By Week</button>
+          <button data-mtview="part"  class="mtcap-view rounded-lg px-3 py-1 text-sm">By Part</button>
+        </div>
+
+        <div id="mtcapChart" style="height:360px;width:100%;"></div>
+        <div id="mtcapStatus" class="mt-2 text-xs text-slate-500"></div>
+      </section>
+
       <!-- ===== Re-Inspection list (click to reveal) ===== -->
       <section class="glass mb-8 rounded-2xl p-6">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1960,6 +1984,7 @@
       await loadAndRenderData(true)
       applyRoleUI(currentRole)
       document.getElementById('loginOverlay').classList.add('hidden')
+      initMtCapacity()   // PO + Forecast vs Auto MT Capacity (chart cần dashboard đã hiện)
     }
 
     async function attemptLogin() {
@@ -1995,6 +2020,113 @@
     async function logout() {
       await supabase.auth.signOut()
       location.reload()
+    }
+
+    // ===== PO + Forecast 2026 vs Auto MT Capacity =====
+    let mtcapData = null, mtcapView = 'month', mtcapInited = false;
+    const MTCAP_MIN_SHIFT = 620, MTCAP_DAYS = 7;
+
+    function mtcapPeople() {
+      const m = Number(document.getElementById('mtcapMorning').value) || 0;
+      const n = Number(document.getElementById('mtcapNight').value) || 0;
+      return m + n;
+    }
+    function mtcapCapWeek() {
+      return Math.round(mtcapPeople() * MTCAP_MIN_SHIFT * MTCAP_DAYS / 60 * 10) / 10;
+    }
+    function mtcapDemandByWeek() {
+      const wk = new Array(53).fill(0);
+      if (!mtcapData) return wk;
+      for (const p of mtcapData.parts) {
+        if (!p.mtStd) continue;
+        for (let w = 0; w < 53; w++) wk[w] += (p.sets[w] || 0) * p.mtStd;
+      }
+      return wk.map(m => Math.round(m / 60 * 10) / 10);
+    }
+    function mtcapKpiCard(label, val, sub, color) {
+      return `<div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+        <div class="text-[10px] uppercase tracking-wide text-slate-400">${label}</div>
+        <div class="text-xl font-bold" style="color:${color}">${val}</div>
+        <div class="text-[11px] text-slate-500">${sub}</div></div>`;
+    }
+    async function initMtCapacity() {
+      if (mtcapInited) { renderMtCapacity(); return; }
+      try {
+        const r = await fetch('/api/mt-capacity');
+        if (!r.ok) { document.getElementById('mtcapStatus').innerText = 'Không tải được dữ liệu capacity.'; return; }
+        mtcapData = await r.json();
+      } catch { document.getElementById('mtcapStatus').innerText = 'Lỗi tải dữ liệu capacity.'; return; }
+      mtcapInited = true;
+      ['mtcapMorning', 'mtcapNight'].forEach(id => document.getElementById(id).addEventListener('input', renderMtCapacity));
+      document.querySelectorAll('.mtcap-view').forEach(b => b.addEventListener('click', () => { mtcapView = b.dataset.mtview; renderMtCapacity(); }));
+      renderMtCapacity();
+    }
+    function renderMtCapacity() {
+      if (!mtcapData) return;
+      const capW = mtcapCapWeek();
+      const demW = mtcapDemandByWeek();
+      const totalDemand = Math.round(demW.reduce((a, b) => a + b, 0) * 10) / 10;
+      const annualCap = Math.round(capW * 53 * 10) / 10;
+      const overWeeks = demW.filter(d => d > capW).length;
+      const peakIdx = demW.indexOf(Math.max(...demW));
+      const factor = annualCap > 0 ? totalDemand / annualCap : 0;
+
+      document.getElementById('mtcapFormula').innerText =
+        `→ Cap/tuần: ${capW}h  |  ${mtcapPeople()} người × 620 min × 7 ngày`;
+
+      document.getElementById('mtcapKpis').innerHTML = [
+        mtcapKpiCard('TOTAL DEMAND 2026', totalDemand.toLocaleString() + 'h', 'Annual cap: ' + annualCap.toLocaleString() + 'h', '#f87171'),
+        mtcapKpiCard('OVERLOAD FACTOR', factor.toFixed(1) + '×', 'demand / capacity', factor > 1 ? '#f87171' : '#34d399'),
+        mtcapKpiCard('OVERLOADED WEEKS', overWeeks + '/53', Math.round(overWeeks / 53 * 100) + '% of year', overWeeks > 0 ? '#fbbf24' : '#34d399'),
+        mtcapKpiCard('PEAK WEEK', 'W' + (peakIdx + 1), (demW[peakIdx] || 0) + 'h', '#f87171'),
+        mtcapKpiCard('CAP/WEEK', capW + 'h', mtcapPeople() + ' người · 620min/ca', '#38bdf8'),
+      ].join('');
+
+      document.querySelectorAll('.mtcap-view').forEach(b => {
+        const on = b.dataset.mtview === mtcapView;
+        b.style.background = on ? '#2563eb' : '#1e293b';
+        b.style.color = on ? '#fff' : '#94a3b8';
+      });
+
+      let cats = [], demand = [], cap = null;
+      if (mtcapView === 'week') {
+        for (let w = 0; w < 53; w++) { cats.push('W' + (w + 1)); demand.push(demW[w]); }
+        cap = demW.map(() => capW);
+      } else if (mtcapView === 'month') {
+        cap = [];
+        for (const [name, s, e] of mtcapData.months) {
+          let d = 0; for (let w = s; w <= e; w++) d += demW[w] || 0;
+          cats.push(name); demand.push(Math.round(d * 10) / 10); cap.push(Math.round(capW * (e - s + 1) * 10) / 10);
+        }
+      } else { // part
+        const agg = {};
+        for (const p of mtcapData.parts) {
+          if (!p.mtStd) continue;
+          const tot = p.sets.reduce((a, b) => a + b, 0) * p.mtStd / 60;
+          if (tot > 0) agg[p.model] = (agg[p.model] || 0) + tot;
+        }
+        const sorted = Object.entries(agg).sort((a, b) => b[1] - a[1]);
+        cats = sorted.map(x => x[0]); demand = sorted.map(x => Math.round(x[1] * 10) / 10);
+      }
+
+      const series = [{
+        name: 'Demand', type: 'bar', data: demand,
+        itemStyle: { color: '#34d399' },
+        label: { show: mtcapView !== 'week', position: 'top', color: '#cbd5e1', fontSize: 10, formatter: p => p.value + 'h' },
+      }];
+      if (cap) series.push({ name: 'Capacity', type: 'line', data: cap, itemStyle: { color: '#38bdf8' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none' });
+
+      const chart = getChart('mtcapChart');
+      chart.setOption({
+        textStyle: baseTextStyle(),
+        tooltip: { trigger: 'axis' },
+        legend: { data: cap ? ['Demand', 'Capacity'] : ['Demand'], top: 0, textStyle: { color: '#cbd5e1' } },
+        grid: { left: 55, right: 20, top: 30, bottom: mtcapView === 'part' ? 110 : 40 },
+        xAxis: { type: 'category', data: cats, axisLabel: { rotate: mtcapView === 'part' ? 45 : 0, fontSize: 10, interval: mtcapView === 'week' ? 3 : 0 } },
+        yAxis: { type: 'value', name: 'h' },
+        series,
+      }, true);
+      chart.resize();
     }
 
     async function initLogin() {
