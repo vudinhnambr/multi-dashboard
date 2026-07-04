@@ -1917,6 +1917,7 @@
       updateDataThroughDate()
       refreshDashboard()
       if (effVisible) renderEfficiency()
+      renderMtActual()   // cập nhật thống kê TB nhân công/giờ theo data mới nhất
       setMetric('lastUpdated', `Last updated: ${formatDateTime(new Date())}`)
     }
 
@@ -2153,7 +2154,12 @@
       const series = [{
         name: 'Demand', type: 'bar', data: demand,
         itemStyle: { color: '#34d399' },
-        label: { show: mtcapView !== 'week', position: 'top', color: '#cbd5e1', fontSize: 10, formatter: p => p.value + 'h' },
+        label: {
+          show: true, position: 'top', color: '#cbd5e1',
+          fontSize: mtcapView === 'week' ? 8 : 10,
+          rotate: mtcapView === 'week' ? 90 : 0,
+          formatter: p => (p.value ? (mtcapView === 'week' ? Math.round(p.value) : p.value + 'h') : ''),
+        },
       }];
       if (cap) series.push({ name: 'Capacity', type: 'line', data: cap, itemStyle: { color: '#38bdf8' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none' });
 
@@ -2162,11 +2168,21 @@
         textStyle: baseTextStyle(),
         tooltip: { trigger: 'axis' },
         legend: { data: cap ? ['Demand', 'Capacity'] : ['Demand'], top: 0, textStyle: { color: '#cbd5e1' } },
-        grid: { left: 55, right: 20, top: 30, bottom: mtcapView === 'part' ? 110 : 40 },
-        xAxis: { type: 'category', data: cats, axisLabel: { rotate: mtcapView === 'part' ? 45 : 0, fontSize: 10, interval: mtcapView === 'week' ? 3 : 0 } },
+        grid: { left: 55, right: 20, top: 40, bottom: mtcapView === 'part' ? 110 : (mtcapView === 'week' ? 60 : 40) },
+        xAxis: {
+          type: 'category', data: cats,
+          axisLabel: {
+            interval: 0,                                   // hiện đủ mọi nhãn (W1, W2, W3...)
+            rotate: mtcapView === 'week' ? 60 : (mtcapView === 'part' ? 45 : 0),
+            fontSize: mtcapView === 'week' ? 9 : 10,
+          },
+        },
         yAxis: { type: 'value', name: 'h' },
         series,
       }, true);
+      // Bấm cột (ở By Month) → chuyển sang By Week
+      chart.off('click');
+      chart.on('click', () => { if (mtcapView === 'month') { mtcapView = 'week'; renderMtCapacity(); } });
       chart.resize();
     }
 
