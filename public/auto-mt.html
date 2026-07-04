@@ -406,6 +406,8 @@
           <span class="text-xs text-slate-400" id="mtcapFormula"></span>
         </div>
 
+        <div id="mtcapActual" class="requires-admin hidden mb-4 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-xs text-slate-300"></div>
+
         <div class="mb-4 flex gap-2">
           <button data-mtview="month" class="mtcap-view rounded-lg px-3 py-1 text-sm">By Month</button>
           <button data-mtview="week"  class="mtcap-view rounded-lg px-3 py-1 text-sm">By Week</button>
@@ -2057,10 +2059,49 @@
         mtcapData = await r.json();
       } catch { document.getElementById('mtcapStatus').innerText = 'Lỗi tải dữ liệu capacity.'; return; }
       mtcapInited = true;
+      renderMtActual();
       ['mtcapMorning', 'mtcapNight'].forEach(id => document.getElementById(id).addEventListener('input', renderMtCapacity));
       document.querySelectorAll('.mtcap-view').forEach(b => b.addEventListener('click', () => { mtcapView = b.dataset.mtview; renderMtCapacity(); }));
       renderMtCapacity();
     }
+    // Trung bình thực tế từ 01/01/2026 (từ historical data allData):
+    //   nhân công/ngày = số person khác nhau; giờ làm/ngày = Σ(qty × MT std)/60 (giờ chuẩn quy đổi).
+    function computeAutoMtAverages() {
+      const START = new Date(2026, 0, 1).getTime();
+      const byDay = {};
+      for (const r of allData) {
+        if (!r.dateValue || r.dateValue < START) continue;
+        if (!byDay[r.date]) byDay[r.date] = { persons: new Set(), earnedMin: 0 };
+        if (r.personDisplay) byDay[r.date].persons.add(r.personDisplay);
+        const std = lookupStandard(r.partDisplay, r.typeDisplay);
+        if (std != null) byDay[r.date].earnedMin += r.qty * std;
+      }
+      const days = Object.values(byDay);
+      const n = days.length;
+      if (!n) return null;
+      const totalWorkers = days.reduce((s, d) => s + d.persons.size, 0);
+      const totalHours = days.reduce((s, d) => s + d.earnedMin, 0) / 60;
+      return {
+        days: n,
+        avgWorkers: Math.round(totalWorkers / n * 10) / 10,
+        avgHours: Math.round(totalHours / n * 10) / 10,
+        avgHoursPerWorker: totalWorkers ? Math.round(totalHours / totalWorkers * 10) / 10 : 0,
+      };
+    }
+    function renderMtActual() {
+      const el = document.getElementById('mtcapActual');
+      if (!el) return;
+      // Chỉ admin mới được xem thống kê nhân công/giờ — non-admin: không tính, không đưa vào DOM.
+      if (currentRole !== 'admin') { el.innerHTML = ''; return; }
+      const a = computeAutoMtAverages();
+      if (!a) { el.innerHTML = 'Chưa có dữ liệu Auto MT từ 01/01/2026.'; return; }
+      el.innerHTML = `📊 Thực tế từ 01/01/2026 (${a.days} ngày có dữ liệu): trung bình `
+        + `<b style="color:#38bdf8">${a.avgWorkers}</b> nhân công/ngày · `
+        + `<b style="color:#34d399">${a.avgHours}h</b> giờ làm/ngày · `
+        + `~${a.avgHoursPerWorker}h/người/ngày. `
+        + `<span class="text-slate-500">(giờ = qty × MT std, quy đổi giờ chuẩn)</span>`;
+    }
+
     function renderMtCapacity() {
       if (!mtcapData) return;
       const capW = mtcapCapWeek();
