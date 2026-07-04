@@ -2185,6 +2185,8 @@
         return '#34d399';
       });
 
+      const util = cap ? demand.map((v, i) => (cap[i] > 0 ? Math.round(v / cap[i] * 100) : 0)) : null;
+
       const series = [{
         name: 'Demand', type: 'bar', data: demand.map((v, i) => ({ value: v, itemStyle: { color: colors[i] } })),
         label: {
@@ -2192,19 +2194,32 @@
           formatter: p => (p.value ? p.value + 'h' : ''),
         },
       }];
-      if (cap) series.push({ name: 'Capacity', type: 'line', data: cap, itemStyle: { color: '#38bdf8' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none' });
+      if (cap) {
+        series.push({
+          name: 'Capacity', type: 'line', data: cap, itemStyle: { color: '#38bdf8' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none',
+          endLabel: { show: true, formatter: () => 'Std ' + capW + 'h', color: '#38bdf8', fontSize: 11 },
+        });
+        series.push({
+          name: '% Utilization', type: 'line', yAxisIndex: 1, data: util,
+          itemStyle: { color: '#fbbf24' }, lineStyle: { color: '#fbbf24' }, symbol: 'circle', symbolSize: 4,
+          label: { show: mtcapView === 'month', position: 'top', color: '#fbbf24', fontSize: 9, formatter: p => p.value + '%' },
+        });
+      }
 
       const chart = getChart('mtcapChart');
       chart.setOption({
         textStyle: baseTextStyle(),
-        tooltip: { trigger: 'axis', valueFormatter: v => (v == null ? '' : v + 'h') },
-        legend: { data: cap ? ['Demand', 'Capacity'] : ['Demand'], top: 0, textStyle: { color: '#cbd5e1' } },
-        grid: { left: 55, right: 20, top: 40, bottom: mtcapView === 'part' ? 110 : (mtcapView === 'week' ? 55 : 40) },
+        tooltip: { trigger: 'axis' },
+        legend: { data: cap ? ['Demand', 'Capacity', '% Utilization'] : ['Demand'], top: 0, textStyle: { color: '#cbd5e1' } },
+        grid: { left: 55, right: 60, top: 40, bottom: mtcapView === 'part' ? 110 : (mtcapView === 'week' ? 55 : 40) },
         xAxis: {
           type: 'category', data: cats,
           axisLabel: { interval: 0, rotate: mtcapView === 'week' ? 60 : (mtcapView === 'part' ? 45 : 0), fontSize: mtcapView === 'week' ? 9 : 10 },
         },
-        yAxis: { type: 'value', name: 'h' },
+        yAxis: [
+          { type: 'value', name: 'h' },
+          { type: 'value', name: '%', position: 'right', splitLine: { show: false }, axisLabel: { formatter: '{value}%' } },
+        ],
         series,
       }, true);
 
@@ -2238,11 +2253,12 @@
       const [name, s, e] = mtcapData.months[monthIdx];
       const capW = mtcapCapWeek();
       const demW = mtcapDemandByWeek();
-      const cats = [], demand = [], cap = [];
+      const cats = [], demand = [], cap = [], util = [];
       for (let w = s; w <= e; w++) {
         cats.push('W' + (w + 1));
         demand.push({ value: demW[w] || 0, itemStyle: { color: (demW[w] || 0) > capW ? '#f87171' : '#34d399' } });
         cap.push(capW);
+        util.push(capW > 0 ? Math.round((demW[w] || 0) / capW * 100) : 0);
       }
       document.getElementById('mtcapWeekTitle').innerText = `${name} — Chi tiết theo tuần · bấm tuần để xem part`;
       document.getElementById('mtcapWeekPanel').classList.remove('hidden');
@@ -2251,13 +2267,20 @@
       const chart = getChart('mtcapWeekChart');
       chart.setOption({
         textStyle: baseTextStyle(),
-        tooltip: { trigger: 'axis', valueFormatter: v => (v == null ? '' : v + 'h') },
-        grid: { left: 50, right: 20, top: 24, bottom: 30 },
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['Demand', 'Capacity', '% Utilization'], top: 0, textStyle: { color: '#cbd5e1' } },
+        grid: { left: 50, right: 60, top: 28, bottom: 30 },
         xAxis: { type: 'category', data: cats, axisLabel: { interval: 0, fontSize: 11 } },
-        yAxis: { type: 'value', name: 'h' },
+        yAxis: [
+          { type: 'value', name: 'h' },
+          { type: 'value', name: '%', position: 'right', splitLine: { show: false }, axisLabel: { formatter: '{value}%' } },
+        ],
         series: [
           { name: 'Demand', type: 'bar', data: demand, label: { show: true, position: 'top', color: '#cbd5e1', fontSize: 11, formatter: p => (p.value ? p.value + 'h' : '') } },
-          { name: 'Capacity', type: 'line', data: cap, itemStyle: { color: '#38bdf8' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none' },
+          { name: 'Capacity', type: 'line', data: cap, itemStyle: { color: '#38bdf8' }, lineStyle: { type: 'dashed', width: 2 }, symbol: 'none',
+            endLabel: { show: true, formatter: () => 'Std ' + capW + 'h', color: '#38bdf8', fontSize: 11 } },
+          { name: '% Utilization', type: 'line', yAxisIndex: 1, data: util, itemStyle: { color: '#fbbf24' }, lineStyle: { color: '#fbbf24' }, symbol: 'circle', symbolSize: 4,
+            label: { show: true, position: 'top', color: '#fbbf24', fontSize: 10, formatter: p => p.value + '%' } },
         ],
       }, true);
       chart.off('click');
@@ -2273,7 +2296,8 @@
       const over = weekH > capW;
       const rows = mtcapWeekParts(w);
 
-      document.getElementById('mtcapPartTitle').innerText = `W${w + 1} — ${weekH}h / ${capW}h`;
+      const utilPct = capW > 0 ? Math.round(weekH / capW * 100) : 0;
+      document.getElementById('mtcapPartTitle').innerText = `W${w + 1} — ${weekH}h / ${capW}h · ${utilPct}% utilization`;
       document.getElementById('mtcapPartBadge').innerHTML = over
         ? '<span class="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400">OVERLOAD</span>'
         : '<span class="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">OK</span>';
