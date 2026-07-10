@@ -162,6 +162,14 @@ export async function loadCmmWeeklyData() {
   const weekMap = {};
   let maxDate = null; // ngày cuối cùng ở cột A "CMM Date"
 
+  // Tìm cột "Re-Check Time" theo TÊN TIÊU ĐỀ (không cố định vị trí) — nằm ở đâu cũng bắt đúng.
+  const header0 = rows[0] || [];
+  let reCheckCol = -1;
+  for (let i = 0; i < header0.length; i++) {
+    const h = String(header0[i] || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (h.includes('re-check') || h.includes('re check') || h.includes('recheck')) { reCheckCol = i; break; }
+  }
+
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row) continue;
@@ -196,8 +204,8 @@ export async function loadCmmWeeklyData() {
     const displayPart = getDisplayName(rawPart);
 
     const stepLabel = COL_LABEL[col] || stepName;
-    // Cột N (index 13) = "Re-Check Time" (phút đo kiểm thêm). Thời gian thực = std + re-check.
-    const rcRaw = Number(row[13]);
+    // "Re-Check Time" (phút đo kiểm thêm) — cột tìm theo tên tiêu đề. Thời gian thực = std + re-check.
+    const rcRaw = reCheckCol >= 0 ? Number(row[reCheckCol]) : NaN;
     const reCheck = Number.isFinite(rcRaw) && rcRaw > 0 ? rcRaw : 0;
     const rowMin = stepStd[col] + reCheck;
     if (!weekMap[fw]) weekMap[fw] = {};
