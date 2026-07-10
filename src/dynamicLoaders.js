@@ -196,15 +196,21 @@ export async function loadCmmWeeklyData() {
     const displayPart = getDisplayName(rawPart);
 
     const stepLabel = COL_LABEL[col] || stepName;
+    // Cột N (index 13) = "Re-Check Time" (phút đo kiểm thêm). Thời gian thực = std + re-check.
+    const rcRaw = Number(row[13]);
+    const reCheck = Number.isFinite(rcRaw) && rcRaw > 0 ? rcRaw : 0;
+    const rowMin = stepStd[col] + reCheck;
     if (!weekMap[fw]) weekMap[fw] = {};
-    if (!weekMap[fw][displayPart]) weekMap[fw][displayPart] = { min: 0, count: 0, steps: {} };
+    if (!weekMap[fw][displayPart]) weekMap[fw][displayPart] = { min: 0, count: 0, reCheck: 0, steps: {} };
     const bucket = weekMap[fw][displayPart];
-    bucket.min += stepStd[col];   // tổng std time (phút)
+    bucket.min += rowMin;          // tổng thời gian đo thực tế (std + re-check)
     bucket.count += 1;            // số ring/bước đã đo
+    bucket.reCheck += reCheck;    // tổng phút re-check thêm của part
     // breakdown theo từng model/bước (Outer, Inner 1, Assembly...)
-    if (!bucket.steps[stepLabel]) bucket.steps[stepLabel] = { count: 0, min: 0 };
+    if (!bucket.steps[stepLabel]) bucket.steps[stepLabel] = { count: 0, min: 0, reCheck: 0 };
     bucket.steps[stepLabel].count += 1;
-    bucket.steps[stepLabel].min += stepStd[col];
+    bucket.steps[stepLabel].min += rowMin;
+    bucket.steps[stepLabel].reCheck += reCheck;
   }
 
   // Build weeklySummary entries for actual weeks (source = 'CMM Daily Inspection')
@@ -217,11 +223,12 @@ export async function loadCmmWeeklyData() {
         .map(([part, v]) => ({
           part,
           sets: v.count,   // số ring/bước đã đo thực tế trong tuần
-          hours: Math.round(v.min / 60 * 10) / 10,
+          hours: Math.round(v.min / 60 * 10) / 10,   // gồm cả re-check
+          reCheckMin: Math.round(v.reCheck || 0),    // tổng phút re-check thêm
           std_min: null,
           byStep: Object.entries(v.steps || {})
             .sort(([, a], [, b]) => b.min - a.min)
-            .map(([step, s]) => ({ step, count: s.count, hours: Math.round(s.min / 60 * 10) / 10 })),
+            .map(([step, s]) => ({ step, count: s.count, hours: Math.round(s.min / 60 * 10) / 10, reCheckMin: Math.round(s.reCheck || 0) })),
         }));
       const totalHours = Math.round(byPart.reduce((s, p) => s + p.hours, 0) * 10) / 10;
       const totalSets  = byPart.reduce((s, p) => s + p.sets, 0);

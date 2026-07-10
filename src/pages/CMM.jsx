@@ -300,6 +300,11 @@ function StdTimeSection({ avail = 95 }) {
                               onClick={() => hasSteps && setExpandedPart(isExp ? null : p.part)}>
                             <td style={{ padding: '4px 6px', color: 'var(--txt-hi)' }}>
                               {hasSteps ? (isExp ? '▾ ' : '▸ ') : ''}{p.part}
+                              {p.reCheckMin > 0 && (
+                                <span title="Re-Check Time (đo kiểm thêm)" style={{ color: 'var(--amber)', fontSize: 9, marginLeft: 6 }}>
+                                  ⟳ +{p.reCheckMin}′ re-check
+                                </span>
+                              )}
                             </td>
                             <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--txt-mid)' }}>{p.sets}</td>
                             <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 600 }}>{p.hours}h</td>
@@ -309,7 +314,9 @@ function StdTimeSection({ avail = 95 }) {
                           </tr>
                           {hasSteps && isExp && p.byStep.map((s, j) => (
                             <tr key={`${i}-${j}`} style={{ background: 'var(--surface-2)' }}>
-                              <td style={{ padding: '2px 6px 2px 24px', color: 'var(--txt-low)', fontSize: 10 }}>{s.step}</td>
+                              <td style={{ padding: '2px 6px 2px 24px', color: 'var(--txt-low)', fontSize: 10 }}>
+                                {s.step}{s.reCheckMin > 0 ? <span style={{ color: 'var(--amber)' }}> (+{s.reCheckMin}′ RC)</span> : ''}
+                              </td>
                               <td className="mono" style={{ textAlign: 'right', padding: '2px 6px', color: 'var(--txt-low)', fontSize: 10 }}>×{s.count}</td>
                               <td className="mono" style={{ textAlign: 'right', padding: '2px 6px', color: 'var(--txt-mid)', fontSize: 10 }}>{s.hours}h</td>
                               <td></td>
