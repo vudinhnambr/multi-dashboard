@@ -305,6 +305,11 @@ function StdTimeSection({ avail = 95 }) {
                                   ⟳ +{p.reCheckMin}′ re-check
                                 </span>
                               )}
+                              {p.itrMin > 0 && (
+                                <span title="Inspection & Test Request (giờ linh động)" style={{ color: 'var(--violet)', fontSize: 9, marginLeft: 6, fontWeight: 700 }}>
+                                  ITR +{p.itrMin}′
+                                </span>
+                              )}
                             </td>
                             <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--txt-mid)' }}>{p.sets}</td>
                             <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 600 }}>{p.hours}h</td>
@@ -314,7 +319,7 @@ function StdTimeSection({ avail = 95 }) {
                           </tr>
                           {hasSteps && isExp && p.byStep.map((s, j) => (
                             <tr key={`${i}-${j}`} style={{ background: 'var(--surface-2)' }}>
-                              <td style={{ padding: '2px 6px 2px 24px', color: 'var(--txt-low)', fontSize: 10 }}>
+                              <td style={{ padding: '2px 6px 2px 24px', color: s.itr ? 'var(--violet)' : 'var(--txt-low)', fontSize: 10, fontWeight: s.itr ? 600 : 400 }}>
                                 {s.step}{s.reCheckMin > 0 ? <span style={{ color: 'var(--amber)' }}> (+{s.reCheckMin}′ RC)</span> : ''}
                               </td>
                               <td className="mono" style={{ textAlign: 'right', padding: '2px 6px', color: 'var(--txt-low)', fontSize: 10 }}>×{s.count}</td>
