@@ -37,6 +37,10 @@ export default async function handler(req, res) {
     }
     const { ringLookup, ncrLookup, timestamp } = await getLookups({ forceRefresh: refresh });
     const results = snList.map((assySn) => checkBearingSet(assySn, ringLookup, ncrLookup));
+    // Defect Description chỉ admin xem — non-admin: lược bỏ ngay tại server (không gửi xuống browser)
+    if (access.role !== "admin") {
+      for (const r of results) for (const ring of (r.rings || [])) for (const rec of (ring.records || [])) delete rec.defectDescription;
+    }
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({ dataAsOf: new Date(timestamp).toISOString(), results });
   } catch (err) {

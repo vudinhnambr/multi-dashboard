@@ -81,6 +81,8 @@ let STR = STRINGS.vi;
 let parts = [];
 let selectedPart = "";
 let lastData = null;
+let userRole = "";   // role của người đăng nhập (từ dashboard_access, khóa 'shipment-check')
+const isAdmin = () => userRole === "admin";
 
 const $ = (id) => document.getElementById(id);
 function esc(v) {
@@ -113,7 +115,7 @@ async function enterIfAllowed() {
   if (!token) return false;
   try {
     const res = await fetch("/api/check?access=check", { headers: { Authorization: "Bearer " + token } });
-    if (res.ok) { showApp(); return true; }
+    if (res.ok) { try { const j = await res.json(); userRole = j.role || ""; } catch { userRole = ""; } showApp(); return true; }
     if (res.status === 403) { err.textContent = "Tài khoản chưa được cấp quyền vào Shipment Check."; err.style.display = "block"; }
   } catch { /* ignore */ }
   return false;
@@ -144,6 +146,9 @@ async function logout() {
 function showApp() {
   $("loginGate").style.display = "none";
   $("app").style.display = "block";
+  // Lịch sử kiểm tra chỉ admin thấy
+  const hist = document.querySelector(".history-card");
+  if (hist) hist.style.display = isAdmin() ? "block" : "none";
   applyLang();
   loadParts();
 }
@@ -216,10 +221,57 @@ async function runCheck(refresh) {
     if (!res.ok) throw new Error(json.error || STR.unknownError);
     lastData = json;
     renderResults(json);
+    logCheck(text, json);   // ghi nhật ký: ai + thời điểm + S/N + kết quả
   } catch (e) {
     err.textContent = e.message; err.style.display = "block";
     lastData = null; $("results").innerHTML = "";
   } finally { btn.disabled = false; btn.textContent = STR.checkButton; }
+}
+
+// ---- Nhật ký kiểm tra (ai + thời điểm + S/N + kết quả) ----
+function summarizeResults(json) {
+  const rs = (json && json.results) || [];
+  const ok = rs.filter(r => r.overallOk === true).length;
+  const bad = rs.filter(r => r.overallOk === false).length;
+  const nf = rs.filter(r => !r.found).length;
+  return `${rs.length} S/N: ${ok} OK, ${bad} CHƯA OK${nf ? `, ${nf} không thấy` : ""}`;
+}
+async function logCheck(query, json) {
+  try {
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    await sb.from("shipment_check_log").insert({
+      user_id: session.user.id,
+      user_email: session.user.email,
+      query: String(query).slice(0, 2000),
+      result: summarizeResults(json).slice(0, 500),
+    });
+  } catch { /* lỗi ghi log không chặn tra cứu */ }
+}
+async function loadHistory() {
+  const box = $("scHistory");
+  box.style.display = "block";
+  box.innerHTML = '<div class="hist-empty">Đang tải...</div>';
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb.from("shipment_check_log")
+      .select("checked_at, user_email, query, result")
+      .order("checked_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    if (!data || !data.length) { box.innerHTML = '<div class="hist-empty">Chưa có lịch sử.</div>'; return; }
+    box.innerHTML = '<table class="hist"><thead><tr>'
+      + '<th>Thời điểm</th><th>Người</th><th>S/N tra</th><th>Kết quả</th></tr></thead><tbody>'
+      + data.map(r => `<tr>
+          <td>${esc(new Date(r.checked_at).toLocaleString("vi-VN"))}</td>
+          <td>${esc(r.user_email || "")}</td>
+          <td>${esc((r.query || "").replace(/\n/g, ", "))}</td>
+          <td>${esc(r.result || "")}</td></tr>`).join("")
+      + "</tbody></table>";
+  } catch (e) {
+    box.innerHTML = '<div class="hist-empty">Không tải được lịch sử: ' + esc(e.message) + "</div>";
+  }
 }
 
 function isBadStatus(s) { return s === "OPEN_REVIEW" || s === "UNKNOWN"; }
@@ -259,7 +311,7 @@ function renderResults(data) {
         inner += `<div class="ring-detail${rec.status !== "CLOSED" ? " ring-detail-bad" : ""}"><div class="ring-detail-title">${esc(STR.noticeTitle(i + 1, ring.records.length))}${esc(recordMark(rec.status))}</div>` +
           `<div>${esc(STR.issueNo)}${esc(rec.issueNo ?? "-")}</div>` +
           `<div>${esc(STR.productName)}${esc(rec.productName ?? "-")}</div>` +
-          `<div>${esc(STR.defectDescription)}${esc(rec.defectDescription ?? "-")}</div>` +
+          (isAdmin() ? `<div>${esc(STR.defectDescription)}${esc(rec.defectDescription ?? "-")}</div>` : "") +
           `<div>${esc(STR.processingResults)}${esc(rec.processingResults ?? "-")}</div>` +
           `<div>${esc(STR.closingDate)}${rec.closingDate ? esc(rec.closingDate) : "-"}</div></div>`;
       });
@@ -281,5 +333,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("checkBtn").addEventListener("click", () => runCheck(false));
   $("refreshBtn").addEventListener("click", () => runCheck(true));
   $("resetBtn").addEventListener("click", () => { $("snText").value = ""; $("results").innerHTML = ""; $("error").style.display = "none"; lastData = null; });
+  $("scHistoryBtn").addEventListener("click", () => {
+    const box = $("scHistory");
+    if (box.style.display === "none" || !box.style.display) loadHistory();
+    else box.style.display = "none";
+  });
   try { const sb = await getSupabase(); const { data: { session } } = await sb.auth.getSession(); if (session) await enterIfAllowed(); } catch { /* ignore */ }
 });
