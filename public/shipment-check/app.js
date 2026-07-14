@@ -287,7 +287,7 @@ async function loadHistory(term) {
           return `<tr class="${bad.hasIssue ? 'hist-bad' : ''}">
             <td class="ht-time">${esc(new Date(r.checked_at).toLocaleString("vi-VN"))}</td>
             <td class="ht-user">${esc(r.user_email || "")}</td>
-            <td class="ht-sn">${esc((r.query || "").replace(/\n/g, ", "))}</td>
+            <td class="ht-sn">${(r.query || "").split("\n").map(s => esc(s.trim())).filter(Boolean).join("<br>")}</td>
             <td class="ht-res">${bad.html}</td></tr>`;
         }).join("")
       + "</tbody></table>";
