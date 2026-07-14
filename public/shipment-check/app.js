@@ -269,18 +269,28 @@ async function loadHistory(term) {
       .order("checked_at", { ascending: false })
       .limit(200);
     const t = (term || "").trim();
+    let scope;
     if (t) {
       if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
-        q = q.gte("checked_at", t + "T00:00:00").lte("checked_at", t + "T23:59:59");
+        q = q.gte("checked_at", t + "T00:00:00+07:00").lte("checked_at", t + "T23:59:59+07:00");
+        scope = `Ngày ${t}`;
       } else {
         const safe = t.replace(/[,%()*]/g, " ").trim();
         q = q.or(`user_email.ilike.%${safe}%,query.ilike.%${safe}%,result.ilike.%${safe}%`);
+        scope = `Tìm: "${t}"`;
       }
+    } else {
+      // Mặc định: chỉ lịch sử HÔM NAY (giờ VN +07:00) để list không quá dài
+      const now = new Date();
+      const d = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      q = q.gte("checked_at", d + "T00:00:00+07:00").lte("checked_at", d + "T23:59:59+07:00");
+      scope = `Hôm nay (${d})`;
     }
     const { data, error } = await q;
     if (error) throw error;
-    if (!data || !data.length) { box.innerHTML = '<div class="hist-empty">Chưa có lịch sử.</div>'; return; }
-    box.innerHTML = '<table class="hist"><thead><tr>'
+    const cap = `<div class="hist-scope">${esc(scope)} · ${(data || []).length} lượt</div>`;
+    if (!data || !data.length) { box.innerHTML = cap + '<div class="hist-empty">Không có lượt kiểm tra.</div>'; return; }
+    box.innerHTML = cap + '<table class="hist"><thead><tr>'
       + '<th>Thời điểm</th><th>Người</th><th>S/N tra</th><th>Kết quả</th></tr></thead><tbody>'
       + data.map(r => {
           const bad = fmtResult(r.result || "");
