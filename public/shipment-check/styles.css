@@ -513,3 +513,17 @@ table.hist { width: 100%; border-collapse: collapse; font-size: 12px; background
 table.hist th { text-align: left; padding: 8px 10px; background: var(--bg); color: var(--gray); font-weight: 600; border-bottom: 1px solid var(--border); }
 table.hist td { padding: 6px 10px; border-top: 1px solid var(--border); color: var(--text); vertical-align: top; }
 .hist-empty { color: var(--gray); font-size: 13px; padding: 8px 0; }
+
+.hist-search { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.hist-search input { flex: 1; min-width: 240px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; }
+.hist-search input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.hist-search button { padding: 8px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+.hist-search button:first-of-type { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* Bảng lịch sử: mỗi ô 1 dòng (không ngắt), cuộn ngang nếu rộng */
+#scHistory { overflow-x: auto; }
+table.hist td, table.hist th { white-space: nowrap; }
+table.hist td.ht-sn { max-width: 480px; overflow: hidden; text-overflow: ellipsis; }
+b.hist-red { color: #b91c1c; font-weight: 800; }
+tr.hist-bad { background: #fdecea; }
+tr.hist-bad td { color: #7f1d1d; }

@@ -65,7 +65,14 @@
 
             <div class="history-card">
               <button type="button" id="scHistoryBtn" class="history-toggle">🕘 Lịch sử kiểm tra</button>
-              <div id="scHistory" style="display:none"></div>
+              <div id="scHistoryWrap" style="display:none">
+                <div class="hist-search">
+                  <input type="text" id="scHistSearch" placeholder="Tìm: người / S/N / kết quả / ngày (YYYY-MM-DD)" />
+                  <button type="button" id="scHistSearchBtn">Tìm</button>
+                  <button type="button" id="scHistClearBtn">Xóa lọc</button>
+                </div>
+                <div id="scHistory"></div>
+              </div>
             </div>
           </div>
         </div>

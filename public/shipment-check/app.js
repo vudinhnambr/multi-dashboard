@@ -249,25 +249,47 @@ async function logCheck(query, json) {
     });
   } catch { /* lỗi ghi log không chặn tra cứu */ }
 }
-async function loadHistory() {
+// Tô đỏ đậm phần "N CHƯA OK" / "N không thấy" khi N>0. Trả { html, hasIssue }.
+function fmtResult(text) {
+  if (!text) return { html: "", hasIssue: false };
+  let hasIssue = false;
+  let html = esc(text)
+    .replace(/(\d+)\s*CHƯA OK/g, (m, n) => { if (Number(n) > 0) { hasIssue = true; return `<b class="hist-red">${m}</b>`; } return m; })
+    .replace(/(\d+)\s*không thấy/g, (m, n) => { if (Number(n) > 0) { hasIssue = true; return `<b class="hist-red">${m}</b>`; } return m; });
+  return { html, hasIssue };
+}
+
+async function loadHistory(term) {
   const box = $("scHistory");
-  box.style.display = "block";
   box.innerHTML = '<div class="hist-empty">Đang tải...</div>';
   try {
     const sb = await getSupabase();
-    const { data, error } = await sb.from("shipment_check_log")
+    let q = sb.from("shipment_check_log")
       .select("checked_at, user_email, query, result")
       .order("checked_at", { ascending: false })
-      .limit(100);
+      .limit(200);
+    const t = (term || "").trim();
+    if (t) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+        q = q.gte("checked_at", t + "T00:00:00").lte("checked_at", t + "T23:59:59");
+      } else {
+        const safe = t.replace(/[,%()*]/g, " ").trim();
+        q = q.or(`user_email.ilike.%${safe}%,query.ilike.%${safe}%,result.ilike.%${safe}%`);
+      }
+    }
+    const { data, error } = await q;
     if (error) throw error;
     if (!data || !data.length) { box.innerHTML = '<div class="hist-empty">Chưa có lịch sử.</div>'; return; }
     box.innerHTML = '<table class="hist"><thead><tr>'
       + '<th>Thời điểm</th><th>Người</th><th>S/N tra</th><th>Kết quả</th></tr></thead><tbody>'
-      + data.map(r => `<tr>
-          <td>${esc(new Date(r.checked_at).toLocaleString("vi-VN"))}</td>
-          <td>${esc(r.user_email || "")}</td>
-          <td>${esc((r.query || "").replace(/\n/g, ", "))}</td>
-          <td>${esc(r.result || "")}</td></tr>`).join("")
+      + data.map(r => {
+          const bad = fmtResult(r.result || "");
+          return `<tr class="${bad.hasIssue ? 'hist-bad' : ''}">
+            <td class="ht-time">${esc(new Date(r.checked_at).toLocaleString("vi-VN"))}</td>
+            <td class="ht-user">${esc(r.user_email || "")}</td>
+            <td class="ht-sn">${esc((r.query || "").replace(/\n/g, ", "))}</td>
+            <td class="ht-res">${bad.html}</td></tr>`;
+        }).join("")
       + "</tbody></table>";
   } catch (e) {
     box.innerHTML = '<div class="hist-empty">Không tải được lịch sử: ' + esc(e.message) + "</div>";
@@ -334,9 +356,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("refreshBtn").addEventListener("click", () => runCheck(true));
   $("resetBtn").addEventListener("click", () => { $("snText").value = ""; $("results").innerHTML = ""; $("error").style.display = "none"; lastData = null; });
   $("scHistoryBtn").addEventListener("click", () => {
-    const box = $("scHistory");
-    if (box.style.display === "none" || !box.style.display) loadHistory();
-    else box.style.display = "none";
+    const wrap = $("scHistoryWrap");
+    if (wrap.style.display === "none" || !wrap.style.display) { wrap.style.display = "block"; loadHistory(); }
+    else wrap.style.display = "none";
   });
+  $("scHistSearchBtn").addEventListener("click", () => loadHistory($("scHistSearch").value));
+  $("scHistSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") loadHistory($("scHistSearch").value); });
+  $("scHistClearBtn").addEventListener("click", () => { $("scHistSearch").value = ""; loadHistory(); });
   try { const sb = await getSupabase(); const { data: { session } } = await sb.auth.getSession(); if (session) await enterIfAllowed(); } catch { /* ignore */ }
 });
