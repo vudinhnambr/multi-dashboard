@@ -608,6 +608,13 @@
             </button>
           </div>
         </div>
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <input id="recentSearch" type="text"
+            placeholder="Tìm: Part / Serial / Person / Machine / Type / ngày (YYYY-MM-DD) / id"
+            class="w-full max-w-md rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" />
+          <button id="recentSearchBtn" type="button" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500">Search</button>
+          <button id="recentClearBtn" type="button" class="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:border-blue-400">Clear</button>
+        </div>
         <div id="recentMsg" class="mb-3 hidden text-sm"></div>
         <div id="recentBody" class="table-scroll hidden rounded-xl border border-slate-800">
           <table id="recentTable" class="w-full text-left text-xs"></table>
@@ -2775,6 +2782,45 @@
       }
     }
 
+    // Admin tìm bản ghi trên toàn bộ dữ liệu (không chỉ ngày mới nhất) để xóa trực tiếp.
+    async function searchRecent() {
+      if (currentRole !== 'admin' || !supabase) return
+      const input = document.getElementById('recentSearch')
+      const term = (input.value || '').trim()
+      if (!term) { loadRecentRecords(); return }
+      const body = document.getElementById('recentBody')
+      const chevron = document.getElementById('recentChevron')
+      body.classList.remove('hidden')
+      if (chevron) chevron.style.transform = 'rotate(90deg)'
+      setRecentMsg('Đang tìm...', '')
+      try {
+        const safe = term.replace(/[,%()*]/g, ' ').trim()
+        const ors = [
+          `part.ilike.%${safe}%`,
+          `serial_no.ilike.%${safe}%`,
+          `person.ilike.%${safe}%`,
+          `machine.ilike.%${safe}%`,
+          `type.ilike.%${safe}%`,
+        ]
+        if (/^\d{4}-\d{2}-\d{2}$/.test(term)) ors.push(`record_date.eq.${term}`)
+        if (/^\d+$/.test(term)) ors.push(`id.eq.${term}`)
+        const { data, error } = await supabase
+          .from('production_records')
+          .select('id, record_date, week, shift, person, machine, part, type, qty, serial_no')
+          .or(ors.join(','))
+          .order('record_date', { ascending: false })
+          .limit(300)
+        if (error) throw error
+        const rows = data || []
+        document.getElementById('recentCount').textContent = `${rows.length} rows`
+        document.getElementById('recentCountSub').textContent = `matching "${term}"${rows.length >= 300 ? ' (tối đa 300)' : ''}`
+        renderRecent(rows)
+        clearRecentMsg()
+      } catch (err) {
+        setRecentMsg('Tìm kiếm lỗi: ' + (err.message || ''), 'err')
+      }
+    }
+
     function setRecentCount(total, lastDate) {
       const countEl = document.getElementById('recentCount')
       if (!countEl) return
@@ -2839,7 +2885,8 @@
         } else {
           setRecentMsg(`Deleted row id ${id}. Refreshing...`, 'ok')
         }
-        await loadRecentRecords()
+        const term = (document.getElementById('recentSearch')?.value || '').trim()
+        if (term) await searchRecent(); else await loadRecentRecords()
         await loadAndRenderData(false)
         if (payload.deleted) setRecentMsg(`Deleted row id ${id} and updated the dashboard.`, 'ok')
       } catch (err) {
@@ -2869,6 +2916,12 @@
       })
       const recentRefresh = document.getElementById('recentRefreshBtn')
       if (recentRefresh) recentRefresh.addEventListener('click', loadRecentRecords)
+      const recentSearchBtn = document.getElementById('recentSearchBtn')
+      if (recentSearchBtn) recentSearchBtn.addEventListener('click', searchRecent)
+      const recentSearchInput = document.getElementById('recentSearch')
+      if (recentSearchInput) recentSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') searchRecent() })
+      const recentClearBtn = document.getElementById('recentClearBtn')
+      if (recentClearBtn) recentClearBtn.addEventListener('click', () => { document.getElementById('recentSearch').value = ''; loadRecentRecords() })
 
       const recentToggle = document.getElementById('recentToggleBtn')
       if (recentToggle) recentToggle.addEventListener('click', () => {
