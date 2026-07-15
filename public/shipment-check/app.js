@@ -233,8 +233,11 @@ function summarizeResults(json) {
   const rs = (json && json.results) || [];
   const ok = rs.filter(r => r.overallOk === true).length;
   const bad = rs.filter(r => r.overallOk === false).length;
-  const nf = rs.filter(r => !r.found).length;
-  return `${rs.length} S/N: ${ok} OK, ${bad} CHƯA OK${nf ? `, ${nf} không thấy` : ""}`;
+  const notFound = rs.filter(r => !r.found);
+  const nf = notFound.length;
+  let s = `${rs.length} S/N: ${ok} OK, ${bad} CHƯA OK`;
+  if (nf) s += `, ${nf} không thấy: ${notFound.map(r => r.assySn).join(", ")}`;
+  return s;
 }
 async function logCheck(query, json) {
   try {

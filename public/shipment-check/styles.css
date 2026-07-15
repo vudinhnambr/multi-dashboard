@@ -523,7 +523,8 @@ table.hist td { padding: 6px 10px; border-top: 1px solid var(--border); color: v
 /* Bảng lịch sử: mỗi ô 1 dòng (không ngắt), cuộn ngang nếu rộng */
 #scHistory { overflow-x: auto; }
 /* Thời điểm / Người / Kết quả: 1 dòng. S/N: cho xuống dòng, mỗi S/N một dòng (hiện đủ). */
-table.hist th, table.hist td.ht-time, table.hist td.ht-user, table.hist td.ht-res { white-space: nowrap; }
+table.hist th, table.hist td.ht-time, table.hist td.ht-user { white-space: nowrap; }
+table.hist td.ht-res { white-space: normal; min-width: 180px; max-width: 340px; }
 table.hist td.ht-sn { white-space: nowrap; line-height: 1.6; }
 b.hist-red { color: #b91c1c; font-weight: 800; }
 tr.hist-bad { background: #fdecea; }
