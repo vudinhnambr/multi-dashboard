@@ -55,7 +55,8 @@ export default async function handler(req, res) {
 
     // ---- Auto MT records hôm trước (service key, bypass RLS) ----
     let mt = { qty: 0, people: 0, hours: 0, byPerson: [], byMachine: [] };
-    const AURL = process.env.AUTOMT_SUPABASE_URL, AKEY = process.env.AUTOMT_SERVICE_KEY;
+    const AURL = process.env.AUTOMT_SUPABASE_URL || process.env.SUPABASE_URL;
+    const AKEY = process.env.AUTOMT_SERVICE_KEY;
     if (AURL && AKEY) {
       const q = `${AURL}/rest/v1/production_records?record_date=eq.${date}&select=person,machine,part,type,qty`;
       const rr = await fetch(q, { headers: { apikey: AKEY, Authorization: `Bearer ${AKEY}`, Accept: "application/json" } });
