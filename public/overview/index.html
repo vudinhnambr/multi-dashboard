@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tổng quan sản xuất</title>
+  <style>
+    :root{--bg:#0b1220;--panel:#111a2e;--panel2:#0e1626;--line:#1e293b;--txt:#e2e8f0;--mut:#94a3b8;--low:#64748b;
+          --cmm:#38bdf8;--mt:#34d399;--rose:#f87171;--amber:#fbbf24;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
+    body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',Roboto,Arial,sans-serif;padding:2vh 2vw;}
+    .head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2vh;flex-wrap:wrap;gap:8px;}
+    .head h1{font-size:clamp(20px,2.6vw,40px);font-weight:800;letter-spacing:.01em;}
+    .head .date{color:var(--amber);font-weight:800;}
+    .head .meta{color:var(--low);font-size:clamp(11px,1vw,15px);}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:2vw;height:88vh;}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:2vh 1.6vw;display:flex;flex-direction:column;overflow:hidden;}
+    .ptitle{display:flex;align-items:center;gap:10px;font-size:clamp(16px,1.8vw,28px);font-weight:800;margin-bottom:1.6vh;}
+    .dot{width:14px;height:14px;border-radius:50%;}
+    .kpis{display:flex;gap:1.2vw;margin-bottom:2vh;flex-wrap:wrap;}
+    .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:1.4vh 1.2vw;flex:1;min-width:130px;}
+    .kpi .lbl{color:var(--mut);font-size:clamp(10px,.85vw,13px);text-transform:uppercase;letter-spacing:.05em;}
+    .kpi .val{font-size:clamp(26px,3.4vw,54px);font-weight:800;line-height:1.05;}
+    .kpi .sub{color:var(--low);font-size:clamp(10px,.85vw,13px);}
+    .lst{flex:1;overflow:auto;}
+    .lst h3{color:var(--mut);font-size:clamp(11px,1vw,15px);text-transform:uppercase;letter-spacing:.05em;margin:1vh 0 .6vh;}
+    table{width:100%;border-collapse:collapse;font-size:clamp(13px,1.15vw,20px);}
+    td{padding:.7vh .4vw;border-top:1px solid var(--line);}
+    td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
+    .rank{color:var(--low);width:2ch;}
+    .msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--mut);text-align:center;padding:24px;}
+    @media(max-width:900px){.grid{grid-template-columns:1fr;height:auto;}}
+  </style>
+</head>
+<body>
+  <div id="root"><div class="msg">Đang tải…</div></div>
+  <script>
+    const KEY = new URLSearchParams(location.search).get("key") || "";
+    const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const num = n => (Math.round(n*10)/10).toLocaleString("vi-VN");
+
+    function rows(arr, valKey, unit){
+      if(!arr || !arr.length) return '<tr><td style="color:var(--low)">Không có dữ liệu</td></tr>';
+      return arr.map((x,i)=>`<tr><td class="rank">${i+1}</td><td>${esc(x.part||x.name)}</td><td class="r">${num(x[valKey])}${unit||""}</td></tr>`).join("");
+    }
+
+    function render(d){
+      const root = document.getElementById("root");
+      root.innerHTML = `
+        <div class="head">
+          <h1>Kết quả sản xuất — <span class="date">${esc(d.date)}</span></h1>
+          <div class="meta">Cập nhật: ${new Date(d.refreshedAt).toLocaleString("vi-VN")} · tự làm mới mỗi 3 phút</div>
+        </div>
+        <div class="grid">
+          <div class="panel">
+            <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM Inspection</div>
+            <div class="kpis">
+              <div class="kpi"><div class="lbl">Tổng giờ CMM</div><div class="val" style="color:var(--cmm)">${num(d.cmm.hours)}<span style="font-size:.4em">h</span></div></div>
+              <div class="kpi"><div class="lbl">Ring / bước đo</div><div class="val">${num(d.cmm.count)}</div></div>
+              <div class="kpi"><div class="lbl">Số part</div><div class="val">${(d.cmm.parts||[]).length}</div></div>
+            </div>
+            <div class="lst"><h3>Top part (giờ)</h3><table><tbody>${rows((d.cmm.parts||[]).slice(0,10),"hours","h")}</tbody></table></div>
+          </div>
+          <div class="panel">
+            <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT Inspection</div>
+            <div class="kpis">
+              <div class="kpi"><div class="lbl">Ring đã kiểm</div><div class="val" style="color:var(--mt)">${num(d.mt.qty)}</div></div>
+              <div class="kpi"><div class="lbl">Giờ công (quy đổi)</div><div class="val">${num(d.mt.hours)}<span style="font-size:.4em">h</span></div></div>
+              <div class="kpi"><div class="lbl">Số người</div><div class="val">${num(d.mt.people)}</div></div>
+            </div>
+            <div class="lst">
+              <h3>Theo người (ring)</h3><table><tbody>${rows(d.mt.byPerson,"qty","")}</tbody></table>
+              <h3>Theo máy (ring)</h3><table><tbody>${rows(d.mt.byMachine,"qty","")}</tbody></table>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    async function load(){
+      if(!KEY){ document.getElementById("root").innerHTML='<div class="msg">Thiếu key. Mở bằng link kèm ?key=…</div>'; return; }
+      try{
+        const r = await fetch(`/api/overview?key=${encodeURIComponent(KEY)}`);
+        if(r.status===401){ document.getElementById("root").innerHTML='<div class="msg">Key không đúng.</div>'; return; }
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        const d = await r.json();
+        render(d);
+      }catch(e){ document.getElementById("root").innerHTML='<div class="msg">Không tải được dữ liệu: '+esc(e.message)+'</div>'; }
+    }
+    load();
+    setInterval(load, 3*60*1000);
+  </script>
+</body>
+</html>
