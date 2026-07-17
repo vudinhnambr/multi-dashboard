@@ -37,7 +37,24 @@
     td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
     .rank{color:var(--low);width:2ch;}
     .msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--mut);text-align:center;padding:24px;}
-    @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr);}.cols{grid-template-columns:1fr;}}
+    @media(max-width:900px){
+      body{padding:10px;}
+      .kpis{grid-template-columns:repeat(3,1fr);gap:8px;}
+      .cols{grid-template-columns:1fr;gap:12px;}
+      .head{margin-bottom:10px;}
+    }
+    @media(max-width:560px){
+      body{padding:8px;}
+      .head h1{font-size:20px;}
+      .kpis{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+      .kpi{padding:10px 12px;}
+      .kpi .lbl{font-size:11px;}
+      .kpi .val{font-size:30px;}
+      .panel{padding:12px 10px;border-radius:14px;}
+      .ptitle{font-size:16px;}
+      .ptitle .sub{font-size:11px;}
+      .chart{height:300px;min-height:300px;}
+    }
   </style>
 </head>
 <body>
@@ -51,7 +68,7 @@
     // ── i18n ──
     const T = {
       vi: {
-        title:"Kết quả sản xuất", updated:"Cập nhật", refresh:"tự làm mới mỗi 3 phút",
+        title:"Kết quả kiểm tra", updated:"Cập nhật", refresh:"tự làm mới mỗi 60 phút",
         k_mt_ring:"Auto MT · Ring", k_mt_hours:"Auto MT · Giờ quy đổi", k_mt_people:"Auto MT · Người",
         k_cmm_hours:"CMM · Giờ", k_cmm_steps:"CMM · Ring/bước", k_cmm_parts:"CMM · Part",
         t_mt_person:"Auto MT — Theo người (hôm qua)", t_mt_weekly:"Auto MT — Output 5 tuần gần nhất",
@@ -61,7 +78,7 @@
         loading:"Đang tải…", missingKey:"Thiếu key. Mở bằng link kèm ?key=…", badKey:"Key không đúng.", loadErr:"Không tải được dữ liệu: ",
       },
       en: {
-        title:"Production Results", updated:"Updated", refresh:"auto-refresh every 3 min",
+        title:"Inspection Results", updated:"Updated", refresh:"auto-refresh every 60 min",
         k_mt_ring:"Auto MT · Rings", k_mt_hours:"Auto MT · Earned hours", k_mt_people:"Auto MT · People",
         k_cmm_hours:"CMM · Hours", k_cmm_steps:"CMM · Rings/steps", k_cmm_parts:"CMM · Parts",
         t_mt_person:"Auto MT — By person (yesterday)", t_mt_weekly:"Auto MT — Output, last 5 weeks",
@@ -111,16 +128,13 @@
       const cat = weekly.map(x=>x.week), qty = weekly.map(x=>x.qty);
       // Đường Avg chỉ vẽ qua các tuần ĐÃ XONG (bỏ tuần cuối = tuần hiện tại)
       const done = Math.max(0, weekly.length - 1);
-      const avgLabel = t("avg") + " " + num(avg) + unit;
       const avgData = weekly.map((_,i)=> i < done ? avg : null);
-      if(done > 0) avgData[done-1] = { value:avg, symbol:"circle", symbolSize:8,
-        label:{show:true, position:"top", distance:8, formatter:avgLabel, color:"#0b1220",
-               backgroundColor:"#fbbf24", padding:[3,7], borderRadius:5, fontWeight:800, fontSize:16} };
+      const avgName = t("lg_avg") + ": " + num(avg) + unit; // giá trị hiện ở chú thích, không đè lên cột
       c.setOption({...baseAxis(cat),
         yAxis:{type:"value",axisLabel:yAxisLbl,splitLine:{lineStyle:{color:GRID}}},
         series:[
           {name:name,type:"bar",data:qty,barMaxWidth:70,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT,formatter:p=>num(p.value)+unit})},
-          {name:t("lg_avg"),type:"line",data:avgData,symbol:"none",connectNulls:false,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3,type:"dashed"}}
+          {name:avgName,type:"line",data:avgData,symbol:"none",connectNulls:false,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3,type:"dashed"}}
         ]});
     }
 
@@ -209,7 +223,7 @@
     }
     document.documentElement.lang = lang;
     load();
-    setInterval(load, 3*60*1000);
+    setInterval(load, 60*60*1000);
   </script>
 </body>
 </html>
