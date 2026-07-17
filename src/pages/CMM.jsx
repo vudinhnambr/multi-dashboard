@@ -158,6 +158,7 @@ function StdTimeSection({ avail = 95 }) {
   const [selected2026FW, setSelected2026FW] = useState(null);
   const [showStdRef, setShowStdRef] = useState(false);
   const [expandedPart, setExpandedPart] = useState(null); // part đang bung breakdown theo model
+  const [expandedDay, setExpandedDay] = useState(null); // ngày đang bung chi tiết part
   const [liveWeeklyData, setLiveWeeklyData] = useState(null);
   const [liveStdTable, setLiveStdTable] = useState(null);
   const { t } = useLang();
@@ -279,32 +280,68 @@ function StdTimeSection({ avail = 95 }) {
                   <span style={{ color: 'var(--txt-mid)' }}>{wk.source}</span>
                   <span className="mono" style={{ fontWeight: 700 }}>{wk.totalHours}h</span>
                   <span style={{ color: 'var(--txt-low)', fontSize: 11 }}>{wk.utilization}% capacity</span>
-                  <button onClick={() => setSelected2026FW(null)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 4, padding: '1px 7px', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                  <button onClick={() => { setSelected2026FW(null); setExpandedDay(null); }} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 4, padding: '1px 7px', cursor: 'pointer', fontSize: 11 }}>✕</button>
                 </div>
-                {/* Chi tiết theo NGÀY trong tuần */}
-                {wk.byDay && wk.byDay.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                    {wk.byDay.map((d, i) => {
-                      const dt = new Date(d.date + 'T00:00:00');
-                      const dow = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dt.getDay()];
-                      const dm = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
-                      return (
-                        <div key={i} style={{ background: 'var(--surface-1)', border: `1px solid ${srcColor}`, borderRadius: 8, padding: '5px 10px', minWidth: 92 }}>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                            <span style={{ fontWeight: 700, color: srcColor, fontSize: 11 }}>{dow}</span>
-                            <span style={{ color: 'var(--txt-low)', fontSize: 10 }}>{dm}</span>
+                {/* Chi tiết theo NGÀY trong tuần (click 1 ngày để xem part) */}
+                {wk.byDay && wk.byDay.length > 0 && (() => {
+                  const selDay = wk.byDay.find(d => d.date === expandedDay);
+                  return (
+                    <>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: selDay ? 8 : 10 }}>
+                        {wk.byDay.map((d, i) => {
+                          const dt = new Date(d.date + 'T00:00:00');
+                          const dow = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dt.getDay()];
+                          const dm = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
+                          const isSel = d.date === expandedDay;
+                          return (
+                            <div key={i} onClick={() => setExpandedDay(isSel ? null : d.date)}
+                              style={{ background: isSel ? 'var(--surface-2)' : 'var(--surface-1)', border: `1px solid ${isSel ? 'var(--txt-hi)' : srcColor}`, borderRadius: 8, padding: '5px 10px', minWidth: 92, cursor: 'pointer' }}>
+                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                                <span style={{ fontWeight: 700, color: srcColor, fontSize: 11 }}>{isSel ? '▾ ' : ''}{dow}</span>
+                                <span style={{ color: 'var(--txt-low)', fontSize: 10 }}>{dm}</span>
+                              </div>
+                              <div className="mono" style={{ fontWeight: 700, fontSize: 14 }}>{d.hours}h</div>
+                              <div style={{ color: 'var(--txt-low)', fontSize: 10 }}>
+                                {d.sets} {t('std.rings_steps')}
+                                {d.reCheckMin > 0 && <span style={{ color: 'var(--amber)' }}> · ⟳{d.reCheckMin}′</span>}
+                                {d.itrMin > 0 && <span style={{ color: 'var(--violet)' }}> · ITR{d.itrMin}′</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {selDay && (
+                        <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                          <div style={{ color: 'var(--txt-mid)', fontSize: 11, marginBottom: 6, fontWeight: 600 }}>
+                            {(() => { const dt = new Date(selDay.date + 'T00:00:00'); return `${['CN','T2','T3','T4','T5','T6','T7'][dt.getDay()]} ${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`; })()} — {selDay.hours}h · {selDay.sets} {t('std.rings_steps')}
                           </div>
-                          <div className="mono" style={{ fontWeight: 700, fontSize: 14 }}>{d.hours}h</div>
-                          <div style={{ color: 'var(--txt-low)', fontSize: 10 }}>
-                            {d.sets} {t('std.rings_steps')}
-                            {d.reCheckMin > 0 && <span style={{ color: 'var(--amber)' }}> · ⟳{d.reCheckMin}′</span>}
-                            {d.itrMin > 0 && <span style={{ color: 'var(--violet)' }}> · ITR{d.itrMin}′</span>}
-                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--txt-low)' }}>
+                                <th style={{ textAlign: 'left', padding: '3px 6px', fontWeight: 500 }}>Part</th>
+                                <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>{t('std.rings_steps')}</th>
+                                <th style={{ textAlign: 'right', padding: '3px 6px', fontWeight: 500 }}>CMM Hours</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(selDay.parts || []).map((p, j) => (
+                                <tr key={j} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                  <td style={{ padding: '4px 6px', color: 'var(--txt-hi)' }}>
+                                    {p.part}
+                                    {p.reCheckMin > 0 && <span style={{ color: 'var(--amber)', fontSize: 9, marginLeft: 6 }}>⟳ +{p.reCheckMin}′ re-check</span>}
+                                    {p.itrMin > 0 && <span style={{ color: 'var(--violet)', fontSize: 9, marginLeft: 6, fontWeight: 700 }}>ITR +{p.itrMin}′</span>}
+                                  </td>
+                                  <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--txt-mid)' }}>{p.sets}</td>
+                                  <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 600 }}>{p.hours}h</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      )}
+                    </>
+                  );
+                })()}
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--txt-low)' }}>

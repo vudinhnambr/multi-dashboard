@@ -43,9 +43,8 @@ export default async function handler(req, res) {
     const cmm = aggregateCmmDaily(cmmRows, date);
     // CMM theo tuần: 5 tuần gần nhất + Avg 4 tuần đã xong
     const cmmWk = aggregateCmmWeekly(cmmRows);
-    const cmmLast5 = cmmWk.slice(-5);
-    cmm.weekly = cmmLast5.map(w => ({ week: w.week, qty: w.hours }));
-    const cmmDone = cmmLast5.slice(0, Math.max(0, cmmLast5.length - 1));
+    cmm.weekly = cmmWk.slice(-5).map(w => ({ week: w.week, qty: w.hours }));
+    const cmmDone = cmm.weekly.slice(0, Math.max(0, cmm.weekly.length - 1));
     cmm.weeklyAvg = cmmDone.length ? Math.round(cmmDone.reduce((s, w) => s + w.qty, 0) / cmmDone.length * 10) / 10 : 0;
 
     // ---- Auto MT std (per-ring) từ Combined ST ----

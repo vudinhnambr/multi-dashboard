@@ -226,10 +226,14 @@ export async function loadCmmWeeklyData() {
     // Gom theo NGÀY trong tuần (dùng cho drill-down từng ngày)
     const dStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     if (!weekDayMap[fw]) weekDayMap[fw] = {};
-    if (!weekDayMap[fw][dStr]) weekDayMap[fw][dStr] = { min: 0, count: 0, reCheck: 0, itr: 0 };
+    if (!weekDayMap[fw][dStr]) weekDayMap[fw][dStr] = { min: 0, count: 0, reCheck: 0, itr: 0, parts: {} };
     const dayB = weekDayMap[fw][dStr];
     dayB.min += rowMin; dayB.count += 1;
     if (isITR) dayB.itr += rowMin; else dayB.reCheck += reCheck;
+    if (!dayB.parts[displayPart]) dayB.parts[displayPart] = { min: 0, count: 0, reCheck: 0, itr: 0 };
+    const dp = dayB.parts[displayPart];
+    dp.min += rowMin; dp.count += 1;
+    if (isITR) dp.itr += rowMin; else dp.reCheck += reCheck;
 
     if (!weekMap[fw]) weekMap[fw] = {};
     if (!weekMap[fw][displayPart]) weekMap[fw][displayPart] = { min: 0, count: 0, reCheck: 0, itr: 0, steps: {} };
@@ -272,6 +276,15 @@ export async function loadCmmWeeklyData() {
           sets: v.count,
           reCheckMin: Math.round(v.reCheck || 0),
           itrMin: Math.round(v.itr || 0),
+          parts: Object.entries(v.parts || {})
+            .sort(([, a], [, b]) => b.min - a.min)
+            .map(([part, pv]) => ({
+              part,
+              hours: Math.round(pv.min / 60 * 10) / 10,
+              sets: pv.count,
+              reCheckMin: Math.round(pv.reCheck || 0),
+              itrMin: Math.round(pv.itr || 0),
+            })),
         }));
       return {
         week,

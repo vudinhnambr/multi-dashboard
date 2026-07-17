@@ -20,12 +20,13 @@
     .kpi .lbl{color:var(--mut);font-size:clamp(10px,.85vw,13px);text-transform:uppercase;letter-spacing:.04em;}
     .kpi .val{font-size:clamp(24px,2.9vw,48px);font-weight:800;line-height:1.05;}
     .kpi .val span{font-size:.4em;font-weight:700;}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:1.6vw;margin-bottom:1.8vh;}
+    .cols{display:grid;grid-template-columns:1fr 1fr;gap:1.6vw;}
+    .col{display:flex;flex-direction:column;gap:1.6vh;}
     .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:1.6vh 1.2vw;display:flex;flex-direction:column;}
     .ptitle{display:flex;align-items:center;gap:10px;font-size:clamp(15px,1.6vw,26px);font-weight:800;margin-bottom:1vh;}
     .ptitle .sub{color:var(--low);font-size:.55em;font-weight:600;margin-left:auto;}
     .dot{width:14px;height:14px;border-radius:50%;}
-    .chart{width:100%;height:34vh;min-height:260px;}
+    .chart{width:100%;height:31vh;min-height:230px;}
     .lst{overflow:auto;max-height:34vh;}
     .lst h3{color:var(--mut);font-size:clamp(11px,1vw,15px);text-transform:uppercase;letter-spacing:.05em;margin:1vh 0 .5vh;}
     table{width:100%;border-collapse:collapse;font-size:clamp(13px,1.1vw,19px);}
@@ -33,7 +34,7 @@
     td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
     .rank{color:var(--low);width:2ch;}
     .msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--mut);text-align:center;padding:24px;}
-    @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr);}.row{grid-template-columns:1fr;}}
+    @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr);}.cols{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
@@ -114,24 +115,26 @@
           <div class="kpi"><div class="lbl">Auto MT · Giờ quy đổi</div><div class="val">${num(mt.hours)}<span>h</span></div></div>
           <div class="kpi"><div class="lbl">Auto MT · Người</div><div class="val">${num(mt.people)}</div></div>
         </div>
-        <div class="row">
-          <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Theo người (hôm qua)<span class="sub">${esc(personSub)}</span></div>
-            <div class="chart" id="chartPerson"></div>
+        <div class="cols">
+          <div class="col">
+            <div class="panel">
+              <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Theo người (hôm qua)<span class="sub">${esc(personSub)}</span></div>
+              <div class="chart" id="chartPerson"></div>
+            </div>
+            <div class="panel">
+              <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Output 5 tuần gần nhất</div>
+              <div class="chart" id="chartMtWeekly"></div>
+            </div>
           </div>
-          <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Output 5 tuần gần nhất</div>
-            <div class="chart" id="chartMtWeekly"></div>
-          </div>
-        </div>
-        <div class="row">
-          <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Theo part (hôm qua)</div>
-            <div class="chart" id="chartCmmPart"></div>
-          </div>
-          <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Giờ 5 tuần gần nhất</div>
-            <div class="chart" id="chartCmmWeekly"></div>
+          <div class="col">
+            <div class="panel">
+              <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Theo part (hôm qua)<span class="sub">Tổng ${num(cmm.hours)}h · ${num(cmm.count)} ring/bước</span></div>
+              <div class="chart" id="chartCmmPart"></div>
+            </div>
+            <div class="panel">
+              <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Giờ 5 tuần gần nhất</div>
+              <div class="chart" id="chartCmmWeekly"></div>
+            </div>
           </div>
         </div>`;
 
