@@ -159,6 +159,7 @@ function StdTimeSection({ avail = 95 }) {
   const [showStdRef, setShowStdRef] = useState(false);
   const [expandedPart, setExpandedPart] = useState(null); // part đang bung breakdown theo model
   const [expandedDay, setExpandedDay] = useState(null); // ngày đang bung chi tiết part
+  const [expandedDayPart, setExpandedDayPart] = useState(null); // part trong 1 ngày đang bung breakdown bước
   const [liveWeeklyData, setLiveWeeklyData] = useState(null);
   const [liveStdTable, setLiveStdTable] = useState(null);
   const { t } = useLang();
@@ -280,7 +281,7 @@ function StdTimeSection({ avail = 95 }) {
                   <span style={{ color: 'var(--txt-mid)' }}>{wk.source}</span>
                   <span className="mono" style={{ fontWeight: 700 }}>{wk.totalHours}h</span>
                   <span style={{ color: 'var(--txt-low)', fontSize: 11 }}>{wk.utilization}% capacity</span>
-                  <button onClick={() => { setSelected2026FW(null); setExpandedDay(null); }} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 4, padding: '1px 7px', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                  <button onClick={() => { setSelected2026FW(null); setExpandedDay(null); setExpandedDayPart(null); }} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 4, padding: '1px 7px', cursor: 'pointer', fontSize: 11 }}>✕</button>
                 </div>
                 {/* Chi tiết theo NGÀY trong tuần (click 1 ngày để xem part) */}
                 {wk.byDay && wk.byDay.length > 0 && (() => {
@@ -294,7 +295,7 @@ function StdTimeSection({ avail = 95 }) {
                           const dm = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
                           const isSel = d.date === expandedDay;
                           return (
-                            <div key={i} onClick={() => setExpandedDay(isSel ? null : d.date)}
+                            <div key={i} onClick={() => { setExpandedDay(isSel ? null : d.date); setExpandedDayPart(null); }}
                               style={{ background: isSel ? 'var(--surface-2)' : 'var(--surface-1)', border: `1px solid ${isSel ? 'var(--txt-hi)' : srcColor}`, borderRadius: 8, padding: '5px 10px', minWidth: 92, cursor: 'pointer' }}>
                               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                                 <span style={{ fontWeight: 700, color: srcColor, fontSize: 11 }}>{isSel ? '▾ ' : ''}{dow}</span>
@@ -324,17 +325,34 @@ function StdTimeSection({ avail = 95 }) {
                               </tr>
                             </thead>
                             <tbody>
-                              {(selDay.parts || []).map((p, j) => (
-                                <tr key={j} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                                  <td style={{ padding: '4px 6px', color: 'var(--txt-hi)' }}>
-                                    {p.part}
-                                    {p.reCheckMin > 0 && <span style={{ color: 'var(--amber)', fontSize: 9, marginLeft: 6 }}>⟳ +{p.reCheckMin}′ re-check</span>}
-                                    {p.itrMin > 0 && <span style={{ color: 'var(--violet)', fontSize: 9, marginLeft: 6, fontWeight: 700 }}>ITR +{p.itrMin}′</span>}
-                                  </td>
-                                  <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--txt-mid)' }}>{p.sets}</td>
-                                  <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 600 }}>{p.hours}h</td>
-                                </tr>
-                              ))}
+                              {(selDay.parts || []).map((p, j) => {
+                                const hasSteps = p.byStep && p.byStep.length > 1;
+                                const dpKey = selDay.date + '|' + p.part;
+                                const isExp = expandedDayPart === dpKey;
+                                return (
+                                  <React.Fragment key={j}>
+                                    <tr style={{ borderBottom: '1px solid var(--border-subtle)', cursor: hasSteps ? 'pointer' : 'default' }}
+                                        onClick={() => hasSteps && setExpandedDayPart(isExp ? null : dpKey)}>
+                                      <td style={{ padding: '4px 6px', color: 'var(--txt-hi)' }}>
+                                        {hasSteps ? (isExp ? '▾ ' : '▸ ') : ''}{p.part}
+                                        {p.reCheckMin > 0 && <span style={{ color: 'var(--amber)', fontSize: 9, marginLeft: 6 }}>⟳ +{p.reCheckMin}′ re-check</span>}
+                                        {p.itrMin > 0 && <span style={{ color: 'var(--violet)', fontSize: 9, marginLeft: 6, fontWeight: 700 }}>ITR +{p.itrMin}′</span>}
+                                      </td>
+                                      <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', color: 'var(--txt-mid)' }}>{p.sets}</td>
+                                      <td className="mono" style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 600 }}>{p.hours}h</td>
+                                    </tr>
+                                    {hasSteps && isExp && p.byStep.map((s, k) => (
+                                      <tr key={`${j}-${k}`} style={{ background: 'var(--surface-2)' }}>
+                                        <td style={{ padding: '2px 6px 2px 24px', color: s.itr ? 'var(--violet)' : 'var(--txt-low)', fontSize: 10, fontWeight: s.itr ? 600 : 400 }}>
+                                          {s.step}{s.reCheckMin > 0 ? <span style={{ color: 'var(--amber)' }}> (+{s.reCheckMin}′ RC)</span> : ''}
+                                        </td>
+                                        <td className="mono" style={{ textAlign: 'right', padding: '2px 6px', color: 'var(--txt-low)', fontSize: 10 }}>×{s.count}</td>
+                                        <td className="mono" style={{ textAlign: 'right', padding: '2px 6px', color: 'var(--txt-mid)', fontSize: 10 }}>{s.hours}h</td>
+                                      </tr>
+                                    ))}
+                                  </React.Fragment>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>

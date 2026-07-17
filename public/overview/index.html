@@ -17,7 +17,7 @@
     .head .meta{color:var(--low);font-size:clamp(11px,1vw,15px);}
     .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:1vw;margin-bottom:1.8vh;}
     .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:1.2vh 1vw;}
-    .kpi .lbl{color:var(--mut);font-size:clamp(10px,.85vw,13px);text-transform:uppercase;letter-spacing:.04em;}
+    .kpi .lbl{color:#cbd5e1;font-size:clamp(11px,1vw,15px);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
     .kpi .val{font-size:clamp(24px,2.9vw,48px);font-weight:800;line-height:1.05;}
     .kpi .val span{font-size:.4em;font-weight:700;}
     .cols{display:grid;grid-template-columns:1fr 1fr;gap:1.6vw;}
@@ -43,7 +43,7 @@
     const KEY = new URLSearchParams(location.search).get("key") || "";
     const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
     const num = n => (Math.round((Number(n)||0)*10)/10).toLocaleString("vi-VN");
-    const AX = "#334155", TXT = "#cbd5e1", GRID = "#1e293b";
+    const AX = "#475569", TXT = "#f1f5f9", GRID = "#1e293b";
     let charts = [];
 
     function rows(arr, valKey, unit){
@@ -54,23 +54,25 @@
     function baseAxis(cat){
       return {
         grid:{left:44,right:52,top:44,bottom:66},
-        legend:{textStyle:{color:TXT},top:6},
+        legend:{textStyle:{color:TXT,fontSize:16,fontWeight:600},top:4},
         tooltip:{trigger:"axis"},
-        xAxis:{type:"category",data:cat,axisLine:{lineStyle:{color:AX}},axisLabel:{color:TXT,rotate:cat.length>7?32:0,interval:0,fontSize:13}},
+        xAxis:{type:"category",data:cat,axisLine:{lineStyle:{color:AX}},axisLabel:{color:TXT,rotate:cat.length>7?32:0,interval:0,fontSize:16,fontWeight:600}},
       };
     }
+    const yAxisLbl = {color:TXT,fontSize:15,fontWeight:600};
+    const barLbl = (extra)=>({show:true,fontSize:17,fontWeight:800,...(extra||{})});
 
     function drawPerson(el, list){
       const c = echarts.init(el); charts.push(c);
       const names = list.map(x=>x.name), qty = list.map(x=>x.qty), eff = list.map(x=>x.eff);
       c.setOption({...baseAxis(names),
         yAxis:[
-          {type:"value",name:"Qty",nameTextStyle:{color:TXT},axisLabel:{color:TXT},splitLine:{lineStyle:{color:GRID}}},
-          {type:"value",name:"%",nameTextStyle:{color:TXT},axisLabel:{color:TXT,formatter:"{value}%"},splitLine:{show:false}}
+          {type:"value",name:"Qty",nameTextStyle:yAxisLbl,axisLabel:yAxisLbl,splitLine:{lineStyle:{color:GRID}}},
+          {type:"value",name:"%",nameTextStyle:yAxisLbl,axisLabel:{...yAxisLbl,formatter:"{value}%"},splitLine:{show:false}}
         ],
         series:[
-          {name:"Qty",type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:{show:true,position:"inside",color:"#052e16",fontWeight:700}},
-          {name:"Efficiency",type:"line",yAxisIndex:1,data:eff,smooth:true,symbol:"circle",symbolSize:8,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3},label:{show:true,color:"#fbbf24",fontWeight:700,formatter:p=>p.value+"%"}}
+          {name:"Qty",type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"inside",color:"#052e16"})},
+          {name:"Efficiency",type:"line",yAxisIndex:1,data:eff,smooth:true,symbol:"circle",symbolSize:9,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3},label:barLbl({color:"#fde68a",formatter:p=>p.value+"%"})}
         ]});
     }
 
@@ -78,12 +80,15 @@
       o = o || {}; const unit = o.unit||"", barColor = o.color||"#22c55e", name = o.name||"Output";
       const c = echarts.init(el); charts.push(c);
       const cat = weekly.map(x=>x.week), qty = weekly.map(x=>x.qty);
+      // Đường Avg chỉ vẽ qua các tuần ĐÃ XONG (bỏ tuần cuối = tuần hiện tại)
+      const done = Math.max(0, weekly.length - 1);
+      const avgData = weekly.map((_,i)=> i < done ? avg : null);
+      if(done > 0) avgData[done-1] = {value:avg, label:{show:true,position:"top",formatter:"Avg "+num(avg)+unit,color:"#fde68a",fontWeight:800,fontSize:15}};
       c.setOption({...baseAxis(cat),
-        yAxis:{type:"value",axisLabel:{color:TXT},splitLine:{lineStyle:{color:GRID}}},
+        yAxis:{type:"value",axisLabel:yAxisLbl,splitLine:{lineStyle:{color:GRID}}},
         series:[
-          {name:name,type:"bar",data:qty,barMaxWidth:70,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:{show:true,position:"top",color:TXT,fontWeight:700,formatter:p=>num(p.value)+unit}},
-          {name:"Avg (4 tuần đã xong)",type:"line",data:cat.map(()=>avg),symbol:"none",lineStyle:{color:"#fbbf24",width:3,type:"dashed"},
-           endLabel:{show:true,formatter:"Avg "+num(avg)+unit,color:"#fbbf24",fontWeight:800}}
+          {name:name,type:"bar",data:qty,barMaxWidth:70,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT,formatter:p=>num(p.value)+unit})},
+          {name:"Avg (4 tuần đã xong)",type:"line",data:avgData,symbol:"none",connectNulls:false,lineStyle:{color:"#fbbf24",width:3,type:"dashed"}}
         ]});
     }
 
@@ -92,9 +97,9 @@
       const c = echarts.init(el); charts.push(c);
       const names = list.map(x=>x.part||x.name), val = list.map(x=>x.hours!=null?x.hours:x.qty);
       c.setOption({...baseAxis(names),
-        yAxis:{type:"value",axisLabel:{color:TXT},splitLine:{lineStyle:{color:GRID}}},
+        yAxis:{type:"value",axisLabel:yAxisLbl,splitLine:{lineStyle:{color:GRID}}},
         series:[
-          {type:"bar",data:val,barMaxWidth:52,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:{show:true,position:"top",color:TXT,fontWeight:700,formatter:p=>num(p.value)+unit}}
+          {type:"bar",data:val,barMaxWidth:52,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT,formatter:p=>num(p.value)+unit})}
         ]});
     }
 
@@ -108,12 +113,12 @@
           <div class="meta">Cập nhật: ${new Date(d.refreshedAt).toLocaleString("vi-VN")} · tự làm mới mỗi 3 phút</div>
         </div>
         <div class="kpis">
-          <div class="kpi"><div class="lbl">CMM · Giờ</div><div class="val" style="color:var(--cmm)">${num(cmm.hours)}<span>h</span></div></div>
-          <div class="kpi"><div class="lbl">CMM · Ring/bước</div><div class="val">${num(cmm.count)}</div></div>
-          <div class="kpi"><div class="lbl">CMM · Part</div><div class="val">${(cmm.parts||[]).length}</div></div>
           <div class="kpi"><div class="lbl">Auto MT · Ring</div><div class="val" style="color:var(--mt)">${num(mt.qty)}</div></div>
-          <div class="kpi"><div class="lbl">Auto MT · Giờ quy đổi</div><div class="val">${num(mt.hours)}<span>h</span></div></div>
-          <div class="kpi"><div class="lbl">Auto MT · Người</div><div class="val">${num(mt.people)}</div></div>
+          <div class="kpi"><div class="lbl">Auto MT · Giờ quy đổi</div><div class="val" style="color:var(--mt)">${num(mt.hours)}<span>h</span></div></div>
+          <div class="kpi"><div class="lbl">Auto MT · Người</div><div class="val" style="color:var(--mt)">${num(mt.people)}</div></div>
+          <div class="kpi"><div class="lbl">CMM · Giờ</div><div class="val" style="color:var(--cmm)">${num(cmm.hours)}<span>h</span></div></div>
+          <div class="kpi"><div class="lbl">CMM · Ring/bước</div><div class="val" style="color:var(--cmm)">${num(cmm.count)}</div></div>
+          <div class="kpi"><div class="lbl">CMM · Part</div><div class="val" style="color:var(--cmm)">${(cmm.parts||[]).length}</div></div>
         </div>
         <div class="cols">
           <div class="col">

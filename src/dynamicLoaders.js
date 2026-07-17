@@ -230,10 +230,14 @@ export async function loadCmmWeeklyData() {
     const dayB = weekDayMap[fw][dStr];
     dayB.min += rowMin; dayB.count += 1;
     if (isITR) dayB.itr += rowMin; else dayB.reCheck += reCheck;
-    if (!dayB.parts[displayPart]) dayB.parts[displayPart] = { min: 0, count: 0, reCheck: 0, itr: 0 };
+    if (!dayB.parts[displayPart]) dayB.parts[displayPart] = { min: 0, count: 0, reCheck: 0, itr: 0, steps: {} };
     const dp = dayB.parts[displayPart];
     dp.min += rowMin; dp.count += 1;
     if (isITR) dp.itr += rowMin; else dp.reCheck += reCheck;
+    if (!dp.steps[stepLabel]) dp.steps[stepLabel] = { count: 0, min: 0, reCheck: 0, itr: false };
+    const dps = dp.steps[stepLabel];
+    dps.count += 1; dps.min += rowMin;
+    if (isITR) dps.itr = true; else dps.reCheck += reCheck;
 
     if (!weekMap[fw]) weekMap[fw] = {};
     if (!weekMap[fw][displayPart]) weekMap[fw][displayPart] = { min: 0, count: 0, reCheck: 0, itr: 0, steps: {} };
@@ -284,6 +288,9 @@ export async function loadCmmWeeklyData() {
               sets: pv.count,
               reCheckMin: Math.round(pv.reCheck || 0),
               itrMin: Math.round(pv.itr || 0),
+              byStep: Object.entries(pv.steps || {})
+                .sort(([, a], [, b]) => b.min - a.min)
+                .map(([step, s]) => ({ step, count: s.count, hours: Math.round(s.min / 60 * 10) / 10, reCheckMin: Math.round(s.reCheck || 0), itr: !!s.itr })),
             })),
         }));
       return {
