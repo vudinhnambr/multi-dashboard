@@ -15,6 +15,9 @@
     .head h1{font-size:clamp(20px,2.4vw,38px);font-weight:800;letter-spacing:.01em;}
     .head .date{color:var(--amber);font-weight:800;}
     .head .meta{color:var(--low);font-size:clamp(11px,1vw,15px);}
+    .langtog{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+    .langtog button{background:var(--panel2);color:var(--mut);border:none;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;}
+    .langtog button.on{background:var(--amber);color:#0b1220;}
     .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:1vw;margin-bottom:1.8vh;}
     .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:1.2vh 1vw;}
     .kpi .lbl{color:#cbd5e1;font-size:clamp(11px,1vw,15px);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
@@ -42,9 +45,35 @@
   <script>
     const KEY = new URLSearchParams(location.search).get("key") || "";
     const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-    const num = n => (Math.round((Number(n)||0)*10)/10).toLocaleString("vi-VN");
     const AX = "#475569", TXT = "#f1f5f9", GRID = "#1e293b";
-    let charts = [];
+    let charts = [], lastData = null;
+
+    // ── i18n ──
+    const T = {
+      vi: {
+        title:"Kết quả sản xuất", updated:"Cập nhật", refresh:"tự làm mới mỗi 3 phút",
+        k_mt_ring:"Auto MT · Ring", k_mt_hours:"Auto MT · Giờ quy đổi", k_mt_people:"Auto MT · Người",
+        k_cmm_hours:"CMM · Giờ", k_cmm_steps:"CMM · Ring/bước", k_cmm_parts:"CMM · Part",
+        t_mt_person:"Auto MT — Theo người (hôm qua)", t_mt_weekly:"Auto MT — Output 5 tuần gần nhất",
+        t_cmm_part:"CMM — Theo part (hôm qua)", t_cmm_weekly:"CMM — Giờ 5 tuần gần nhất",
+        people:"người", total:"Tổng", ringsSteps:"ring/bước",
+        lg_qty:"Số lượng", lg_eff:"Hiệu suất", lg_output:"Output", lg_hours:"Giờ", lg_avg:"Avg (4 tuần đã xong)", avg:"Avg",
+        loading:"Đang tải…", missingKey:"Thiếu key. Mở bằng link kèm ?key=…", badKey:"Key không đúng.", loadErr:"Không tải được dữ liệu: ",
+      },
+      en: {
+        title:"Production Results", updated:"Updated", refresh:"auto-refresh every 3 min",
+        k_mt_ring:"Auto MT · Rings", k_mt_hours:"Auto MT · Earned hours", k_mt_people:"Auto MT · People",
+        k_cmm_hours:"CMM · Hours", k_cmm_steps:"CMM · Rings/steps", k_cmm_parts:"CMM · Parts",
+        t_mt_person:"Auto MT — By person (yesterday)", t_mt_weekly:"Auto MT — Output, last 5 weeks",
+        t_cmm_part:"CMM — By part (yesterday)", t_cmm_weekly:"CMM — Hours, last 5 weeks",
+        people:"people", total:"Total", ringsSteps:"rings/steps",
+        lg_qty:"Qty", lg_eff:"Efficiency", lg_output:"Output", lg_hours:"Hours", lg_avg:"Avg (4 completed weeks)", avg:"Avg",
+        loading:"Loading…", missingKey:"Missing key. Open with ?key=… in the URL", badKey:"Invalid key.", loadErr:"Failed to load data: ",
+      },
+    };
+    let lang = (localStorage.getItem("tv_lang") === "en") ? "en" : "vi";
+    const t = k => (T[lang][k] ?? k);
+    const num = n => (Math.round((Number(n)||0)*10)/10).toLocaleString(lang === "en" ? "en-US" : "vi-VN");
 
     function rows(arr, valKey, unit){
       if(!arr || !arr.length) return '<tr><td style="color:var(--low)">Không có dữ liệu</td></tr>';
@@ -71,8 +100,8 @@
           {type:"value",name:"%",nameTextStyle:yAxisLbl,axisLabel:{...yAxisLbl,formatter:"{value}%"},splitLine:{show:false}}
         ],
         series:[
-          {name:"Qty",type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"inside",color:"#052e16"})},
-          {name:"Efficiency",type:"line",yAxisIndex:1,data:eff,smooth:true,symbol:"circle",symbolSize:9,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3},label:barLbl({color:"#fde68a",formatter:p=>p.value+"%"})}
+          {name:t("lg_qty"),type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"inside",color:"#052e16"})},
+          {name:t("lg_eff"),type:"line",yAxisIndex:1,data:eff,smooth:true,symbol:"circle",symbolSize:9,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3},label:barLbl({color:"#fde68a",formatter:p=>p.value+"%"})}
         ]});
     }
 
@@ -82,13 +111,16 @@
       const cat = weekly.map(x=>x.week), qty = weekly.map(x=>x.qty);
       // Đường Avg chỉ vẽ qua các tuần ĐÃ XONG (bỏ tuần cuối = tuần hiện tại)
       const done = Math.max(0, weekly.length - 1);
+      const avgLabel = t("avg") + " " + num(avg) + unit;
       const avgData = weekly.map((_,i)=> i < done ? avg : null);
-      if(done > 0) avgData[done-1] = {value:avg, label:{show:true,position:"top",formatter:"Avg "+num(avg)+unit,color:"#fde68a",fontWeight:800,fontSize:15}};
+      if(done > 0) avgData[done-1] = { value:avg, symbol:"circle", symbolSize:8,
+        label:{show:true, position:"top", distance:8, formatter:avgLabel, color:"#0b1220",
+               backgroundColor:"#fbbf24", padding:[3,7], borderRadius:5, fontWeight:800, fontSize:16} };
       c.setOption({...baseAxis(cat),
         yAxis:{type:"value",axisLabel:yAxisLbl,splitLine:{lineStyle:{color:GRID}}},
         series:[
           {name:name,type:"bar",data:qty,barMaxWidth:70,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT,formatter:p=>num(p.value)+unit})},
-          {name:"Avg (4 tuần đã xong)",type:"line",data:avgData,symbol:"none",connectNulls:false,lineStyle:{color:"#fbbf24",width:3,type:"dashed"}}
+          {name:t("lg_avg"),type:"line",data:avgData,symbol:"none",connectNulls:false,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3,type:"dashed"}}
         ]});
     }
 
@@ -106,61 +138,76 @@
     function render(d){
       const root = document.getElementById("root");
       const mt = d.mt||{}, cmm = d.cmm||{};
-      const personSub = (mt.byPersonDay&&mt.byPersonDay.length) ? `${d.date} · ${mt.people||0} người` : "";
+      const loc = lang === "en" ? "en-US" : "vi-VN";
+      const personSub = (mt.byPersonDay&&mt.byPersonDay.length) ? `${d.date} · ${mt.people||0} ${t("people")}` : "";
       root.innerHTML = `
         <div class="head">
-          <h1>Kết quả sản xuất — <span class="date">${esc(d.date)}</span></h1>
-          <div class="meta">Cập nhật: ${new Date(d.refreshedAt).toLocaleString("vi-VN")} · tự làm mới mỗi 3 phút</div>
+          <h1>${t("title")} — <span class="date">${esc(d.date)}</span></h1>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div class="meta">${t("updated")}: ${new Date(d.refreshedAt).toLocaleString(loc)} · ${t("refresh")}</div>
+            <div class="langtog">
+              <button data-l="vi" class="${lang==='vi'?'on':''}">VN</button>
+              <button data-l="en" class="${lang==='en'?'on':''}">EN</button>
+            </div>
+          </div>
         </div>
         <div class="kpis">
-          <div class="kpi"><div class="lbl">Auto MT · Ring</div><div class="val" style="color:var(--mt)">${num(mt.qty)}</div></div>
-          <div class="kpi"><div class="lbl">Auto MT · Giờ quy đổi</div><div class="val" style="color:var(--mt)">${num(mt.hours)}<span>h</span></div></div>
-          <div class="kpi"><div class="lbl">Auto MT · Người</div><div class="val" style="color:var(--mt)">${num(mt.people)}</div></div>
-          <div class="kpi"><div class="lbl">CMM · Giờ</div><div class="val" style="color:var(--cmm)">${num(cmm.hours)}<span>h</span></div></div>
-          <div class="kpi"><div class="lbl">CMM · Ring/bước</div><div class="val" style="color:var(--cmm)">${num(cmm.count)}</div></div>
-          <div class="kpi"><div class="lbl">CMM · Part</div><div class="val" style="color:var(--cmm)">${(cmm.parts||[]).length}</div></div>
+          <div class="kpi"><div class="lbl">${t("k_mt_ring")}</div><div class="val" style="color:var(--mt)">${num(mt.qty)}</div></div>
+          <div class="kpi"><div class="lbl">${t("k_mt_hours")}</div><div class="val" style="color:var(--mt)">${num(mt.hours)}<span>h</span></div></div>
+          <div class="kpi"><div class="lbl">${t("k_mt_people")}</div><div class="val" style="color:var(--mt)">${num(mt.people)}</div></div>
+          <div class="kpi"><div class="lbl">${t("k_cmm_hours")}</div><div class="val" style="color:var(--cmm)">${num(cmm.hours)}<span>h</span></div></div>
+          <div class="kpi"><div class="lbl">${t("k_cmm_steps")}</div><div class="val" style="color:var(--cmm)">${num(cmm.count)}</div></div>
+          <div class="kpi"><div class="lbl">${t("k_cmm_parts")}</div><div class="val" style="color:var(--cmm)">${(cmm.parts||[]).length}</div></div>
         </div>
         <div class="cols">
           <div class="col">
             <div class="panel">
-              <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Theo người (hôm qua)<span class="sub">${esc(personSub)}</span></div>
+              <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>${t("t_mt_person")}<span class="sub">${esc(personSub)}</span></div>
               <div class="chart" id="chartPerson"></div>
             </div>
             <div class="panel">
-              <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Output 5 tuần gần nhất</div>
+              <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>${t("t_mt_weekly")}</div>
               <div class="chart" id="chartMtWeekly"></div>
             </div>
           </div>
           <div class="col">
             <div class="panel">
-              <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Theo part (hôm qua)<span class="sub">Tổng ${num(cmm.hours)}h · ${num(cmm.count)} ring/bước</span></div>
+              <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>${t("t_cmm_part")}<span class="sub">${t("total")} ${num(cmm.hours)}h · ${num(cmm.count)} ${t("ringsSteps")}</span></div>
               <div class="chart" id="chartCmmPart"></div>
             </div>
             <div class="panel">
-              <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Giờ 5 tuần gần nhất</div>
+              <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>${t("t_cmm_weekly")}</div>
               <div class="chart" id="chartCmmWeekly"></div>
             </div>
           </div>
         </div>`;
 
+      root.querySelectorAll(".langtog button").forEach(b => b.addEventListener("click", () => {
+        lang = b.dataset.l; localStorage.setItem("tv_lang", lang);
+        document.documentElement.lang = lang;
+        if(lastData) render(lastData);
+      }));
+
       charts.forEach(c=>c.dispose()); charts = [];
       drawPerson(document.getElementById("chartPerson"), mt.byPersonDay||[]);
-      drawWeekly(document.getElementById("chartMtWeekly"), mt.weekly||[], mt.weeklyAvg||0, {unit:"",color:"#22c55e",name:"Output"});
+      drawWeekly(document.getElementById("chartMtWeekly"), mt.weekly||[], mt.weeklyAvg||0, {unit:"",color:"#22c55e",name:t("lg_output")});
       drawBars(document.getElementById("chartCmmPart"), (cmm.parts||[]).slice(0,10), {unit:"h",color:"#38bdf8"});
-      drawWeekly(document.getElementById("chartCmmWeekly"), cmm.weekly||[], cmm.weeklyAvg||0, {unit:"h",color:"#38bdf8",name:"Giờ"});
+      drawWeekly(document.getElementById("chartCmmWeekly"), cmm.weekly||[], cmm.weeklyAvg||0, {unit:"h",color:"#38bdf8",name:t("lg_hours")});
     }
 
     window.addEventListener("resize", ()=>charts.forEach(c=>c.resize()));
 
     async function load(){
-      if(!KEY){ document.getElementById("root").innerHTML='<div class="msg">Thiếu key. Mở bằng link kèm ?key=…</div>'; return; }
+      if(!KEY){ document.getElementById("root").innerHTML='<div class="msg">'+t("missingKey")+'</div>'; return; }
       try{
         const r = await fetch(`/api/overview?key=${encodeURIComponent(KEY)}`);
-        if(r.status===401){ document.getElementById("root").innerHTML='<div class="msg">Key không đúng.</div>'; return; }
+        if(r.status===401){ document.getElementById("root").innerHTML='<div class="msg">'+t("badKey")+'</div>'; return; }
         if(!r.ok) throw new Error("HTTP "+r.status);
-        render(await r.json());
-      }catch(e){ document.getElementById("root").innerHTML='<div class="msg">Không tải được dữ liệu: '+esc(e.message)+'</div>'; }
+        lastData = await r.json();
+        render(lastData);
+      }catch(e){ document.getElementById("root").innerHTML='<div class="msg">'+t("loadErr")+esc(e.message)+'</div>'; }
     }
+    document.documentElement.lang = lang;
     load();
     setInterval(load, 3*60*1000);
   </script>
