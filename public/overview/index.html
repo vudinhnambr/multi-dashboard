@@ -4,33 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Tổng quan sản xuất</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
   <style>
     :root{--bg:#0b1220;--panel:#111a2e;--panel2:#0e1626;--line:#1e293b;--txt:#e2e8f0;--mut:#94a3b8;--low:#64748b;
           --cmm:#38bdf8;--mt:#34d399;--rose:#f87171;--amber:#fbbf24;}
     *{box-sizing:border-box;margin:0;padding:0;}
-    html,body{height:100%;}
+    html,body{min-height:100%;}
     body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',Roboto,Arial,sans-serif;padding:2vh 2vw;}
-    .head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2vh;flex-wrap:wrap;gap:8px;}
-    .head h1{font-size:clamp(20px,2.6vw,40px);font-weight:800;letter-spacing:.01em;}
+    .head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1.6vh;flex-wrap:wrap;gap:8px;}
+    .head h1{font-size:clamp(20px,2.4vw,38px);font-weight:800;letter-spacing:.01em;}
     .head .date{color:var(--amber);font-weight:800;}
     .head .meta{color:var(--low);font-size:clamp(11px,1vw,15px);}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:2vw;height:88vh;}
-    .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:2vh 1.6vw;display:flex;flex-direction:column;overflow:hidden;}
-    .ptitle{display:flex;align-items:center;gap:10px;font-size:clamp(16px,1.8vw,28px);font-weight:800;margin-bottom:1.6vh;}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:1vw;margin-bottom:1.8vh;}
+    .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:1.2vh 1vw;}
+    .kpi .lbl{color:var(--mut);font-size:clamp(10px,.85vw,13px);text-transform:uppercase;letter-spacing:.04em;}
+    .kpi .val{font-size:clamp(24px,2.9vw,48px);font-weight:800;line-height:1.05;}
+    .kpi .val span{font-size:.4em;font-weight:700;}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:1.6vw;margin-bottom:1.8vh;}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:1.6vh 1.2vw;display:flex;flex-direction:column;}
+    .ptitle{display:flex;align-items:center;gap:10px;font-size:clamp(15px,1.6vw,26px);font-weight:800;margin-bottom:1vh;}
+    .ptitle .sub{color:var(--low);font-size:.55em;font-weight:600;margin-left:auto;}
     .dot{width:14px;height:14px;border-radius:50%;}
-    .kpis{display:flex;gap:1.2vw;margin-bottom:2vh;flex-wrap:wrap;}
-    .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:1.4vh 1.2vw;flex:1;min-width:130px;}
-    .kpi .lbl{color:var(--mut);font-size:clamp(10px,.85vw,13px);text-transform:uppercase;letter-spacing:.05em;}
-    .kpi .val{font-size:clamp(26px,3.4vw,54px);font-weight:800;line-height:1.05;}
-    .kpi .sub{color:var(--low);font-size:clamp(10px,.85vw,13px);}
-    .lst{flex:1;overflow:auto;}
-    .lst h3{color:var(--mut);font-size:clamp(11px,1vw,15px);text-transform:uppercase;letter-spacing:.05em;margin:1vh 0 .6vh;}
-    table{width:100%;border-collapse:collapse;font-size:clamp(13px,1.15vw,20px);}
-    td{padding:.7vh .4vw;border-top:1px solid var(--line);}
+    .chart{width:100%;height:34vh;min-height:260px;}
+    .lst{overflow:auto;max-height:34vh;}
+    .lst h3{color:var(--mut);font-size:clamp(11px,1vw,15px);text-transform:uppercase;letter-spacing:.05em;margin:1vh 0 .5vh;}
+    table{width:100%;border-collapse:collapse;font-size:clamp(13px,1.1vw,19px);}
+    td{padding:.6vh .4vw;border-top:1px solid var(--line);}
     td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
     .rank{color:var(--low);width:2ch;}
     .msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--mut);text-align:center;padding:24px;}
-    @media(max-width:900px){.grid{grid-template-columns:1fr;height:auto;}}
+    @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr);}.row{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
@@ -38,44 +41,94 @@
   <script>
     const KEY = new URLSearchParams(location.search).get("key") || "";
     const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-    const num = n => (Math.round(n*10)/10).toLocaleString("vi-VN");
+    const num = n => (Math.round((Number(n)||0)*10)/10).toLocaleString("vi-VN");
+    const AX = "#334155", TXT = "#cbd5e1", GRID = "#1e293b";
+    let charts = [];
 
     function rows(arr, valKey, unit){
       if(!arr || !arr.length) return '<tr><td style="color:var(--low)">Không có dữ liệu</td></tr>';
       return arr.map((x,i)=>`<tr><td class="rank">${i+1}</td><td>${esc(x.part||x.name)}</td><td class="r">${num(x[valKey])}${unit||""}</td></tr>`).join("");
     }
 
+    function baseAxis(cat){
+      return {
+        grid:{left:44,right:52,top:44,bottom:66},
+        legend:{textStyle:{color:TXT},top:6},
+        tooltip:{trigger:"axis"},
+        xAxis:{type:"category",data:cat,axisLine:{lineStyle:{color:AX}},axisLabel:{color:TXT,rotate:cat.length>7?32:0,interval:0,fontSize:13}},
+      };
+    }
+
+    function drawPerson(el, list){
+      const c = echarts.init(el); charts.push(c);
+      const names = list.map(x=>x.name), qty = list.map(x=>x.qty), eff = list.map(x=>x.eff);
+      c.setOption({...baseAxis(names),
+        yAxis:[
+          {type:"value",name:"Qty",nameTextStyle:{color:TXT},axisLabel:{color:TXT},splitLine:{lineStyle:{color:GRID}}},
+          {type:"value",name:"%",nameTextStyle:{color:TXT},axisLabel:{color:TXT,formatter:"{value}%"},splitLine:{show:false}}
+        ],
+        series:[
+          {name:"Qty",type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:{show:true,position:"inside",color:"#052e16",fontWeight:700}},
+          {name:"Efficiency",type:"line",yAxisIndex:1,data:eff,smooth:true,symbol:"circle",symbolSize:8,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3},label:{show:true,color:"#fbbf24",fontWeight:700,formatter:p=>p.value+"%"}}
+        ]});
+    }
+
+    function drawWeekly(el, weekly, avg){
+      const c = echarts.init(el); charts.push(c);
+      const cat = weekly.map(x=>x.week), qty = weekly.map(x=>x.qty);
+      c.setOption({...baseAxis(cat),
+        yAxis:{type:"value",axisLabel:{color:TXT},splitLine:{lineStyle:{color:GRID}}},
+        series:[
+          {name:"Output",type:"bar",data:qty,barMaxWidth:70,itemStyle:{color:"#22c55e",borderRadius:[4,4,0,0]},label:{show:true,position:"top",color:TXT,fontWeight:700}},
+          {name:"Avg (4 tuần đã xong)",type:"line",data:cat.map(()=>avg),symbol:"none",lineStyle:{color:"#fbbf24",width:3,type:"dashed"},
+           endLabel:{show:true,formatter:"Avg "+avg,color:"#fbbf24",fontWeight:800}}
+        ]});
+    }
+
     function render(d){
       const root = document.getElementById("root");
+      const mt = d.mt||{}, cmm = d.cmm||{};
+      const personSub = (mt.byPersonDay&&mt.byPersonDay.length) ? `${d.date} · ${mt.people||0} người` : "";
       root.innerHTML = `
         <div class="head">
           <h1>Kết quả sản xuất — <span class="date">${esc(d.date)}</span></h1>
           <div class="meta">Cập nhật: ${new Date(d.refreshedAt).toLocaleString("vi-VN")} · tự làm mới mỗi 3 phút</div>
         </div>
-        <div class="grid">
+        <div class="kpis">
+          <div class="kpi"><div class="lbl">CMM · Giờ</div><div class="val" style="color:var(--cmm)">${num(cmm.hours)}<span>h</span></div></div>
+          <div class="kpi"><div class="lbl">CMM · Ring/bước</div><div class="val">${num(cmm.count)}</div></div>
+          <div class="kpi"><div class="lbl">CMM · Part</div><div class="val">${(cmm.parts||[]).length}</div></div>
+          <div class="kpi"><div class="lbl">Auto MT · Ring</div><div class="val" style="color:var(--mt)">${num(mt.qty)}</div></div>
+          <div class="kpi"><div class="lbl">Auto MT · Giờ quy đổi</div><div class="val">${num(mt.hours)}<span>h</span></div></div>
+          <div class="kpi"><div class="lbl">Auto MT · Người</div><div class="val">${num(mt.people)}</div></div>
+        </div>
+        <div class="row">
           <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM Inspection</div>
-            <div class="kpis">
-              <div class="kpi"><div class="lbl">Tổng giờ CMM</div><div class="val" style="color:var(--cmm)">${num(d.cmm.hours)}<span style="font-size:.4em">h</span></div></div>
-              <div class="kpi"><div class="lbl">Ring / bước đo</div><div class="val">${num(d.cmm.count)}</div></div>
-              <div class="kpi"><div class="lbl">Số part</div><div class="val">${(d.cmm.parts||[]).length}</div></div>
-            </div>
-            <div class="lst"><h3>Top part (giờ)</h3><table><tbody>${rows((d.cmm.parts||[]).slice(0,10),"hours","h")}</tbody></table></div>
+            <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Theo người (hôm qua)<span class="sub">${esc(personSub)}</span></div>
+            <div class="chart" id="chartPerson"></div>
           </div>
           <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT Inspection</div>
-            <div class="kpis">
-              <div class="kpi"><div class="lbl">Ring đã kiểm</div><div class="val" style="color:var(--mt)">${num(d.mt.qty)}</div></div>
-              <div class="kpi"><div class="lbl">Giờ công (quy đổi)</div><div class="val">${num(d.mt.hours)}<span style="font-size:.4em">h</span></div></div>
-              <div class="kpi"><div class="lbl">Số người</div><div class="val">${num(d.mt.people)}</div></div>
-            </div>
-            <div class="lst">
-              <h3>Theo người (ring)</h3><table><tbody>${rows(d.mt.byPerson,"qty","")}</tbody></table>
-              <h3>Theo máy (ring)</h3><table><tbody>${rows(d.mt.byMachine,"qty","")}</tbody></table>
-            </div>
+            <div class="ptitle"><span class="dot" style="background:var(--amber)"></span>Auto MT — Output 5 tuần gần nhất</div>
+            <div class="chart" id="chartWeekly"></div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="panel">
+            <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Top part (giờ)</div>
+            <div class="lst"><table><tbody>${rows((cmm.parts||[]).slice(0,10),"hours","h")}</tbody></table></div>
+          </div>
+          <div class="panel">
+            <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Theo máy (ring)</div>
+            <div class="lst"><table><tbody>${rows(mt.byMachine,"qty","")}</tbody></table></div>
           </div>
         </div>`;
+
+      charts.forEach(c=>c.dispose()); charts = [];
+      drawPerson(document.getElementById("chartPerson"), mt.byPersonDay||[]);
+      drawWeekly(document.getElementById("chartWeekly"), mt.weekly||[], mt.weeklyAvg||0);
     }
+
+    window.addEventListener("resize", ()=>charts.forEach(c=>c.resize()));
 
     async function load(){
       if(!KEY){ document.getElementById("root").innerHTML='<div class="msg">Thiếu key. Mở bằng link kèm ?key=…</div>'; return; }
@@ -83,8 +136,7 @@
         const r = await fetch(`/api/overview?key=${encodeURIComponent(KEY)}`);
         if(r.status===401){ document.getElementById("root").innerHTML='<div class="msg">Key không đúng.</div>'; return; }
         if(!r.ok) throw new Error("HTTP "+r.status);
-        const d = await r.json();
-        render(d);
+        render(await r.json());
       }catch(e){ document.getElementById("root").innerHTML='<div class="msg">Không tải được dữ liệu: '+esc(e.message)+'</div>'; }
     }
     load();

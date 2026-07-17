@@ -53,28 +53,38 @@ export default async function handler(req, res) {
       };
     }
 
-    // ---- Auto MT records hôm trước (service key, bypass RLS) ----
-    let mt = { qty: 0, people: 0, hours: 0, byPerson: [], byMachine: [] };
+    // ---- Auto MT: ~6 tuần gần nhất (service key, bypass RLS) → hôm trước + theo tuần ----
+    let mt = { qty: 0, people: 0, hours: 0, byMachine: [], byPersonDay: [], weekly: [], weeklyAvg: 0 };
     const AURL = process.env.AUTOMT_SUPABASE_URL || process.env.SUPABASE_URL;
     const AKEY = process.env.AUTOMT_SERVICE_KEY;
+    const STD_MIN_DAY = 620; // phút chuẩn/người/ngày để tính Efficiency
     if (AURL && AKEY) {
-      const q = `${AURL}/rest/v1/production_records?record_date=eq.${date}&select=person,machine,part,type,qty`;
-      const rr = await fetch(q, { headers: { apikey: AKEY, Authorization: `Bearer ${AKEY}`, Accept: "application/json" } });
+      const cutoff = (() => { const d = new Date(date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() - 45); return d.toISOString().slice(0, 10); })();
+      const q = `${AURL}/rest/v1/production_records?record_date=gte.${cutoff}&select=record_date,week,person,machine,part,type,qty`;
+      const rr = await fetch(q, { headers: { apikey: AKEY, Authorization: `Bearer ${AKEY}`, Accept: "application/json", "Range-Unit": "items", Range: "0-99999" } });
       if (rr.ok) {
         const recs = await rr.json();
-        const persons = new Set(), byP = {}, byM = {};
+        const earnedOf = (r) => { const std = mtStd[norm(r.part)]; const f = typeField(r.type); return (std && f && std[f]) ? (Number(r.qty) || 0) * std[f] : 0; };
+        // Hôm trước
+        const persons = new Set(), byM = {}, byPQty = {}, byPEarn = {};
         let qty = 0, earnedMin = 0;
-        for (const r of recs) {
-          const q0 = Number(r.qty) || 0;
-          qty += q0;
-          if (r.person) { persons.add(r.person); byP[r.person] = (byP[r.person] || 0) + q0; }
+        for (const r of recs.filter(r => r.record_date === date)) {
+          const q0 = Number(r.qty) || 0; qty += q0; earnedMin += earnedOf(r);
+          if (r.person) { persons.add(r.person); byPQty[r.person] = (byPQty[r.person] || 0) + q0; byPEarn[r.person] = (byPEarn[r.person] || 0) + earnedOf(r); }
           if (r.machine) byM[r.machine] = (byM[r.machine] || 0) + q0;
-          const std = mtStd[norm(r.part)];
-          const f = typeField(r.type);
-          if (std && f && std[f]) earnedMin += q0 * std[f];
         }
-        const top = (obj) => Object.entries(obj).map(([k, v]) => ({ name: k, qty: v })).sort((a, b) => b.qty - a.qty).slice(0, 8);
-        mt = { qty, people: persons.size, hours: Math.round(earnedMin / 60 * 10) / 10, byPerson: top(byP), byMachine: top(byM) };
+        const byPersonDay = Object.keys(byPQty)
+          .map(p => ({ name: p, qty: byPQty[p], eff: Math.round(byPEarn[p] / STD_MIN_DAY * 1000) / 10 }))
+          .sort((a, b) => b.qty - a.qty).slice(0, 12);
+        const byMachine = Object.entries(byM).map(([k, v]) => ({ name: k, qty: v })).sort((a, b) => b.qty - a.qty).slice(0, 8);
+        // Theo tuần (output = tổng qty), 5 tuần gần nhất + Avg 4 tuần đã xong
+        const byWeek = {};
+        for (const r of recs) { const w = Number(r.week); if (!w) continue; byWeek[w] = (byWeek[w] || 0) + (Number(r.qty) || 0); }
+        const last5 = Object.keys(byWeek).map(Number).sort((a, b) => a - b).slice(-5);
+        const weekly = last5.map(w => ({ week: `Week ${w}`, qty: byWeek[w] }));
+        const completed = last5.slice(0, Math.max(0, last5.length - 1));
+        const weeklyAvg = completed.length ? Math.round(completed.reduce((s, w) => s + byWeek[w], 0) / completed.length) : 0;
+        mt = { qty, people: persons.size, hours: Math.round(earnedMin / 60 * 10) / 10, byMachine, byPersonDay, weekly, weeklyAvg };
       }
     }
 
