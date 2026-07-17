@@ -281,6 +281,30 @@ function StdTimeSection({ avail = 95 }) {
                   <span style={{ color: 'var(--txt-low)', fontSize: 11 }}>{wk.utilization}% capacity</span>
                   <button onClick={() => setSelected2026FW(null)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid var(--border)', color: 'var(--txt-mid)', borderRadius: 4, padding: '1px 7px', cursor: 'pointer', fontSize: 11 }}>✕</button>
                 </div>
+                {/* Chi tiết theo NGÀY trong tuần */}
+                {wk.byDay && wk.byDay.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                    {wk.byDay.map((d, i) => {
+                      const dt = new Date(d.date + 'T00:00:00');
+                      const dow = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dt.getDay()];
+                      const dm = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
+                      return (
+                        <div key={i} style={{ background: 'var(--surface-1)', border: `1px solid ${srcColor}`, borderRadius: 8, padding: '5px 10px', minWidth: 92 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <span style={{ fontWeight: 700, color: srcColor, fontSize: 11 }}>{dow}</span>
+                            <span style={{ color: 'var(--txt-low)', fontSize: 10 }}>{dm}</span>
+                          </div>
+                          <div className="mono" style={{ fontWeight: 700, fontSize: 14 }}>{d.hours}h</div>
+                          <div style={{ color: 'var(--txt-low)', fontSize: 10 }}>
+                            {d.sets} {t('std.rings_steps')}
+                            {d.reCheckMin > 0 && <span style={{ color: 'var(--amber)' }}> · ⟳{d.reCheckMin}′</span>}
+                            {d.itrMin > 0 && <span style={{ color: 'var(--violet)' }}> · ITR{d.itrMin}′</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--txt-low)' }}>

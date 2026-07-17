@@ -3,7 +3,7 @@
 // Env: OVERVIEW_TOKEN, AUTOMT_SUPABASE_URL, AUTOMT_SERVICE_KEY,
 //      (tùy chọn) CMM_DAILY_FILE_ID, COMBINED_ST_FILE_ID.
 import * as XLSX from "xlsx";
-import { aggregateCmmDaily } from "../lib/cmmDaily.js";
+import { aggregateCmmDaily, aggregateCmmWeekly } from "../lib/cmmDaily.js";
 
 const CMM_DAILY_ID = process.env.CMM_DAILY_FILE_ID || "1M0cBUpk77DWW3gAaXe9WnNMW6YPPVy1d";
 const COMBINED_ST_ID = process.env.COMBINED_ST_FILE_ID || "1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8";
@@ -41,6 +41,12 @@ export default async function handler(req, res) {
     // ---- CMM ----
     const cmmRows = await fetchSheet(CMM_DAILY_ID, "CMM Daily");
     const cmm = aggregateCmmDaily(cmmRows, date);
+    // CMM theo tuần: 5 tuần gần nhất + Avg 4 tuần đã xong
+    const cmmWk = aggregateCmmWeekly(cmmRows);
+    const cmmLast5 = cmmWk.slice(-5);
+    cmm.weekly = cmmLast5.map(w => ({ week: w.week, qty: w.hours }));
+    const cmmDone = cmmLast5.slice(0, Math.max(0, cmmLast5.length - 1));
+    cmm.weeklyAvg = cmmDone.length ? Math.round(cmmDone.reduce((s, w) => s + w.qty, 0) / cmmDone.length * 10) / 10 : 0;
 
     // ---- Auto MT std (per-ring) từ Combined ST ----
     const stRows = await fetchSheet(COMBINED_ST_ID, "Combined ST");

@@ -160,6 +160,7 @@ export async function loadCmmWeeklyData() {
 
   const CAPACITY = 154;
   const weekMap = {};
+  const weekDayMap = {}; // fw → { 'YYYY-MM-DD': { min, count, reCheck, itr } }
   let maxDate = null; // ngày cuối cùng ở cột A "CMM Date"
 
   // Tìm cột "Re-Check Time" theo TÊN TIÊU ĐỀ (không cố định vị trí) — nằm ở đâu cũng bắt đúng.
@@ -222,6 +223,14 @@ export async function loadCmmWeeklyData() {
     const fw = isoWeek(date);
     const displayPart = getDisplayName(rawPart);
 
+    // Gom theo NGÀY trong tuần (dùng cho drill-down từng ngày)
+    const dStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (!weekDayMap[fw]) weekDayMap[fw] = {};
+    if (!weekDayMap[fw][dStr]) weekDayMap[fw][dStr] = { min: 0, count: 0, reCheck: 0, itr: 0 };
+    const dayB = weekDayMap[fw][dStr];
+    dayB.min += rowMin; dayB.count += 1;
+    if (isITR) dayB.itr += rowMin; else dayB.reCheck += reCheck;
+
     if (!weekMap[fw]) weekMap[fw] = {};
     if (!weekMap[fw][displayPart]) weekMap[fw][displayPart] = { min: 0, count: 0, reCheck: 0, itr: 0, steps: {} };
     const bucket = weekMap[fw][displayPart];
@@ -255,6 +264,15 @@ export async function loadCmmWeeklyData() {
         }));
       const totalHours = Math.round(byPart.reduce((s, p) => s + p.hours, 0) * 10) / 10;
       const totalSets  = byPart.reduce((s, p) => s + p.sets, 0);
+      const byDay = Object.entries(weekDayMap[week] || {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, v]) => ({
+          date,
+          hours: Math.round(v.min / 60 * 10) / 10,
+          sets: v.count,
+          reCheckMin: Math.round(v.reCheck || 0),
+          itrMin: Math.round(v.itr || 0),
+        }));
       return {
         week,
         totalHours,
@@ -264,6 +282,7 @@ export async function loadCmmWeeklyData() {
         overload: totalHours > CAPACITY,
         source: 'CMM Daily Inspection',
         byPart,
+        byDay,
       };
     });
 

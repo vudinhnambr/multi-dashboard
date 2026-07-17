@@ -73,15 +73,27 @@
         ]});
     }
 
-    function drawWeekly(el, weekly, avg){
+    function drawWeekly(el, weekly, avg, o){
+      o = o || {}; const unit = o.unit||"", barColor = o.color||"#22c55e", name = o.name||"Output";
       const c = echarts.init(el); charts.push(c);
       const cat = weekly.map(x=>x.week), qty = weekly.map(x=>x.qty);
       c.setOption({...baseAxis(cat),
         yAxis:{type:"value",axisLabel:{color:TXT},splitLine:{lineStyle:{color:GRID}}},
         series:[
-          {name:"Output",type:"bar",data:qty,barMaxWidth:70,itemStyle:{color:"#22c55e",borderRadius:[4,4,0,0]},label:{show:true,position:"top",color:TXT,fontWeight:700}},
+          {name:name,type:"bar",data:qty,barMaxWidth:70,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:{show:true,position:"top",color:TXT,fontWeight:700,formatter:p=>num(p.value)+unit}},
           {name:"Avg (4 tuần đã xong)",type:"line",data:cat.map(()=>avg),symbol:"none",lineStyle:{color:"#fbbf24",width:3,type:"dashed"},
-           endLabel:{show:true,formatter:"Avg "+avg,color:"#fbbf24",fontWeight:800}}
+           endLabel:{show:true,formatter:"Avg "+num(avg)+unit,color:"#fbbf24",fontWeight:800}}
+        ]});
+    }
+
+    function drawBars(el, list, o){
+      o = o || {}; const unit = o.unit||"", barColor = o.color||"#38bdf8";
+      const c = echarts.init(el); charts.push(c);
+      const names = list.map(x=>x.part||x.name), val = list.map(x=>x.hours!=null?x.hours:x.qty);
+      c.setOption({...baseAxis(names),
+        yAxis:{type:"value",axisLabel:{color:TXT},splitLine:{lineStyle:{color:GRID}}},
+        series:[
+          {type:"bar",data:val,barMaxWidth:52,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:{show:true,position:"top",color:TXT,fontWeight:700,formatter:p=>num(p.value)+unit}}
         ]});
     }
 
@@ -108,24 +120,26 @@
             <div class="chart" id="chartPerson"></div>
           </div>
           <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--amber)"></span>Auto MT — Output 5 tuần gần nhất</div>
-            <div class="chart" id="chartWeekly"></div>
+            <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Output 5 tuần gần nhất</div>
+            <div class="chart" id="chartMtWeekly"></div>
           </div>
         </div>
         <div class="row">
           <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Top part (giờ)</div>
-            <div class="lst"><table><tbody>${rows((cmm.parts||[]).slice(0,10),"hours","h")}</tbody></table></div>
+            <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Theo part (hôm qua)</div>
+            <div class="chart" id="chartCmmPart"></div>
           </div>
           <div class="panel">
-            <div class="ptitle"><span class="dot" style="background:var(--mt)"></span>Auto MT — Theo máy (ring)</div>
-            <div class="lst"><table><tbody>${rows(mt.byMachine,"qty","")}</tbody></table></div>
+            <div class="ptitle"><span class="dot" style="background:var(--cmm)"></span>CMM — Giờ 5 tuần gần nhất</div>
+            <div class="chart" id="chartCmmWeekly"></div>
           </div>
         </div>`;
 
       charts.forEach(c=>c.dispose()); charts = [];
       drawPerson(document.getElementById("chartPerson"), mt.byPersonDay||[]);
-      drawWeekly(document.getElementById("chartWeekly"), mt.weekly||[], mt.weeklyAvg||0);
+      drawWeekly(document.getElementById("chartMtWeekly"), mt.weekly||[], mt.weeklyAvg||0, {unit:"",color:"#22c55e",name:"Output"});
+      drawBars(document.getElementById("chartCmmPart"), (cmm.parts||[]).slice(0,10), {unit:"h",color:"#38bdf8"});
+      drawWeekly(document.getElementById("chartCmmWeekly"), cmm.weekly||[], cmm.weeklyAvg||0, {unit:"h",color:"#38bdf8",name:"Giờ"});
     }
 
     window.addEventListener("resize", ()=>charts.forEach(c=>c.resize()));
