@@ -117,15 +117,13 @@
 
     function drawPerson(el, list){
       const c = echarts.init(el); charts.push(c);
-      const names = list.map(x=>x.name), qty = list.map(x=>x.qty), eff = list.map(x=>x.eff);
-      c.setOption({...baseAxis(names),
-        yAxis:[
-          {type:"value",name:"Qty",nameTextStyle:yAxisLbl(),axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
-          {type:"value",name:"%",nameTextStyle:yAxisLbl(),axisLabel:{...yAxisLbl(),formatter:"{value}%"},splitLine:{show:false}}
-        ],
+      const names = list.map(x=>x.name), qty = list.map(x=>x.qty);
+      const opt = baseAxis(names);
+      opt.legend = { show:false }; // chỉ còn Qty, không cần chú thích
+      c.setOption({...opt,
+        yAxis:{type:"value",name:"Qty",nameTextStyle:yAxisLbl(),axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
         series:[
-          {name:t("lg_qty"),type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"inside",color:"#052e16"})},
-          {name:t("lg_eff"),type:"line",yAxisIndex:1,data:eff,smooth:true,symbol:"circle",symbolSize:9,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3},label:barLbl({color:"#fde68a",formatter:p=>p.value+"%"})}
+          {name:t("lg_qty"),type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"inside",color:"#052e16"})}
         ]});
     }
 
