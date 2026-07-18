@@ -123,7 +123,7 @@
       c.setOption({...opt,
         yAxis:{type:"value",name:"Qty",nameTextStyle:yAxisLbl(),axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
         series:[
-          {name:t("lg_qty"),type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"inside",color:"#052e16"})}
+          {name:t("lg_qty"),type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT})}
         ]});
     }
 
@@ -149,19 +149,28 @@
       const names = list.map(x=>x.part||x.name), val = list.map(x=>x.hours!=null?x.hours:x.qty);
       const opt = baseAxis(names);
       if (o.multiline) {
-        // Nhãn 2 dòng: dòng 1 = tên part (đậm, tự xuống dòng nếu dài), dòng 2 = bước ×số lượng
-        opt.grid = {...opt.grid, left:44, right:24, bottom: MOBILE?104:96};
-        opt.xAxis.axisLabel = {
-          color:TXT, interval:0, rotate:0, margin:12, lineHeight:16,
-          formatter: v => {
-            const parts = String(v).split("\n");
-            return `{p|${parts[0]||""}}\n{s|${parts[1]||""}}`;
-          },
-          rich: {
-            p:{ color:"#e2e8f0", fontSize:MOBILE?11:14, fontWeight:700, width:MOBILE?92:150, overflow:"break", lineHeight:15, align:"center" },
-            s:{ color:"#94a3b8", fontSize:MOBILE?10:13, fontWeight:600, lineHeight:15, align:"center" }
-          }
-        };
+        if (MOBILE) {
+          // Mobile: xoay nghiêng 1 dòng "Part — Bước ×n" để không đè nhau
+          opt.grid = {...opt.grid, left:38, right:16, bottom:150};
+          opt.xAxis.axisLabel = {
+            color:TXT, interval:0, rotate:38, fontSize:11, fontWeight:600, margin:10,
+            formatter: v => String(v).replace(/\n/g, " — ")
+          };
+        } else {
+          // Desktop: nhãn 2 dòng — dòng 1 tên part (đậm, tự xuống dòng), dòng 2 bước ×số lượng
+          opt.grid = {...opt.grid, left:44, right:24, bottom:96};
+          opt.xAxis.axisLabel = {
+            color:TXT, interval:0, rotate:0, margin:12, lineHeight:16,
+            formatter: v => {
+              const parts = String(v).split("\n");
+              return `{p|${parts[0]||""}}\n{s|${parts[1]||""}}`;
+            },
+            rich: {
+              p:{ color:"#e2e8f0", fontSize:14, fontWeight:700, width:150, overflow:"break", lineHeight:15, align:"center" },
+              s:{ color:"#94a3b8", fontSize:13, fontWeight:600, lineHeight:15, align:"center" }
+            }
+          };
+        }
       }
       c.setOption({...opt,
         yAxis:{type:"value",axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
