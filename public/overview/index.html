@@ -49,7 +49,7 @@
     @media(max-width:560px){
       body{padding:8px;}
       .head h1{font-size:20px;}
-      .kpis{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+      .kpis{grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,auto);grid-auto-flow:column;gap:8px;margin-bottom:12px;}
       .kpi{padding:10px 12px;}
       .kpi .lbl{font-size:11px;}
       .kpi .val{font-size:30px;}
@@ -123,7 +123,7 @@
       c.setOption({...opt,
         yAxis:{type:"value",name:"Qty",nameTextStyle:yAxisLbl(),axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
         series:[
-          {name:t("lg_qty"),type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT})}
+          {name:t("lg_qty"),type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#22c55e",borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT})}
         ]});
     }
 
@@ -149,22 +149,22 @@
       const names = list.map(x=>x.part||x.name), val = list.map(x=>x.hours!=null?x.hours:x.qty);
       const opt = baseAxis(names);
       if (o.multiline) {
+        // Nhãn 2 dòng: dòng 1 tên part (đậm), dòng 2 bước ×số lượng.
+        // Mobile: xoay nghiêng để không đè nhau. Desktop: nằm ngang, tự xuống dòng.
+        const fmt = v => { const p = String(v).split("\n"); return `{p|${p[0]||""}}\n{s|${p[1]||""}}`; };
         if (MOBILE) {
-          // Mobile: xoay nghiêng 1 dòng "Part — Bước ×n" để không đè nhau
-          opt.grid = {...opt.grid, left:38, right:16, bottom:150};
+          opt.grid = {...opt.grid, left:38, right:16, bottom:180};
           opt.xAxis.axisLabel = {
-            color:TXT, interval:0, rotate:38, fontSize:11, fontWeight:600, margin:10,
-            formatter: v => String(v).replace(/\n/g, " — ")
+            color:TXT, interval:0, rotate:32, margin:12, formatter: fmt,
+            rich: {
+              p:{ color:"#e2e8f0", fontSize:11, fontWeight:700, lineHeight:13, align:"left" },
+              s:{ color:"#94a3b8", fontSize:10, fontWeight:600, lineHeight:13, align:"left" }
+            }
           };
         } else {
-          // Desktop: nhãn 2 dòng — dòng 1 tên part (đậm, tự xuống dòng), dòng 2 bước ×số lượng
           opt.grid = {...opt.grid, left:44, right:24, bottom:96};
           opt.xAxis.axisLabel = {
-            color:TXT, interval:0, rotate:0, margin:12, lineHeight:16,
-            formatter: v => {
-              const parts = String(v).split("\n");
-              return `{p|${parts[0]||""}}\n{s|${parts[1]||""}}`;
-            },
+            color:TXT, interval:0, rotate:0, margin:12, formatter: fmt,
             rich: {
               p:{ color:"#e2e8f0", fontSize:14, fontWeight:700, width:150, overflow:"break", lineHeight:15, align:"center" },
               s:{ color:"#94a3b8", fontSize:13, fontWeight:600, lineHeight:15, align:"center" }
