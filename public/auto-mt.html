@@ -335,7 +335,7 @@
       </section>
 
       <!-- ===== Standard Time / Efficiency ===== -->
-      <section class="glass mb-8 rounded-2xl p-6">
+      <section class="hide-viewer glass mb-8 rounded-2xl p-6">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div class="text-2xl font-bold">Standard Time / Efficiency</div>
@@ -393,7 +393,7 @@
 
 
       <!-- ===== PO + Forecast 2026 vs Auto MT Capacity ===== -->
-      <section class="glass mb-8 rounded-2xl p-6">
+      <section class="hide-viewer glass mb-8 rounded-2xl p-6">
         <div class="mb-1 text-2xl font-bold">PO + Forecast 2026 vs Auto MT Capacity</div>
         <div class="mb-4 text-xs text-slate-400">Demand = số set × MT Total (min/set), kiểm 100%. Nguồn: PO Forecast 2026 + Combined ST.</div>
 
@@ -439,7 +439,7 @@
       </section>
 
       <!-- ===== Re-Inspection list (click to reveal) ===== -->
-      <section class="glass mb-8 rounded-2xl p-6">
+      <section class="hide-viewer glass mb-8 rounded-2xl p-6">
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div class="text-2xl font-bold">Re-Inspection</div>
@@ -469,7 +469,7 @@
             Clear
           </button>
         </div>
-        <div class="mt-3 flex flex-wrap items-center gap-2">
+        <div id="serialQuickList" class="hide-viewer mt-3 flex flex-wrap items-center gap-2">
           <span class="text-sm text-slate-400">Quick list:</span>
           <button id="serialNotGoodBtn" type="button"
             class="rounded-lg bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 ring-1 ring-red-500/50 hover:bg-red-500/30">
@@ -1569,18 +1569,20 @@
     }
 
     // Bảng kết quả Serial (dùng chung cho tìm kiếm + list Not Good / Re-Inspection)
+    // Viewer: chỉ thấy Serial Number, Part, Date, Qty, Week (ẩn Result/Person/Machine/Re-Insp).
     function serialTableHtml(matches) {
+      const viewer = currentRole === 'viewer'
       const rowsHtml = matches.map(r => {
-        const ng = isNotGood(r.result)
+        const ng = !viewer && isNotGood(r.result)
         return `
         <tr class="border-b border-slate-800 ${ng ? 'bg-red-500/10 hover:bg-red-500/20' : 'hover:bg-slate-800/50'}">
           <td class="px-4 py-3 font-semibold ${ng ? 'text-red-200' : 'text-white'}">
             ${escapeHtml(r.serial)}
-            ${r.reInspection > 0 ? `<span class="ml-2 rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">Re-inspection ${r.reInspection}</span>` : ''}
+            ${(!viewer && r.reInspection > 0) ? `<span class="ml-2 rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-300">Re-inspection ${r.reInspection}</span>` : ''}
           </td>
-          <td class="px-4 py-3">${resultBadge(r.result)}</td>
-          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.personDisplay)}</td>
-          <td class="px-4 py-3 text-slate-200">${escapeHtml(r.machineDisplay)}</td>
+          ${viewer ? '' : `<td class="px-4 py-3">${resultBadge(r.result)}</td>`}
+          ${viewer ? '' : `<td class="px-4 py-3 text-slate-200">${escapeHtml(r.personDisplay)}</td>`}
+          ${viewer ? '' : `<td class="px-4 py-3 text-slate-200">${escapeHtml(r.machineDisplay)}</td>`}
           <td class="px-4 py-3 text-slate-200">${escapeHtml(r.partDisplay)}</td>
           <td class="px-4 py-3 text-slate-200">${escapeHtml(r.date)}</td>
           <td class="px-4 py-3 text-right text-slate-200">${r.qty.toLocaleString()}</td>
@@ -1588,13 +1590,13 @@
         </tr>`
       }).join('')
       return `
-        <table class="w-full min-w-[820px] border-collapse text-left">
+        <table class="w-full ${viewer ? 'min-w-[560px]' : 'min-w-[820px]'} border-collapse text-left">
           <thead>
             <tr class="border-b border-slate-700 text-sm text-slate-400">
               <th class="px-4 py-2 font-semibold">Serial Number</th>
-              <th class="px-4 py-2 font-semibold">Result</th>
-              <th class="px-4 py-2 font-semibold">Person</th>
-              <th class="px-4 py-2 font-semibold">Machine</th>
+              ${viewer ? '' : '<th class="px-4 py-2 font-semibold">Result</th>'}
+              ${viewer ? '' : '<th class="px-4 py-2 font-semibold">Person</th>'}
+              ${viewer ? '' : '<th class="px-4 py-2 font-semibold">Machine</th>'}
               <th class="px-4 py-2 font-semibold">Part</th>
               <th class="px-4 py-2 font-semibold">Date</th>
               <th class="px-4 py-2 text-right font-semibold">Qty</th>
@@ -1662,10 +1664,12 @@
         ? `Found <span class="font-bold text-yellow-400">${matches.length}</span> matching results (last 7 characters may be shared). Check the full Serial Number to identify the correct one.`
         : `Found <span class="font-bold text-green-400">1</span> result.`
 
-      // Cảnh báo tổng số Not Good (nếu có)
-      const ngCount = matches.filter(r => isNotGood(r.result)).length
-      if (ngCount > 0) {
-        infoBox.innerHTML += ` · <span class="font-bold text-red-400">${ngCount} Not Good</span>`
+      // Cảnh báo tổng số Not Good (nếu có) — viewer không thấy
+      if (currentRole !== 'viewer') {
+        const ngCount = matches.filter(r => isNotGood(r.result)).length
+        if (ngCount > 0) {
+          infoBox.innerHTML += ` · <span class="font-bold text-red-400">${ngCount} Not Good</span>`
+        }
       }
 
       resultsBox.innerHTML = serialTableHtml(matches)
@@ -2041,6 +2045,13 @@
       document.querySelectorAll('.requires-input').forEach(el => {
         el.classList.toggle('hidden', !canInput)
       })
+      // Viewer bị giới hạn: ẩn Standard Time/Efficiency, PO Capacity, Re-Inspection, Quick list.
+      const isViewer = role === 'viewer'
+      document.querySelectorAll('.hide-viewer').forEach(el => {
+        el.classList.toggle('hidden', isViewer)
+        if (isViewer) el.style.display = 'none'; else el.style.removeProperty('display')
+      })
+
       // Bước 6 + Efficiency controls: phần tử "requires-admin" chỉ hiện với admin.
       const isAdmin = role === 'admin'
       document.querySelectorAll('.requires-admin').forEach(el => {
