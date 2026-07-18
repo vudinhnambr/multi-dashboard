@@ -91,7 +91,10 @@
         loading:"Loading…", missingKey:"Missing key. Open with ?key=… in the URL", badKey:"Invalid key.", loadErr:"Failed to load data: ",
       },
     };
-    let lang = (localStorage.getItem("tv_lang") === "en") ? "en" : "vi";
+    // Nhúng trong hub (iframe) → theo ngôn ngữ của hub (localStorage 'cmm_lang') và ẩn nút riêng.
+    const EMBEDDED = (window.self !== window.top);
+    const readLang = () => ((localStorage.getItem(EMBEDDED ? "cmm_lang" : "tv_lang") === "en") ? "en" : "vi");
+    let lang = readLang();
     const t = k => (T[lang][k] ?? k);
     const num = n => (Math.round((Number(n)||0)*10)/10).toLocaleString(lang === "en" ? "en-US" : "vi-VN");
 
@@ -170,10 +173,10 @@
               ${selectedDate ? `<button id="resetDay">${t("resetDay")}</button>` : ``}
             </div>
             <div class="meta">${t("updated")}: ${new Date(d.refreshedAt).toLocaleString(loc)} · ${t("refresh")}</div>
-            <div class="langtog">
+            ${EMBEDDED ? `` : `<div class="langtog">
               <button data-l="vi" class="${lang==='vi'?'on':''}">VN</button>
               <button data-l="en" class="${lang==='en'?'on':''}">EN</button>
-            </div>
+            </div>`}
           </div>
         </div>
         <div class="kpis">
@@ -241,6 +244,13 @@
         render(lastData);
       }catch(e){ document.getElementById("root").innerHTML='<div class="msg">'+t("loadErr")+esc(e.message)+'</div>'; }
     }
+    // Khi nhúng trong hub: đổi ngôn ngữ ở hub → cập nhật theo (storage event từ cửa sổ cha)
+    window.addEventListener("storage", (e) => {
+      if(EMBEDDED && e.key === "cmm_lang"){
+        const nl = readLang();
+        if(nl !== lang){ lang = nl; document.documentElement.lang = lang; if(lastData) render(lastData); }
+      }
+    });
     document.documentElement.lang = lang;
     loadData();
     // Mỗi 60 phút: quay về ngày mặc định (hôm qua)
