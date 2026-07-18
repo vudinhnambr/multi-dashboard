@@ -150,15 +150,17 @@
       const opt = baseAxis(names);
       if (o.multiline) {
         // Nhãn 2 dòng: dòng 1 tên part (đậm), dòng 2 bước ×số lượng.
-        // Mobile: xoay nghiêng để không đè nhau. Desktop: nằm ngang, tự xuống dòng.
+        // Xoay nghiêng khi mobile HOẶC nhiều cột (>6) để không đè nhau; ít cột thì nằm ngang.
         const fmt = v => { const p = String(v).split("\n"); return `{p|${p[0]||""}}\n{s|${p[1]||""}}`; };
-        if (MOBILE) {
-          opt.grid = {...opt.grid, left:38, right:16, bottom:180};
+        const rotated = MOBILE || names.length > 6;
+        if (rotated) {
+          const fs = MOBILE ? 11 : 12;
+          opt.grid = {...opt.grid, left:MOBILE?38:44, right:MOBILE?16:24, bottom:MOBILE?180:172};
           opt.xAxis.axisLabel = {
-            color:TXT, interval:0, rotate:32, margin:12, formatter: fmt,
+            color:TXT, interval:0, rotate:MOBILE?32:28, margin:12, formatter: fmt,
             rich: {
-              p:{ color:"#e2e8f0", fontSize:11, fontWeight:700, lineHeight:13, align:"left" },
-              s:{ color:"#94a3b8", fontSize:10, fontWeight:600, lineHeight:13, align:"left" }
+              p:{ color:"#e2e8f0", fontSize:fs, fontWeight:700, lineHeight:fs+3, align:"left" },
+              s:{ color:"#94a3b8", fontSize:fs-1, fontWeight:600, lineHeight:fs+3, align:"left" }
             }
           };
         } else {
