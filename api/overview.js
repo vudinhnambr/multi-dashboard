@@ -36,7 +36,8 @@ export default async function handler(req, res) {
   if (!process.env.OVERVIEW_TOKEN || req.query.key !== process.env.OVERVIEW_TOKEN) {
     return res.status(401).json({ error: "Not authorized" });
   }
-  const date = yesterdayVN();
+  const qd = req.query.date;
+  const date = (typeof qd === "string" && /^\d{4}-\d{2}-\d{2}$/.test(qd)) ? qd : yesterdayVN();
   try {
     // ---- CMM ----
     const cmmRows = await fetchSheet(CMM_DAILY_ID, "CMM Daily");

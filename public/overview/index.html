@@ -15,6 +15,9 @@
     .head h1{font-size:clamp(20px,2.4vw,38px);font-weight:800;letter-spacing:.01em;}
     .head .date{color:var(--amber);font-weight:800;}
     .head .meta{color:var(--low);font-size:clamp(11px,1vw,15px);}
+    .datepick{display:inline-flex;align-items:center;gap:6px;color:var(--mut);font-size:13px;font-weight:600;}
+    .datepick input[type=date]{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:13px;color-scheme:dark;}
+    .datepick button{background:var(--panel2);color:var(--amber);border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;}
     .langtog{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
     .langtog button{background:var(--panel2);color:var(--mut);border:none;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;}
     .langtog button.on{background:var(--amber);color:#0b1220;}
@@ -73,7 +76,7 @@
         k_cmm_hours:"CMM · Giờ", k_cmm_steps:"CMM · Ring/bước", k_cmm_parts:"CMM · Part",
         t_mt_person:"Auto MT — Theo người (hôm qua)", t_mt_weekly:"Auto MT — Output 5 tuần gần nhất",
         t_cmm_part:"CMM — Theo part (hôm qua)", t_cmm_weekly:"CMM — Giờ 5 tuần gần nhất",
-        people:"người", total:"Tổng", ringsSteps:"ring/bước",
+        people:"người", total:"Tổng", ringsSteps:"ring/bước", pickDate:"Ngày:", resetDay:"Hôm qua",
         lg_qty:"Số lượng", lg_eff:"Hiệu suất", lg_output:"Output", lg_hours:"Giờ", lg_avg:"Avg (4 tuần đã xong)", avg:"Avg",
         loading:"Đang tải…", missingKey:"Thiếu key. Mở bằng link kèm ?key=…", badKey:"Key không đúng.", loadErr:"Không tải được dữ liệu: ",
       },
@@ -83,7 +86,7 @@
         k_cmm_hours:"CMM · Hours", k_cmm_steps:"CMM · Rings/steps", k_cmm_parts:"CMM · Parts",
         t_mt_person:"Auto MT — By person (yesterday)", t_mt_weekly:"Auto MT — Output, last 5 weeks",
         t_cmm_part:"CMM — By part (yesterday)", t_cmm_weekly:"CMM — Hours, last 5 weeks",
-        people:"people", total:"Total", ringsSteps:"rings/steps",
+        people:"people", total:"Total", ringsSteps:"rings/steps", pickDate:"Date:", resetDay:"Yesterday",
         lg_qty:"Qty", lg_eff:"Efficiency", lg_output:"Output", lg_hours:"Hours", lg_avg:"Avg (4 completed weeks)", avg:"Avg",
         loading:"Loading…", missingKey:"Missing key. Open with ?key=… in the URL", badKey:"Invalid key.", loadErr:"Failed to load data: ",
       },
@@ -97,24 +100,25 @@
       return arr.map((x,i)=>`<tr><td class="rank">${i+1}</td><td>${esc(x.part||x.name)}</td><td class="r">${num(x[valKey])}${unit||""}</td></tr>`).join("");
     }
 
+    let MOBILE = false;
     function baseAxis(cat){
       return {
-        grid:{left:44,right:52,top:44,bottom:66},
-        legend:{textStyle:{color:TXT,fontSize:16,fontWeight:600},top:4},
+        grid:{left:MOBILE?38:44,right:MOBILE?16:52,top:MOBILE?84:44,bottom:MOBILE?58:66},
+        legend:{textStyle:{color:TXT,fontSize:MOBILE?12:16,fontWeight:600},top:4,padding:[0,8]},
         tooltip:{trigger:"axis"},
-        xAxis:{type:"category",data:cat,axisLine:{lineStyle:{color:AX}},axisLabel:{color:TXT,rotate:cat.length>7?32:0,interval:0,fontSize:16,fontWeight:600}},
+        xAxis:{type:"category",data:cat,axisLine:{lineStyle:{color:AX}},axisLabel:{color:TXT,rotate:(MOBILE||cat.length>7)?32:0,interval:0,fontSize:MOBILE?12:16,fontWeight:600}},
       };
     }
-    const yAxisLbl = {color:TXT,fontSize:15,fontWeight:600};
-    const barLbl = (extra)=>({show:true,fontSize:17,fontWeight:800,...(extra||{})});
+    const yAxisLbl = () => ({color:TXT,fontSize:MOBILE?11:15,fontWeight:600});
+    const barLbl = (extra)=>({show:true,fontSize:MOBILE?12:17,fontWeight:800,...(extra||{})});
 
     function drawPerson(el, list){
       const c = echarts.init(el); charts.push(c);
       const names = list.map(x=>x.name), qty = list.map(x=>x.qty), eff = list.map(x=>x.eff);
       c.setOption({...baseAxis(names),
         yAxis:[
-          {type:"value",name:"Qty",nameTextStyle:yAxisLbl,axisLabel:yAxisLbl,splitLine:{lineStyle:{color:GRID}}},
-          {type:"value",name:"%",nameTextStyle:yAxisLbl,axisLabel:{...yAxisLbl,formatter:"{value}%"},splitLine:{show:false}}
+          {type:"value",name:"Qty",nameTextStyle:yAxisLbl(),axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
+          {type:"value",name:"%",nameTextStyle:yAxisLbl(),axisLabel:{...yAxisLbl(),formatter:"{value}%"},splitLine:{show:false}}
         ],
         series:[
           {name:t("lg_qty"),type:"bar",data:qty,barMaxWidth:46,itemStyle:{color:"#34d399",borderRadius:[4,4,0,0]},label:barLbl({position:"inside",color:"#052e16"})},
@@ -131,7 +135,7 @@
       const avgData = weekly.map((_,i)=> i < done ? avg : null);
       const avgName = t("lg_avg") + ": " + num(avg) + unit; // giá trị hiện ở chú thích, không đè lên cột
       c.setOption({...baseAxis(cat),
-        yAxis:{type:"value",axisLabel:yAxisLbl,splitLine:{lineStyle:{color:GRID}}},
+        yAxis:{type:"value",axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
         series:[
           {name:name,type:"bar",data:qty,barMaxWidth:70,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT,formatter:p=>num(p.value)+unit})},
           {name:avgName,type:"line",data:avgData,symbol:"none",connectNulls:false,itemStyle:{color:"#fbbf24"},lineStyle:{color:"#fbbf24",width:3,type:"dashed"}}
@@ -143,21 +147,28 @@
       const c = echarts.init(el); charts.push(c);
       const names = list.map(x=>x.part||x.name), val = list.map(x=>x.hours!=null?x.hours:x.qty);
       c.setOption({...baseAxis(names),
-        yAxis:{type:"value",axisLabel:yAxisLbl,splitLine:{lineStyle:{color:GRID}}},
+        yAxis:{type:"value",axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
         series:[
           {type:"bar",data:val,barMaxWidth:52,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT,formatter:p=>num(p.value)+unit})}
         ]});
     }
 
     function render(d){
+      MOBILE = window.innerWidth < 560;
       const root = document.getElementById("root");
       const mt = d.mt||{}, cmm = d.cmm||{};
       const loc = lang === "en" ? "en-US" : "vi-VN";
       const personSub = (mt.byPersonDay&&mt.byPersonDay.length) ? `${d.date} · ${mt.people||0} ${t("people")}` : "";
+      const maxDate = yesterdayISO();
       root.innerHTML = `
         <div class="head">
           <h1>${t("title")} — <span class="date">${esc(d.date)}</span></h1>
-          <div style="display:flex;align-items:center;gap:14px;">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div class="datepick">
+              <span>${t("pickDate")}</span>
+              <input type="date" id="dateInput" value="${esc(d.date)}" max="${maxDate}" />
+              ${selectedDate ? `<button id="resetDay">${t("resetDay")}</button>` : ``}
+            </div>
             <div class="meta">${t("updated")}: ${new Date(d.refreshedAt).toLocaleString(loc)} · ${t("refresh")}</div>
             <div class="langtog">
               <button data-l="vi" class="${lang==='vi'?'on':''}">VN</button>
@@ -201,6 +212,10 @@
         document.documentElement.lang = lang;
         if(lastData) render(lastData);
       }));
+      const di = document.getElementById("dateInput");
+      if(di) di.addEventListener("change", () => { if(di.value){ selectedDate = di.value; loadData(selectedDate); } });
+      const rb = document.getElementById("resetDay");
+      if(rb) rb.addEventListener("click", () => { selectedDate = null; loadData(); });
 
       charts.forEach(c=>c.dispose()); charts = [];
       drawPerson(document.getElementById("chartPerson"), mt.byPersonDay||[]);
@@ -209,12 +224,17 @@
       drawWeekly(document.getElementById("chartCmmWeekly"), cmm.weekly||[], cmm.weeklyAvg||0, {unit:"h",color:"#38bdf8",name:t("lg_hours")});
     }
 
-    window.addEventListener("resize", ()=>charts.forEach(c=>c.resize()));
+    // Re-render (không fetch lại) khi xoay/đổi kích thước để cập nhật bố cục mobile
+    let rzT; window.addEventListener("resize", ()=>{ clearTimeout(rzT); rzT = setTimeout(()=>{ if(lastData) render(lastData); }, 250); });
 
-    async function load(){
+    let selectedDate = null; // null = mặc định (hôm qua)
+    function yesterdayISO(){ const n = new Date(Date.now()+7*3600*1000); n.setUTCDate(n.getUTCDate()-1); return n.toISOString().slice(0,10); }
+
+    async function loadData(dateArg){
       if(!KEY){ document.getElementById("root").innerHTML='<div class="msg">'+t("missingKey")+'</div>'; return; }
       try{
-        const r = await fetch(`/api/overview?key=${encodeURIComponent(KEY)}`);
+        const url = `/api/overview?key=${encodeURIComponent(KEY)}` + (dateArg ? `&date=${encodeURIComponent(dateArg)}` : "");
+        const r = await fetch(url);
         if(r.status===401){ document.getElementById("root").innerHTML='<div class="msg">'+t("badKey")+'</div>'; return; }
         if(!r.ok) throw new Error("HTTP "+r.status);
         lastData = await r.json();
@@ -222,8 +242,9 @@
       }catch(e){ document.getElementById("root").innerHTML='<div class="msg">'+t("loadErr")+esc(e.message)+'</div>'; }
     }
     document.documentElement.lang = lang;
-    load();
-    setInterval(load, 60*60*1000);
+    loadData();
+    // Mỗi 60 phút: quay về ngày mặc định (hôm qua)
+    setInterval(() => { selectedDate = null; loadData(); }, 60*60*1000);
   </script>
 </body>
 </html>

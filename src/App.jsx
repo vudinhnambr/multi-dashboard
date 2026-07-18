@@ -15,7 +15,7 @@ class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
-import { Activity, Database, FileWarning, PackageCheck, ClipboardList } from 'lucide-react';
+import { Activity, Database, FileWarning, PackageCheck, ClipboardList, Monitor } from 'lucide-react';
 import CMM from './pages/CMM.jsx';
 import InspectionNotice from './pages/InspectionNotice.jsx';
 import { LangProvider, useLang } from './LangContext.jsx';
@@ -24,12 +24,16 @@ import './app-shell.css';
 
 // Dashboard nhúng iframe đều là file tĩnh trong /public.
 const TABS = [
+  { id: 'overview', label: 'Overview', icon: Monitor },
   { id: 'cmm', label: 'CMM Dashboard', icon: Activity },
   { id: 'auto-mt', label: 'Auto MT Dashboard', icon: Database },
   { id: 'supplier-ncr', label: 'Supplier NCR', icon: FileWarning },
   { id: 'shipment-check', label: 'Shipment Check', icon: PackageCheck },
   { id: 'inspection-notice', label: 'Inspection Notice', icon: ClipboardList },
 ];
+
+// Trang Overview (màn hình tổng) — không cần đăng nhập, dùng token cấu hình lúc build.
+const OVERVIEW_SRC = '/overview/?key=' + encodeURIComponent(import.meta.env.VITE_OVERVIEW_TOKEN || '');
 
 // Lấy tab từ hash (#cmm / #auto-mt / #supplier-ncr). Mặc định cmm.
 function tabFromHash() {
@@ -205,6 +209,9 @@ function AppInner() {
       </header>
 
       <main className="shell-body">
+        {tab === 'overview' && (
+          <iframe className="shell-frame" src={OVERVIEW_SRC} title="Overview" />
+        )}
         {tab === 'cmm' && <AccessGate><CMM /></AccessGate>}
         {tab === 'inspection-notice' && (
           <AccessGate checkUrl="/api/inspection?access=check" title="Inspection Notice"><InspectionNotice /></AccessGate>
