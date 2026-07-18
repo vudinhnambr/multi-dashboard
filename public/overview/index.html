@@ -75,7 +75,7 @@
         k_mt_ring:"Auto MT · Ring", k_mt_hours:"Auto MT · Giờ quy đổi", k_mt_people:"Auto MT · Người",
         k_cmm_hours:"CMM · Giờ", k_cmm_steps:"CMM · Ring/bước", k_cmm_parts:"CMM · Part",
         t_mt_person:"Auto MT — Theo người (hôm qua)", t_mt_weekly:"Auto MT — Output 5 tuần gần nhất",
-        t_cmm_part:"CMM — Theo part (hôm qua)", t_cmm_weekly:"CMM — Giờ 5 tuần gần nhất",
+        t_cmm_part:"CMM — Chi tiết theo bước (hôm qua)", t_cmm_weekly:"CMM — Giờ 5 tuần gần nhất",
         people:"người", total:"Tổng", ringsSteps:"ring/bước", pickDate:"Ngày:", resetDay:"Hôm qua",
         lg_qty:"Số lượng", lg_eff:"Hiệu suất", lg_output:"Output", lg_hours:"Giờ", lg_avg:"Avg (4 tuần đã xong)", avg:"Avg",
         loading:"Đang tải…", missingKey:"Thiếu key. Mở bằng link kèm ?key=…", badKey:"Key không đúng.", loadErr:"Không tải được dữ liệu: ",
@@ -85,7 +85,7 @@
         k_mt_ring:"Auto MT · Rings", k_mt_hours:"Auto MT · Earned hours", k_mt_people:"Auto MT · People",
         k_cmm_hours:"CMM · Hours", k_cmm_steps:"CMM · Rings/steps", k_cmm_parts:"CMM · Parts",
         t_mt_person:"Auto MT — By person (yesterday)", t_mt_weekly:"Auto MT — Output, last 5 weeks",
-        t_cmm_part:"CMM — By part (yesterday)", t_cmm_weekly:"CMM — Hours, last 5 weeks",
+        t_cmm_part:"CMM — By step (yesterday)", t_cmm_weekly:"CMM — Hours, last 5 weeks",
         people:"people", total:"Total", ringsSteps:"rings/steps", pickDate:"Date:", resetDay:"Yesterday",
         lg_qty:"Qty", lg_eff:"Efficiency", lg_output:"Output", lg_hours:"Hours", lg_avg:"Avg (4 completed weeks)", avg:"Avg",
         loading:"Loading…", missingKey:"Missing key. Open with ?key=… in the URL", badKey:"Invalid key.", loadErr:"Failed to load data: ",
@@ -220,10 +220,18 @@
       const rb = document.getElementById("resetDay");
       if(rb) rb.addEventListener("click", () => { selectedDate = null; loadData(); });
 
+      // CMM By part: hiện chi tiết theo bước (part con). Nếu có nhiều part thì thêm tên part.
+      const ps = cmm.partSteps || [];
+      const multiPart = new Set(ps.map(p=>p.part)).size > 1;
+      const abbr = s => String(s||"").replace(/ Bearing$/,"").replace(/ Ring$/,"");
+      const cmmDetail = ps.length
+        ? ps.slice(0,12).map(p => ({ name: (multiPart ? abbr(p.part)+" · " : "") + p.step + (p.sets ? ` ×${p.sets}` : ""), hours: p.hours }))
+        : (cmm.parts||[]).slice(0,12).map(p => ({ name: p.part, hours: p.hours }));
+
       charts.forEach(c=>c.dispose()); charts = [];
       drawPerson(document.getElementById("chartPerson"), mt.byPersonDay||[]);
       drawWeekly(document.getElementById("chartMtWeekly"), mt.weekly||[], mt.weeklyAvg||0, {unit:"",color:"#22c55e",name:t("lg_output")});
-      drawBars(document.getElementById("chartCmmPart"), (cmm.parts||[]).slice(0,10), {unit:"h",color:"#38bdf8"});
+      drawBars(document.getElementById("chartCmmPart"), cmmDetail, {unit:"h",color:"#38bdf8"});
       drawWeekly(document.getElementById("chartCmmWeekly"), cmm.weekly||[], cmm.weeklyAvg||0, {unit:"h",color:"#38bdf8",name:t("lg_hours")});
     }
 
