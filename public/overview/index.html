@@ -283,9 +283,15 @@
       }
     });
     document.documentElement.lang = lang;
-    loadData();
-    // Mỗi 60 phút: quay về ngày mặc định (hôm qua)
-    setInterval(() => { selectedDate = null; loadData(); }, 60*60*1000);
+    // Chỉ chạy khi nhúng trong hub (iframe cùng origin). Mở trực tiếp bằng URL → chặn.
+    if (!EMBEDDED) {
+      document.getElementById("root").innerHTML =
+        '<div class="msg">Trang này chỉ xem trong tab <b style="color:#38bdf8">Overview</b> của Quality Management Hub.</div>';
+    } else {
+      loadData();
+      // Mỗi 60 phút: quay về ngày mặc định (hôm qua)
+      setInterval(() => { selectedDate = null; loadData(); }, 60*60*1000);
+    }
   </script>
 </body>
 </html>
