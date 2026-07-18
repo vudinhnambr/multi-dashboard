@@ -149,7 +149,23 @@
       o = o || {}; const unit = o.unit||"", barColor = o.color||"#38bdf8";
       const c = echarts.init(el); charts.push(c);
       const names = list.map(x=>x.part||x.name), val = list.map(x=>x.hours!=null?x.hours:x.qty);
-      c.setOption({...baseAxis(names),
+      const opt = baseAxis(names);
+      if (o.multiline) {
+        // Nhãn 2 dòng: dòng 1 = tên part (đậm, tự xuống dòng nếu dài), dòng 2 = bước ×số lượng
+        opt.grid = {...opt.grid, left:44, right:24, bottom: MOBILE?104:96};
+        opt.xAxis.axisLabel = {
+          color:TXT, interval:0, rotate:0, margin:12, lineHeight:16,
+          formatter: v => {
+            const parts = String(v).split("\n");
+            return `{p|${parts[0]||""}}\n{s|${parts[1]||""}}`;
+          },
+          rich: {
+            p:{ color:"#e2e8f0", fontSize:MOBILE?11:14, fontWeight:700, width:MOBILE?92:150, overflow:"break", lineHeight:15, align:"center" },
+            s:{ color:"#94a3b8", fontSize:MOBILE?10:13, fontWeight:600, lineHeight:15, align:"center" }
+          }
+        };
+      }
+      c.setOption({...opt,
         yAxis:{type:"value",axisLabel:yAxisLbl(),splitLine:{lineStyle:{color:GRID}}},
         series:[
           {type:"bar",data:val,barMaxWidth:52,itemStyle:{color:barColor,borderRadius:[4,4,0,0]},label:barLbl({position:"top",color:TXT,formatter:p=>num(p.value)+unit})}
@@ -220,18 +236,16 @@
       const rb = document.getElementById("resetDay");
       if(rb) rb.addEventListener("click", () => { selectedDate = null; loadData(); });
 
-      // CMM By part: hiện chi tiết theo bước (part con). Nếu có nhiều part thì thêm tên part.
+      // CMM By part: nhãn 2 dòng — dòng 1 tên part (luôn hiện), dòng 2 bước ×số lượng.
       const ps = cmm.partSteps || [];
-      const multiPart = new Set(ps.map(p=>p.part)).size > 1;
-      const abbr = s => String(s||"").replace(/ Bearing$/,"").replace(/ Ring$/,"");
       const cmmDetail = ps.length
-        ? ps.slice(0,12).map(p => ({ name: (multiPart ? abbr(p.part)+" · " : "") + p.step + (p.sets ? ` ×${p.sets}` : ""), hours: p.hours }))
-        : (cmm.parts||[]).slice(0,12).map(p => ({ name: p.part, hours: p.hours }));
+        ? ps.slice(0,12).map(p => ({ name: p.part + "\n" + p.step + (p.sets ? ` ×${p.sets}` : ""), hours: p.hours }))
+        : (cmm.parts||[]).slice(0,12).map(p => ({ name: p.part + "\n—", hours: p.hours }));
 
       charts.forEach(c=>c.dispose()); charts = [];
       drawPerson(document.getElementById("chartPerson"), mt.byPersonDay||[]);
       drawWeekly(document.getElementById("chartMtWeekly"), mt.weekly||[], mt.weeklyAvg||0, {unit:"",color:"#22c55e",name:t("lg_output")});
-      drawBars(document.getElementById("chartCmmPart"), cmmDetail, {unit:"h",color:"#38bdf8"});
+      drawBars(document.getElementById("chartCmmPart"), cmmDetail, {unit:"h",color:"#38bdf8",multiline:true});
       drawWeekly(document.getElementById("chartCmmWeekly"), cmm.weekly||[], cmm.weeklyAvg||0, {unit:"h",color:"#38bdf8",name:t("lg_hours")});
     }
 
