@@ -1,6 +1,7 @@
 export const translations = {
   // ── App shell ─────────────────────────────────────────────────────────────
   'app.brand':           { vi: 'Quality Management Hub', en: 'Quality Management Hub' },
+  'tab.overview':        { vi: 'Tổng quan',              en: 'Overview' },
   'tab.cmm':             { vi: 'CMM Dashboard',          en: 'CMM Dashboard' },
   'tab.auto-mt':         { vi: 'Auto MT Dashboard',      en: 'Auto MT Dashboard' },
   'tab.supplier-ncr':    { vi: 'Supplier NCR',           en: 'Supplier NCR' },

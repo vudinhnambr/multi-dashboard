@@ -32,8 +32,10 @@ const TABS = [
   { id: 'inspection-notice', label: 'Inspection Notice', icon: ClipboardList },
 ];
 
-// Trang Overview (màn hình tổng) — không cần đăng nhập, dùng token cấu hình lúc build.
-const OVERVIEW_SRC = '/overview/?key=' + encodeURIComponent(import.meta.env.VITE_OVERVIEW_TOKEN || '');
+// Trang Overview (màn hình tổng) — không cần đăng nhập.
+// Token đã công khai trong vercel.json (redirect /tv-…) nên nhúng thẳng, khỏi thêm biến build.
+const OVERVIEW_TOKEN = import.meta.env.VITE_OVERVIEW_TOKEN || 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6';
+const OVERVIEW_SRC = '/overview/?key=' + encodeURIComponent(OVERVIEW_TOKEN);
 
 // Lấy tab từ hash (#cmm / #auto-mt / #supplier-ncr). Mặc định cmm.
 function tabFromHash() {
