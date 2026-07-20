@@ -114,15 +114,25 @@ function initState(){
   APPDATA.people.forEach(p=>{MONTHS[BASELINE][p.name]={pct:{...p.basePct},note:""};});
   save("qsl_months",MONTHS);
  }
+ // Dọn key tháng lỗi (vd '2026-06 (gốc)' sinh ra do bug option không có value) — chỉ giữ YYYY-MM
+ { const valid={}; let changed=false;
+   Object.keys(MONTHS).forEach(k=>{ if(/^\d{4}-\d{2}$/.test(k)) valid[k]=MONTHS[k]; else changed=true; });
+   if(changed){ MONTHS=valid; save("qsl_months",MONTHS); }
+ }
  window.__INACTIVE=load("qsl_inactive",[]);   // danh sách người đã nghỉ (không thống kê)
  window.__META=load("qsl_meta",{});           // ghi đè Nhóm / Thâm niên / Công việc chính
  const META=window.__META||{};
  APPDATA.people.forEach(p=>{
-  const o=META[p.name]; if(!o)return;
-  if(o.group)p.group=o.group;
   p.meta=p.meta||{};
-  if("service" in o)p.meta.service=o.service;
-  if("mainJob" in o)p.meta.mainJob=o.mainJob;
+  const o=META[p.name];
+  if(o){
+   if(o.group)p.group=o.group;
+   if("entered" in o)p.meta.entered=o.entered;
+   if("mainJob" in o)p.meta.mainJob=o.mainJob;
+   if("service" in o && !("entered" in o))p.meta.service=o.service; // tương thích bản ghi cũ
+  }
+  // Thâm niên luôn tính lại từ ngày vào làm (nếu có)
+  if(p.meta.entered){ const s=computeSeniority(p.meta.entered); if(s!=="-")p.meta.service=s; }
  });
 }
 function personByName(n){return APPDATA.people.find(p=>p.name===n);}
@@ -228,7 +238,7 @@ function vDash(){
  el.innerHTML=`
  <div class="card">
   <div class="row spread"><h2>Tổng quan — tháng <b>${m}</b></h2>
-   <div class="row"><span class="muted small">Chọn tháng:</span><select id="dmonth" onchange="dashMonth(this.value)">${monthList().map(x=>`<option ${x===m?'selected':''}>${x}</option>`).join("")}</select></div></div>
+   <div class="row"><span class="muted small">Chọn tháng:</span><select id="dmonth" onchange="dashMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}</option>`).join("")}</select></div></div>
   <div class="grid kpis" style="margin-top:12px">
    <div class="kpi"><div class="n">${rows.length}</div><div class="l">Tổng số Inspector</div></div>
    <div class="kpi"><div class="n">7</div><div class="l">Nhóm công việc</div></div>
@@ -361,7 +371,7 @@ function vMonthly(){
    <label class="small muted">Nhóm:</label>
    <select id="mgroup" onchange="mSel('g',this.value)">${APPDATA.groups.map(x=>`<option ${x===g?'selected':''}>${x}</option>`).join("")}</select>
    <label class="small muted">Tháng:</label>
-   <select id="mmonth" onchange="mSel('m',this.value)">${monthList().map(x=>`<option ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select>
+   <select id="mmonth" onchange="mSel('m',this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select>
    <button class="ghost" onclick="newMonth()">➕ Thêm tháng mới</button>
    <span class="small muted" style="margin-left:auto">Leader: <b>${CONFIG.leaders[g]||"(chưa đặt)"}</b></span>
   </div>
@@ -425,13 +435,23 @@ function newMonth(){
 }
 
 /* ============ PERSON ============ */
+// Thâm niên tính từ ngày vào làm → "X Years_Y Month"
+function computeSeniority(entered){
+ if(!entered) return "-";
+ const d=new Date(entered); if(isNaN(d)) return "-";
+ const now=new Date();
+ let months=(now.getFullYear()-d.getFullYear())*12+(now.getMonth()-d.getMonth());
+ if(now.getDate()<d.getDate()) months--;
+ if(months<0) months=0;
+ return Math.floor(months/12)+" Years_"+(months%12)+" Month";
+}
 function togglePersonEdit(){const f=document.getElementById("pEditForm");if(f)f.style.display=(f.style.display==="none"?"block":"none");}
 function savePersonMeta(name){
  const group=document.getElementById("peGroup").value;
- const service=document.getElementById("peService").value.trim();
+ const entered=document.getElementById("peEntered").value;   // YYYY-MM-DD
  const mainJob=document.getElementById("peJob").value.trim();
- const META=window.__META||{}; META[name]={group,service,mainJob}; window.__META=META; save("qsl_meta",META);
- const p=personByName(name); if(p){ p.group=group; p.meta=p.meta||{}; p.meta.service=service; p.meta.mainJob=mainJob; }
+ const META=window.__META||{}; META[name]={group,entered,mainJob}; window.__META=META; save("qsl_meta",META);
+ const p=personByName(name); if(p){ p.group=group; p.meta=p.meta||{}; p.meta.entered=entered; p.meta.service=computeSeniority(entered); p.meta.mainJob=mainJob; }
  render();
 }
 function vPerson(){
@@ -462,8 +482,8 @@ function vPerson(){
    <div class="row" style="flex-wrap:wrap;gap:10px">
     <label class="small muted">Nhóm</label>
     <select id="peGroup">${APPDATA.groups.map(gg=>`<option ${gg===p.group?'selected':''}>${gg}</option>`).join("")}</select>
-    <label class="small muted">Thâm niên</label>
-    <input type="text" id="peService" value="${(p.meta.service||'').replace(/"/g,'&quot;')}" placeholder="VD: 2 Years_2 Month" style="width:170px">
+    <label class="small muted">Ngày vào làm</label>
+    <input type="date" id="peEntered" value="${p.meta.entered||''}" style="width:160px;color-scheme:dark">
     <label class="small muted">Công việc chính</label>
     <input type="text" id="peJob" value="${(p.meta.mainJob||'').replace(/"/g,'&quot;')}" placeholder="Công việc chính" style="width:180px">
     <button class="act" onclick="savePersonMeta('${name.replace(/'/g,"\\'")}')">💾 Lưu</button>
