@@ -1,0 +1,2 @@
+# Đã gộp vào api/mt-standard.js (?kind=capacity) — loại khỏi deploy để không tính là Serverless Function.
+api/mt-capacity.js

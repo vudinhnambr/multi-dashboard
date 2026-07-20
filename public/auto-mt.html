@@ -2159,7 +2159,7 @@
     async function initMtCapacity() {
       if (mtcapInited) { renderMtCapacity(); return; }
       try {
-        const r = await fetch('/api/mt-capacity');
+        const r = await fetch('/api/mt-standard?kind=capacity');
         if (!r.ok) { document.getElementById('mtcapStatus').innerText = 'Không tải được dữ liệu capacity.'; return; }
         mtcapData = await r.json();
       } catch { document.getElementById('mtcapStatus').innerText = 'Lỗi tải dữ liệu capacity.'; return; }
