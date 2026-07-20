@@ -115,6 +115,15 @@ function initState(){
   save("qsl_months",MONTHS);
  }
  window.__INACTIVE=load("qsl_inactive",[]);   // danh sách người đã nghỉ (không thống kê)
+ window.__META=load("qsl_meta",{});           // ghi đè Nhóm / Thâm niên / Công việc chính
+ const META=window.__META||{};
+ APPDATA.people.forEach(p=>{
+  const o=META[p.name]; if(!o)return;
+  if(o.group)p.group=o.group;
+  p.meta=p.meta||{};
+  if("service" in o)p.meta.service=o.service;
+  if("mainJob" in o)p.meta.mainJob=o.mainJob;
+ });
 }
 function personByName(n){return APPDATA.people.find(p=>p.name===n);}
 function monthList(){return Object.keys(MONTHS).sort();}
@@ -416,6 +425,15 @@ function newMonth(){
 }
 
 /* ============ PERSON ============ */
+function togglePersonEdit(){const f=document.getElementById("pEditForm");if(f)f.style.display=(f.style.display==="none"?"block":"none");}
+function savePersonMeta(name){
+ const group=document.getElementById("peGroup").value;
+ const service=document.getElementById("peService").value.trim();
+ const mainJob=document.getElementById("peJob").value.trim();
+ const META=window.__META||{}; META[name]={group,service,mainJob}; window.__META=META; save("qsl_meta",META);
+ const p=personByName(name); if(p){ p.group=group; p.meta=p.meta||{}; p.meta.service=service; p.meta.mainJob=mainJob; }
+ render();
+}
 function vPerson(){
  const el=document.getElementById("content");
  const name=window._selPerson||APPDATA.people[0].name;
@@ -431,13 +449,27 @@ function vPerson(){
   <div class="row spread">
    <div class="row"><label class="small muted">Chọn Inspector:</label>
     <select onchange="window._selPerson=this.value;vPerson()">${APPDATA.people.map(x=>`<option ${x.name===name?'selected':''}>${x.name}</option>`).join("")}</select></div>
-   <div>${lvlBadge(lv)} <span class="muted small">tháng ${m}</span></div>
+   <div>${lvlBadge(lv)} <span class="muted small">tháng ${m}</span>
+    <button class="act" style="margin-left:10px;padding:6px 12px" onclick="togglePersonEdit()">✎ Sửa thông tin</button></div>
   </div>
   <div class="grid kpis" style="margin-top:14px">
    <div class="kpi"><div class="n">${fmt(comp)}</div><div class="l">Điểm tổng hợp /100</div></div>
    <div class="kpi"><div class="n">${shortGroup(p.group)}</div><div class="l">Nhóm • hạng ${rankInGroup}/${groupRows.length}</div></div>
    <div class="kpi"><div class="n">${p.meta.service||"-"}</div><div class="l">Thâm niên • vào ${p.meta.entered||"-"}</div></div>
    <div class="kpi"><div class="n">${p.meta.mainJob||"-"}</div><div class="l">Công việc chính</div></div>
+  </div>
+  <div id="pEditForm" style="display:none;margin-top:12px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px">
+   <div class="row" style="flex-wrap:wrap;gap:10px">
+    <label class="small muted">Nhóm</label>
+    <select id="peGroup">${APPDATA.groups.map(gg=>`<option ${gg===p.group?'selected':''}>${gg}</option>`).join("")}</select>
+    <label class="small muted">Thâm niên</label>
+    <input type="text" id="peService" value="${(p.meta.service||'').replace(/"/g,'&quot;')}" placeholder="VD: 2 Years_2 Month" style="width:170px">
+    <label class="small muted">Công việc chính</label>
+    <input type="text" id="peJob" value="${(p.meta.mainJob||'').replace(/"/g,'&quot;')}" placeholder="Công việc chính" style="width:180px">
+    <button class="act" onclick="savePersonMeta('${name.replace(/'/g,"\\'")}')">💾 Lưu</button>
+    <button class="ghost" onclick="togglePersonEdit()">Hủy</button>
+   </div>
+   <p class="small muted" style="margin:8px 0 0">Chỉnh sửa sẽ ghi đè dữ liệu gốc và áp dụng cho mọi thống kê.</p>
   </div>
  </div>
  <div class="grid two">
