@@ -63,6 +63,25 @@ details summary{cursor:pointer;color:var(--acc);font-weight:600;padding:6px 0}
 .savebar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 22px;display:none;align-items:center;justify-content:space-between;z-index:30}
 .savebar.show{display:flex}
 input.zero{border-color:var(--warn)!important;background:#3a2f1a!important;color:var(--warn)!important;box-shadow:0 0 0 1px var(--warn) inset}
+/* Bảng xếp hạng có khung cuộn riêng → header dính ở đỉnh khung (không phải 49px như bảng khác) */
+#drank th{top:0}
+/* Sơ đồ tổ chức */
+.org-wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start}
+@media(max-width:1100px){.org-wrap{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.org-wrap{grid-template-columns:1fr}}
+.org-col{display:flex;flex-direction:column;gap:10px}
+.org-leader{background:var(--panel2);border:1px solid var(--acc);border-radius:10px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+.org-leader .org-lname{font-weight:700;margin-top:6px}
+.org-lrole{color:var(--acc);font-size:12px;font-weight:600}
+.org-ljoin{color:var(--mut);font-size:11px}
+.org-ldesc{color:var(--mut);font-size:11px;margin-top:4px;line-height:1.35}
+.org-group{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+.org-gtitle{font-weight:700;font-size:13px;margin-bottom:8px;color:var(--acc2)}
+.org-people{display:flex;flex-direction:column;gap:8px}
+.org-person{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;cursor:pointer}
+.org-person:hover{border-color:var(--acc)}
+.org-pname{font-weight:600;font-size:13px}
+.org-pjoin{color:var(--mut);font-size:11px}
 </style>
 </head>
 <body>
@@ -120,6 +139,8 @@ function initState(){
    if(changed){ MONTHS=valid; save("qsl_months",MONTHS); }
  }
  window.__INACTIVE=load("qsl_inactive",[]);   // danh sách người đã nghỉ (không thống kê)
+ window.__PHOTOS=load("qsl_photos",{});       // ảnh (base64) theo tên
+ window.__CERTS=load("qsl_certs",{});         // chứng nhận theo tên (mảng {title,date,note})
  window.__META=load("qsl_meta",{});           // ghi đè Nhóm / Thâm niên / Công việc chính
  const META=window.__META||{};
  APPDATA.people.forEach(p=>{
@@ -165,6 +186,7 @@ const TABS=[
  {id:"groups",label:"👥 Nhóm (7)"},
  {id:"monthly",label:"🗓️ Chấm điểm tháng"},
  {id:"person",label:"🔍 Phân tích cá nhân"},
+ {id:"org",label:"🏢 Sơ đồ tổ chức"},
  {id:"level",label:"⚙️ Cấu trúc Level"},
 ];
 let current="dash";
@@ -174,7 +196,7 @@ function renderNav(){
 let dirtyMonth=null;
 function go(id){ if(dirtyMonth){ if(!confirm("Bạn có thay đổi chưa lưu ở tháng "+dirtyMonth+". Rời đi và bỏ thay đổi?"))return; discardMonth(); }
  current=id;renderNav();render();window.scrollTo(0,0);}
-function render(){({dash:vDash,groups:vGroups,monthly:vMonthly,person:vPerson,level:vLevel}[current])();}
+function render(){({dash:vDash,groups:vGroups,monthly:vMonthly,person:vPerson,org:vOrg,level:vLevel}[current])();}
 
 function monthRows(month){
  return APPDATA.people.map(p=>{
@@ -271,11 +293,12 @@ function vDashWith(m){latestMonthOverride=m;vDash();latestMonthOverride=null;con
 function scrollToRank(){const el=document.getElementById("drank");if(el)window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-130,behavior:"smooth"});}
 function clearLevelFilter(){window._dashLevelFilter="";updateDash();}
 function clearGroupFilter(){const s=document.getElementById("dgfilter");if(s)s.value="";updateDash();}
+function noAccent(s){return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLowerCase().trim();}
 function dashFilter(){
- const q=(document.getElementById("dsearch")?.value||"").toLowerCase();
+ const q=noAccent(document.getElementById("dsearch")?.value||"");
  const gf=document.getElementById("dgfilter")?.value||"";
  const lf=window._dashLevelFilter||"";
- let rows=(window._dashRows||[]).filter(r=>r.name.toLowerCase().includes(q)&&(!gf||r.group===gf)&&(!lf||r.level===lf));
+ let rows=(window._dashRows||[]).filter(r=>noAccent(r.name).includes(q)&&(!gf||r.group===gf)&&(!lf||r.level===lf));
  rows=rows.slice().sort((a,b)=>b.comp-a.comp);
  const chip=document.getElementById("dfchip");
  if(chip){let c=[];
@@ -434,6 +457,82 @@ function newMonth(){
  save("qsl_months",MONTHS);window._mMonth=v;vMonthly();
 }
 
+/* ============ SƠ ĐỒ TỔ CHỨC ============ */
+// 4 Operating Leader → 7 nhóm (map theo sơ đồ). Có thể chỉnh tên/ngày/mô tả tại đây.
+const ORG_LEADERS=[
+ {name:"Lê Hữu Diêu", join:"2020-06-11", role:"Giám sát MT Inspector · quản lý & kiểm soát thiết bị NDT · duy trì hồ sơ NDT.", groups:["MT"]},
+ {name:"Võ Thế Trí", join:"2023-02-08", role:"Giám sát CD, HN & MT inspector · quản lý thiết bị UT/HN/MT · ghi nhận kết quả kiểm.", groups:["Case Depth & Hardness"]},
+ {name:"Đinh Ngọc Vương", join:"2025-01-15", role:"Giám sát Incoming/Assembly/CMM/Laser/Scan Arm · quản lý thiết bị & kiểm tra.", groups:["CMM","Incoming & DT test & CAV"]},
+ {name:"Nguyễn Ngọc Hoàng", join:"2022-07-20", role:"Giám sát Coating & Packing inspector · quản lý thiết bị coating · ghi nhận kết quả.", groups:["Assembly","Coating","After Treatment Final & Packing"]},
+];
+function escHtml(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function esc1(s){return String(s||"").replace(/'/g,"\\'");}
+function photoOf(n){return (window.__PHOTOS||{})[n]||"";}
+function certsOf(n){return (window.__CERTS||{})[n]||[];}
+function avatarHtml(name,size){
+ const ph=photoOf(name);
+ if(ph)return `<img src="${ph}" style="width:${size}px;height:${size}px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:none">`;
+ const parts=(name||"").trim().split(/\s+/);const init=(parts.slice(-1)[0]||"?").slice(0,2).toUpperCase();
+ return `<div style="width:${size}px;height:${size}px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--mut);font-size:${Math.round(size/3)}px;flex:none">${init}</div>`;
+}
+let orgMonthOverride=null;
+function orgMonth(v){orgMonthOverride=v;vOrg();}
+function orgCard(p,m){
+ const comp=composite(getPct(m,p.name));const lv=levelOf(comp);const nc=certsOf(p.name).length;
+ return `<div class="org-person" onclick="openPerson('${esc1(p.name)}')" title="Xem hồ sơ">
+   ${avatarHtml(p.name,40)}
+   <div style="flex:1;min-width:0"><div class="org-pname">${escHtml(p.name)}${nc?` <span title="${nc} chứng nhận">🎓</span>`:''}</div>
+    <div class="org-pjoin">${p.meta&&p.meta.entered?('Vào: '+p.meta.entered):''}</div></div>
+   <div>${lvlBadge(lv)}</div>
+ </div>`;
+}
+function vOrg(){
+ const el=document.getElementById("content");
+ const m=orgMonthOverride||latestMonth();
+ const cols=ORG_LEADERS.map(L=>{
+  const groupsHtml=L.groups.map(g=>{
+   const ppl=APPDATA.people.filter(p=>p.group===g && !isInactive(p.name))
+     .map(p=>({p,comp:composite(getPct(m,p.name))})).sort((a,b)=>b.comp-a.comp);
+   return `<div class="org-group"><div class="org-gtitle">${shortGroup(g)} <span class="pill">${ppl.length}</span></div>
+     <div class="org-people">${ppl.map(({p})=>orgCard(p,m)).join("")||'<div class="muted small">— chưa có —</div>'}</div></div>`;
+  }).join("");
+  return `<div class="org-col">
+    <div class="org-leader">${avatarHtml(L.name,56)}
+     <div class="org-lname">${escHtml(L.name)}</div>
+     <div class="org-lrole">Operating Leader</div>
+     <div class="org-ljoin">Vào: ${L.join||'-'}</div>
+     <div class="org-ldesc">${escHtml(L.role||'')}</div></div>
+    ${groupsHtml}</div>`;
+ }).join("");
+ el.innerHTML=`<div class="card"><div class="row spread">
+   <div><h2>Sơ đồ tổ chức</h2><p class="muted small" style="margin:2px 0 0">4 Operating Leader · 7 nhóm · Level hiển thị theo tháng chọn. Nhấn 1 người để xem hồ sơ.</p></div>
+   <div class="row"><span class="muted small">Level tháng:</span><select id="omonth" onchange="orgMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select></div></div>
+   <div class="org-wrap">${cols}</div></div>`;
+}
+
+/* ============ ẢNH & CHỨNG NHẬN ============ */
+function onPhotoPick(name,input){
+ const f=input.files&&input.files[0]; if(!f)return;
+ const rd=new FileReader();
+ rd.onload=e=>{const img=new Image();img.onload=()=>{
+   const S=220;let w=img.width,h=img.height;const sc=Math.min(S/w,S/h,1);
+   const cv=document.createElement("canvas");cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);
+   cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+   const durl=cv.toDataURL("image/jpeg",0.82);
+   const P=window.__PHOTOS||{};P[name]=durl;window.__PHOTOS=P;save("qsl_photos",P);render();
+ };img.src=e.target.result;};
+ rd.readAsDataURL(f);
+}
+function removePhoto(name){const P=window.__PHOTOS||{};delete P[name];window.__PHOTOS=P;save("qsl_photos",P);render();}
+function addCert(name){
+ const title=(document.getElementById("ceTitle").value||"").trim();
+ if(!title){alert("Nhập tên chứng nhận.");return;}
+ const date=document.getElementById("ceDate").value||"";
+ const note=(document.getElementById("ceNote").value||"").trim();
+ const C=window.__CERTS||{};C[name]=[...(C[name]||[]),{title,date,note}];window.__CERTS=C;save("qsl_certs",C);render();
+}
+function delCert(name,i){const C=window.__CERTS||{};C[name]=(C[name]||[]).filter((_,j)=>j!==i);window.__CERTS=C;save("qsl_certs",C);render();}
+
 /* ============ PERSON ============ */
 // Thâm niên tính từ ngày vào làm → "X Years_Y Month"
 function computeSeniority(entered){
@@ -471,6 +570,14 @@ function vPerson(){
     <select onchange="window._selPerson=this.value;vPerson()">${APPDATA.people.map(x=>`<option ${x.name===name?'selected':''}>${x.name}</option>`).join("")}</select></div>
    <div>${lvlBadge(lv)} <span class="muted small">tháng ${m}</span>
     <button class="act" style="margin-left:10px;padding:6px 12px" onclick="togglePersonEdit()">✎ Sửa thông tin</button></div>
+  </div>
+  <div class="row" style="align-items:center;gap:14px;margin-top:12px">
+   ${avatarHtml(name,72)}
+   <div class="row" style="gap:8px">
+    <input type="file" id="pePhotoInput" accept="image/*" style="display:none" onchange="onPhotoPick('${esc1(name)}',this)">
+    <button class="act" onclick="document.getElementById('pePhotoInput').click()">📷 ${photoOf(name)?'Đổi ảnh':'Thêm ảnh'}</button>
+    ${photoOf(name)?`<button class="ghost" onclick="removePhoto('${esc1(name)}')">Xóa ảnh</button>`:''}
+   </div>
   </div>
   <div class="grid kpis" style="margin-top:14px">
    <div class="kpi"><div class="n">${fmt(comp)}</div><div class="l">Điểm tổng hợp /100</div></div>
@@ -511,6 +618,15 @@ function vPerson(){
    <h3>Thông tin</h3>
    <p class="small muted">${certList(p)}</p>
   </div>
+ </div>
+ <div class="card"><h2>Chứng nhận / Bằng cấp</h2>
+  <div class="row" style="flex-wrap:wrap;gap:8px;margin:8px 0 12px">
+   <input type="text" id="ceTitle" placeholder="Tên chứng nhận" style="width:220px">
+   <input type="date" id="ceDate" style="width:150px;color-scheme:dark">
+   <input type="text" id="ceNote" placeholder="Ghi chú (số hiệu, nơi cấp…)" style="width:220px">
+   <button class="act" onclick="addCert('${esc1(name)}')">➕ Thêm</button>
+  </div>
+  ${certsOf(name).length?`<table><tr><th>Chứng nhận</th><th>Ngày</th><th>Ghi chú</th><th></th></tr>`+certsOf(name).map((c,i)=>`<tr><td>${escHtml(c.title)}</td><td class="small muted">${c.date||'-'}</td><td class="small muted">${escHtml(c.note||'')}</td><td><a href="#" onclick="delCert('${esc1(name)}',${i});return false" style="color:var(--bad);text-decoration:none">✕</a></td></tr>`).join(''):`<p class="muted small">Chưa có chứng nhận nào.</p>`}${certsOf(name).length?'</table>':''}
  </div>
  <div class="card"><details><summary>Chi tiết điểm từng hạng mục (dữ liệu gốc 2026-06)</summary>
   ${detailTable(p)}</details></div>`;
@@ -638,7 +754,9 @@ body.ie-viewer [onclick^="newMonth"],
 body.ie-viewer [onclick^="toggleAddForm"],
 body.ie-viewer [onclick^="addInspector"],
 body.ie-viewer [onclick^="delInspector"],
-body.ie-viewer [onclick^="setLeader"]{ display:none !important; }
+body.ie-viewer [onclick^="setLeader"],
+body.ie-viewer [onclick^="removePhoto"],
+body.ie-viewer [onclick^="delCert"]{ display:none !important; }
 body.ie-viewer input,
 body.ie-viewer select,
 body.ie-viewer textarea{ pointer-events:none !important; opacity:.55 !important; }
