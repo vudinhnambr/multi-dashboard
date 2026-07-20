@@ -173,7 +173,7 @@ function applyLang() {
 async function loadParts() {
   try {
     const token = await getAccessToken();
-    const json = await fetch("/api/parts", { headers: { Authorization: "Bearer " + token } }).then((r) => r.json());
+    const json = await fetch("/api/check?parts=1", { headers: { Authorization: "Bearer " + token } }).then((r) => r.json());
     if (json.error) throw new Error(json.error);
     parts = json.parts || [];
     $("partsError").style.display = "none";

@@ -15,9 +15,10 @@ class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
-import { Activity, Database, FileWarning, PackageCheck, ClipboardList, Monitor, Award } from 'lucide-react';
+import { Activity, Database, FileWarning, PackageCheck, ClipboardList, Monitor, Award, ShieldCheck } from 'lucide-react';
 import CMM from './pages/CMM.jsx';
 import InspectionNotice from './pages/InspectionNotice.jsx';
+import AccessAdmin from './pages/AccessAdmin.jsx';
 import { LangProvider, useLang } from './LangContext.jsx';
 import { getSupabase, getAccessToken } from './cmmSupabase';
 import './app-shell.css';
@@ -31,6 +32,7 @@ const TABS = [
   { id: 'shipment-check', label: 'Shipment Check', icon: PackageCheck },
   { id: 'inspection-notice', label: 'Inspection Notice', icon: ClipboardList },
   { id: 'inspector-eval', label: 'Inspector Skill', icon: Award },
+  { id: 'access-admin', label: 'Quản trị quyền', icon: ShieldCheck },
 ];
 
 // Trang Overview (màn hình tổng) — không cần đăng nhập.
@@ -230,6 +232,9 @@ function AppInner() {
         )}
         {tab === 'inspector-eval' && (
           <iframe className="shell-frame" src="/inspector-eval/index.html" title="Inspector Skill Evaluation" />
+        )}
+        {tab === 'access-admin' && (
+          <AccessGate checkUrl="/api/access-admin?access=check" title="Quản trị quyền"><AccessAdmin /></AccessGate>
         )}
       </main>
     </div>

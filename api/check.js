@@ -28,6 +28,18 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, role: access.role });
   }
 
+  // Danh sách Part cho dropdown (gộp từ /api/parts cũ)
+  if (req.query.parts === "1") {
+    try {
+      const { parts, timestamp } = await getLookups({ forceRefresh: req.query.refresh === "1" });
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ dataAsOf: new Date(timestamp).toISOString(), parts: parts || [] });
+    } catch (err) {
+      console.error("shipment parts error:", err);
+      return res.status(500).json({ error: err.message || "Internal error" });
+    }
+  }
+
   try {
     const raw = req.method === "POST" ? req.body?.sn : req.query.sn;
     const refresh = req.query.refresh === "1" || req.body?.refresh === true;

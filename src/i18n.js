@@ -8,6 +8,7 @@ export const translations = {
   'tab.shipment-check':  { vi: 'Shipment Check',         en: 'Shipment Check' },
   'tab.inspection-notice': { vi: 'Inspection Notice',    en: 'Inspection Notice' },
   'tab.inspector-eval':  { vi: 'Inspector Skill',        en: 'Inspector Skill' },
+  'tab.access-admin':    { vi: 'Quản trị quyền',         en: 'Access Admin' },
 
   // ── Section heads ─────────────────────────────────────────────────────────
   's01.eyebrow':  { vi: '01 - CMM Daily Planner',    en: '01 - CMM Daily Planner' },
