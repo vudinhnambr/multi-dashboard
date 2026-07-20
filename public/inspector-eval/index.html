@@ -62,6 +62,7 @@ details summary{cursor:pointer;color:var(--acc);font-weight:600;padding:6px 0}
 .hl{background:#243646}
 .savebar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 22px;display:none;align-items:center;justify-content:space-between;z-index:30}
 .savebar.show{display:flex}
+input.zero{border-color:var(--warn)!important;background:#3a2f1a!important;color:var(--warn)!important;box-shadow:0 0 0 1px var(--warn) inset}
 </style>
 </head>
 <body>
@@ -113,6 +114,7 @@ function initState(){
   APPDATA.people.forEach(p=>{MONTHS[BASELINE][p.name]={pct:{...p.basePct},note:""};});
   save("qsl_months",MONTHS);
  }
+ window.__INACTIVE=load("qsl_inactive",[]);   // danh sách người đã nghỉ (không thống kê)
 }
 function personByName(n){return APPDATA.people.find(p=>p.name===n);}
 function monthList(){return Object.keys(MONTHS).sort();}
@@ -158,8 +160,17 @@ function render(){({dash:vDash,groups:vGroups,monthly:vMonthly,person:vPerson,le
 function monthRows(month){
  return APPDATA.people.map(p=>{
   const pct=getPct(month,p.name);const comp=composite(pct);
-  return {name:p.name,group:p.group,job:(p.meta.mainJob||""),service:(p.meta.service||""),pct,comp,level:levelOf(comp),old:p.meta.oldFinalLevel,custom:!!p.custom};
+  return {name:p.name,group:p.group,job:(p.meta.mainJob||""),service:(p.meta.service||""),pct,comp,level:levelOf(comp),old:p.meta.oldFinalLevel,custom:!!p.custom,inactive:isInactive(p.name)};
  });
+}
+/* Chỉ những người ĐANG LÀM (bỏ người đã nghỉ) — dùng cho mọi thống kê. */
+function statRows(month){return monthRows(month).filter(r=>!r.inactive);}
+/* ===== Người đã nghỉ: giữ dữ liệu, không thống kê ===== */
+function isInactive(n){return (window.__INACTIVE||[]).includes(n);}
+function toggleInactive(n){
+ let a=window.__INACTIVE||[];
+ a=a.includes(n)?a.filter(x=>x!==n):[...a,n];
+ window.__INACTIVE=a; save("qsl_inactive",a); render();
 }
 
 /* ============ DASHBOARD ============ */
@@ -198,7 +209,7 @@ function renderDashCharts(){
 }
 function updateDash(){renderDashCharts();dashFilter();}
 function vDash(){
- const m=latestMonth();const rows=monthRows(m);
+ const m=latestMonth();const rows=statRows(m);
  if(window._dashLevelFilter===undefined)window._dashLevelFilter="";
  const order=DEFAULT_BANDS.map(b=>b.name);
  const dist={};order.forEach(l=>dist[l]=0);rows.forEach(r=>dist[r.level]++);
@@ -281,19 +292,23 @@ function vGroups(){
    <p class="small muted" style="margin:8px 0 0">Inspector mới bắt đầu ở 0 điểm. Vào tab <b>Chấm điểm tháng</b> để Group Leader nhập điểm.</p>
   </div></div>`;
  APPDATA.groups.forEach(g=>{
-  const gr=rows.filter(r=>r.group===g).sort((a,b)=>b.comp-a.comp);
-  const avg=gr.reduce((s,r)=>s+r.comp,0)/gr.length;
+  const all=rows.filter(r=>r.group===g);
+  const gr=all.filter(r=>!r.inactive).sort((a,b)=>b.comp-a.comp);
+  const inact=all.filter(r=>r.inactive).sort((a,b)=>a.name.localeCompare(b.name));
+  const ordered=[...gr,...inact];
+  const avg=gr.length?gr.reduce((s,r)=>s+r.comp,0)/gr.length:0;
   const leader=CONFIG.leaders[g]||"(chưa đặt)";
   html+=`<div class="card">
-   <div class="row spread"><h2>${g} <span class="pill">${gr.length} người</span></h2>
+   <div class="row spread"><h2>${g} <span class="pill">${gr.length} đang làm${inact.length?` · ${inact.length} nghỉ`:''}</span></h2>
     <div class="row small"><span class="muted">Group Leader:</span> <b>${leader}</b> <button class="ghost small" style="padding:3px 8px" onclick="setLeader('${g.replace(/'/g,"")}')">✎</button>
      <span class="muted" style="margin-left:10px">Điểm TB nhóm:</span> <b>${fmt(avg)}</b></div></div>
    <table style="margin-top:10px"><tr><th>Tên</th><th>Công việc chính</th><th>Thâm niên</th>
-    ${CATS.map(c=>`<th class="small">${c.short}</th>`).join("")}<th>Tổng</th><th>Level</th></tr>
-   ${gr.map(r=>`<tr><td><a href="#" onclick="openPerson('${r.name}');return false" style="color:var(--acc)">${r.name}</a>${r.custom?` <a href="#" onclick="delInspector('${r.name}');return false" title="Xóa Inspector" style="color:var(--bad);text-decoration:none">✕</a>`:''}</td>
+    ${CATS.map(c=>`<th class="small">${c.short}</th>`).join("")}<th>Tổng</th><th>Level</th><th class="small" title="Đánh dấu người đã nghỉ — giữ dữ liệu nhưng không tính thống kê">Đã nghỉ</th></tr>
+   ${ordered.map(r=>`<tr style="${r.inactive?'opacity:.45':''}"><td><a href="#" onclick="openPerson('${r.name}');return false" style="color:var(--acc)">${r.name}</a>${r.inactive?' <span class="tag">nghỉ</span>':''}${r.custom?` <a href="#" onclick="delInspector('${r.name}');return false" title="Xóa Inspector" style="color:var(--bad);text-decoration:none">✕</a>`:''}</td>
      <td class="small muted">${r.job}</td><td class="small muted">${r.service}</td>
      ${CATS.map(c=>`<td>${miniBar(r.pct[c.key],c.color)}</td>`).join("")}
-     <td><b>${fmt(r.comp)}</b></td><td>${lvlBadge(r.level)}</td></tr>`).join("")}
+     <td><b>${fmt(r.comp)}</b></td><td>${lvlBadge(r.level)}</td>
+     <td style="text-align:center"><input type="checkbox" ${r.inactive?'checked':''} title="Đánh dấu đã nghỉ" onclick="toggleInactive('${r.name.replace(/'/g,"\\'")}')"></td></tr>`).join("")}
    </table></div>`;
  });
  el.innerHTML=html;
@@ -361,7 +376,7 @@ function mTable(g,m){
    let trend='<span class="muted small">—</span>';
    if(pcomp!==null){const d=comp-pcomp;trend=d>0.05?`<span class="up small">▲ +${fmt(d)}</span>`:d<-0.05?`<span class="down small">▼ ${fmt(d)}</span>`:'<span class="muted small">=</span>';}
    return `<tr id="mr_${cssId(p.name)}"><td>${p.name}</td>
-    ${CATS.map(c=>`<td><input type="number" min="0" max="100" value="${Math.round(pct[c.key])}" data-p="${p.name}" data-c="${c.key}" oninput="mEdit(this)"></td>`).join("")}
+    ${CATS.map(c=>{const _v=Math.round(pct[c.key]);return `<td><input type="number" min="0" max="100" value="${_v}" class="${_v===0?'zero':''}" data-p="${p.name}" data-c="${c.key}" oninput="mEdit(this)"></td>`;}).join("")}
     <td class="mcomp"><b>${fmt(comp)}</b></td><td class="mlvl">${lvlBadge(lv)}</td><td class="mtrend">${trend}</td>
     <td><input type="text" value="${getNote(m,p.name).replace(/"/g,'&quot;')}" data-note="${p.name}" oninput="mEditNote(this)" style="width:150px"></td></tr>`;
   }).join("");
@@ -371,6 +386,7 @@ function mTable(g,m){
 function cssId(s){return s.replace(/[^a-zA-Z0-9]/g,"_");}
 function mEdit(inp){
  const name=inp.dataset.p,cat=inp.dataset.c;let v=+inp.value;if(v<0)v=0;if(v>100)v=100;
+ inp.classList.toggle("zero", v===0);
  editState.data[name].pct[cat]=v;markDirty();
  const comp=composite(editState.data[name].pct);const lv=levelOf(comp);
  const row=document.getElementById("mr_"+cssId(name));
@@ -406,7 +422,7 @@ function vPerson(){
  const p=personByName(name);const m=latestMonth();
  const pct=getPct(m,name);const comp=composite(pct);const lv=levelOf(comp);
  const months=monthList();
- const groupRows=monthRows(m).filter(r=>r.group===p.group).sort((a,b)=>b.comp-a.comp);
+ const groupRows=statRows(m).filter(r=>r.group===p.group).sort((a,b)=>b.comp-a.comp);
  const rankInGroup=groupRows.findIndex(r=>r.name===name)+1;
  const catPcts=CATS.map(c=>({...c,v:+pct[c.key]||0})).sort((a,b)=>b.v-a.v);
  const strength=catPcts[0],gap=catPcts[catPcts.length-1];
@@ -525,7 +541,7 @@ function bEdit(inp){CONFIG.bands[+inp.dataset.b].min=+inp.value||0;}
 function applyConfig(){save("qsl_config",CONFIG);renderCmp();alert("Đã áp dụng. Toàn bộ Level trong ứng dụng được tính lại theo cấu hình mới.");}
 function resetConfig(){CONFIG.weights={...DEFAULT_WEIGHTS};CONFIG.bands=JSON.parse(JSON.stringify(DEFAULT_BANDS));save("qsl_config",CONFIG);vLevel();}
 function renderCmp(){
- const rows=monthRows(BASELINE).map(r=>{
+ const rows=statRows(BASELINE).map(r=>{
   const oldRank=DEFAULT_BANDS.findIndex(b=>b.name===r.old);
   const newRank=DEFAULT_BANDS.findIndex(b=>b.name===r.level);
   return {...r,delta:(oldRank>=0&&newRank>=0)?newRank-oldRank:0};
