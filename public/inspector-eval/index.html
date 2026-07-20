@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quality Skill Level Program — Inspector Evaluation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+ --bg:#0f1720;--panel:#182430;--panel2:#1f2f3d;--line:#2b3d4d;--txt:#e7eef5;--mut:#8ba0b3;
+ --acc:#3da5ff;--acc2:#26d0a5;--warn:#ffb347;--bad:#ff6b6b;
+ --l1a:#7d8b96;--l1b:#6a97c9;--l1c:#4f8bd6;--l2a:#3ec9a7;--l2b:#2eb389;--l3:#f0b429;--l4:#f38b3c;--l5:#e5484d;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px;line-height:1.5}
+header{background:linear-gradient(90deg,#12324f,#0f1720);padding:16px 24px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:19px}
+header .sub{color:var(--mut);font-size:12px;margin-top:3px}
+nav{display:flex;gap:2px;background:var(--panel);padding:0 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:20}
+nav button{background:none;border:none;color:var(--mut);padding:13px 18px;cursor:pointer;font-size:14px;border-bottom:3px solid transparent;font-weight:600}
+nav button:hover{color:var(--txt)}
+nav button.active{color:var(--acc);border-bottom-color:var(--acc)}
+main{padding:22px;max-width:1280px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px}
+.card h2{margin:0 0 4px;font-size:16px}
+.card h3{margin:16px 0 8px;font-size:14px;color:var(--acc)}
+.muted{color:var(--mut)}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px}
+.kpi .n{font-size:26px;font-weight:700}
+.kpi .l{color:var(--mut);font-size:12px;margin-top:2px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left}
+th{background:var(--panel2);color:var(--mut);font-weight:600;position:sticky;top:49px}
+tr:hover td{background:#1b2a38}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;color:#06121b;white-space:nowrap}
+.pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;background:var(--panel2);border:1px solid var(--line);color:var(--mut)}
+select,input[type=number],input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:7px;padding:8px 10px;font-size:13px}
+input[type=number]{width:72px}
+button.act{background:var(--acc);color:#04121f;border:none;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer}
+button.act:hover{filter:brightness(1.1)}
+button.ghost{background:none;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 14px;cursor:pointer}
+button.ghost:hover{border-color:var(--acc)}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.spread{justify-content:space-between}
+.chartbox{position:relative;height:300px}
+.chartbox.sm{height:240px}
+.two{grid-template-columns:1fr 1fr}
+.three{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.two,.three{grid-template-columns:1fr}}
+.note{font-size:12px;color:var(--mut);background:var(--panel2);border-left:3px solid var(--acc);padding:8px 12px;border-radius:0 8px 8px 0;margin:8px 0}
+.good{color:var(--acc2)}.up{color:var(--acc2)}.down{color:var(--bad)}
+.bar{height:8px;border-radius:5px;background:var(--panel2);overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--acc)}
+.tag{font-size:11px;padding:2px 7px;border-radius:5px;background:#20303f;color:var(--mut);margin-right:4px}
+details summary{cursor:pointer;color:var(--acc);font-weight:600;padding:6px 0}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-top:8px}
+.legend span{display:flex;align-items:center;gap:5px}
+.dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+.small{font-size:12px}
+.hl{background:#243646}
+.savebar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 22px;display:none;align-items:center;justify-content:space-between;z-index:30}
+.savebar.show{display:flex}
+</style>
+</head>
+<body>
+<header>
+ <h1>Quality Skill Level Program — Đánh giá kỹ năng Inspector</h1>
+ <div class="sub">Bản nâng cấp • Chia 7 nhóm • Chấm điểm hằng tháng bởi Group Leader • Phân tích cá nhân • Cấu trúc Level mới &nbsp;|&nbsp; Dữ liệu gốc: snapshot 2026-06</div>
+</header>
+<nav id="nav"></nav>
+<main id="content"></main>
+<div class="savebar" id="savebar">
+ <span class="muted" id="saveinfo">Có thay đổi chưa lưu</span>
+ <div class="row"><button class="ghost" onclick="discardMonth()">Hủy</button><button class="act" onclick="saveMonth()">💾 Lưu điểm tháng</button></div>
+</div>
+<script>
+const APPDATA = {"snapshot": "2026-06", "groups": ["MT", "Case Depth & Hardness", "CMM", "Incoming & DT test & CAV", "Assembly", "Coating", "After Treatment Final & Packing"], "categories": [{"name": "Measuring Equipment", "items": ["Vernier Calipers", "Micrometer", "Hole tester", "Template (Chamfer", "CMM", "SCAN Arm", "DL", "Case depth tester", "Roughness tester", "Profile projector", "Contour tester", "Rockwell", "Rubber hardness tester", "Coating thickness tester", "Polishing machine", "Milling machine", "Band saw machine", "Microscope", "Mounting pressure", "Micro Vickers"]}, {"name": "Spec/Drawing Understanding", "items": ["Searching Drawing", "Drawing understanding (Material)", "Drawing understanding (Subsidiary materials)", "Drawing understanding (Assembly)"]}, {"name": "Report Writing", "items": ["Inspection notice writing ability", "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)", "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)"]}, {"name": "Judgement", "items": ["Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)", "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)", "Working knowledge"]}, {"name": "Work Attitude & Literacy", "items": ["Leadership (Personal attitude)", "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)"]}], "benchmark": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 2, "CMM": 3, "SCAN Arm": 3, "DL": 3, "Case depth tester": 4, "Roughness tester": 3, "Profile projector": 3, "Contour tester": 3, "Rockwell": 3, "Rubber hardness tester": 1, "Coating thickness tester": 3, "Polishing machine": 1, "Milling machine": 3, "Band saw machine": 3, "Microscope": 3, "Mounting pressure": 3, "Micro Vickers": 3}, "Spec/Drawing Understanding": {"Searching Drawing": 3, "Drawing understanding (Material)": 3, "Drawing understanding (Subsidiary materials)": 3, "Drawing understanding (Assembly)": 3}, "Report Writing": {"Inspection notice writing ability": 4, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 4, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 4}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 4, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 4, "Working knowledge": 4}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 4, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "groupApplicable": {"MT": {"Measuring Equipment": ["Vernier Calipers", "Micrometer", "Hole tester", "Template (Chamfer", "CMM", "DL", "Case depth tester", "Roughness tester", "Profile projector", "Contour tester", "Rubber hardness tester", "Coating thickness tester", "Polishing machine", "Milling machine", "Band saw machine"], "Spec/Drawing Understanding": ["Searching Drawing", "Drawing understanding (Material)", "Drawing understanding (Subsidiary materials)", "Drawing understanding (Assembly)"], "Report Writing": ["Inspection notice writing ability", "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)", "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)"], "Judgement": ["Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)", "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)", "Working knowledge"], "Work Attitude & Literacy": ["Leadership (Personal attitude)", "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)"]}, "Case Depth & Hardness": {"Measuring Equipment": ["Vernier Calipers", "Micrometer", "Hole tester", "Template (Chamfer", "DL", "Case depth tester", "Roughness tester", "Profile projector", "Rockwell", "Milling machine", "Band saw machine", "Micro Vickers"], "Spec/Drawing Understanding": ["Searching Drawing", "Drawing understanding (Material)", "Drawing understanding (Subsidiary materials)", "Drawing understanding (Assembly)"], "Report Writing": ["Inspection notice writing ability", "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)", "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)"], "Judgement": ["Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)", "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)", "Working knowledge"], "Work Attitude & Literacy": ["Leadership (Personal attitude)", "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)"]}, "CMM": {"Measuring Equipment": ["Vernier Calipers", "Micrometer", "Hole tester", "Template (Chamfer", "CMM", "SCAN Arm"], "Spec/Drawing Understanding": ["Searching Drawing", "Drawing understanding (Material)", "Drawing understanding (Subsidiary materials)", "Drawing understanding (Assembly)"], "Report Writing": ["Inspection notice writing ability", "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)", "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)"], "Judgement": ["Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)", "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)", "Working knowledge"], "Work Attitude & Literacy": ["Leadership (Personal attitude)", "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)"]}, "Incoming & DT test & CAV": {"Measuring Equipment": ["Vernier Calipers", "Micrometer", "Hole tester", "Template (Chamfer", "CMM", "SCAN Arm", "DL", "Case depth tester", "Roughness tester", "Profile projector", "Contour tester", "Rockwell", "Rubber hardness tester", "Coating thickness tester", "Polishing machine", "Milling machine", "Band saw machine", "Microscope", "Mounting pressure", "Micro Vickers"], "Spec/Drawing Understanding": ["Searching Drawing", "Drawing understanding (Material)", "Drawing understanding (Subsidiary materials)", "Drawing understanding (Assembly)"], "Report Writing": ["Inspection notice writing ability", "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)", "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)"], "Judgement": ["Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)", "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)", "Working knowledge"], "Work Attitude & Literacy": ["Leadership (Personal attitude)", "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)"]}, "Assembly": {"Measuring Equipment": ["Vernier Calipers", "Micrometer", "Hole tester", "Template (Chamfer", "DL", "Roughness tester", "Profile projector", "Contour tester", "Rockwell", "Rubber hardness tester", "Polishing machine", "Milling machine", "Band saw machine", "Microscope", "Mounting pressure", "Micro Vickers"], "Spec/Drawing Understanding": ["Searching Drawing", "Drawing understanding (Material)", "Drawing understanding (Subsidiary materials)", "Drawing understanding (Assembly)"], "Report Writing": ["Inspection notice writing ability", "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)", "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)"], "Judgement": ["Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)", "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)", "Working knowledge"], "Work Attitude & Literacy": ["Leadership (Personal attitude)", "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)"]}, "Coating": {"Measuring Equipment": ["Vernier Calipers", "Micrometer", "Hole tester", "Template (Chamfer", "DL", "Roughness tester", "Coating thickness tester", "Milling machine", "Band saw machine", "Mounting pressure"], "Spec/Drawing Understanding": ["Searching Drawing", "Drawing understanding (Material)", "Drawing understanding (Subsidiary materials)", "Drawing understanding (Assembly)"], "Report Writing": ["Inspection notice writing ability", "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)", "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)"], "Judgement": ["Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)", "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)", "Working knowledge"], "Work Attitude & Literacy": ["Leadership (Personal attitude)", "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)"]}, "After Treatment Final & Packing": {"Measuring Equipment": ["Vernier Calipers", "Micrometer", "Hole tester", "Roughness tester", "Coating thickness tester"], "Spec/Drawing Understanding": ["Searching Drawing", "Drawing understanding (Material)", "Drawing understanding (Subsidiary materials)", "Drawing understanding (Assembly)"], "Report Writing": ["Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)", "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)"], "Judgement": ["Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)", "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)", "Working knowledge"], "Work Attitude & Literacy": ["Leadership (Personal attitude)", "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)"]}}, "people": [{"name": "N. Thanh", "group": "MT", "meta": {"entered": "2020-06-10", "service": "5 Years_11 Month", "mainJob": "Auto MT", "oldFinalLevel": "Level 2A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 3, "Case depth tester": 4, "Roughness tester": 3, "Profile projector": 1, "Contour tester": 2, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 1, "Milling machine": 3, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 2, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 2}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 63.2, "Spec/Drawing Understanding": 66.7, "Report Writing": 25.0, "Judgement": 58.3, "Work Attitude & Literacy": 71.4}}, {"name": "T.M Ban", "group": "MT", "meta": {"entered": "2024-04-01", "service": "2 Years_2 Month", "mainJob": "Auto MT", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 2, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 2, "Band saw machine": 2, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 1}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 36.8, "Spec/Drawing Understanding": 33.3, "Report Writing": 25.0, "Judgement": 25.0, "Work Attitude & Literacy": 71.4}}, {"name": "D.H Tuong", "group": "MT", "meta": {"entered": "2023-04-13", "service": "3 Years_1 Month", "mainJob": "Auto MT", "oldFinalLevel": "Level 1C"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 2, "Roughness tester": 2, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 1, "Polishing machine": 1, "Milling machine": 1, "Band saw machine": 2, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 2, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 2, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 44.7, "Spec/Drawing Understanding": 50.0, "Report Writing": 41.7, "Judgement": 33.3, "Work Attitude & Literacy": 71.4}}, {"name": "N.D Nghia", "group": "MT", "meta": {"entered": "2023-01-16", "service": "3 Years_4 Month", "mainJob": "Auto MT", "oldFinalLevel": "Level 2A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 3, "Case depth tester": 4, "Roughness tester": 3, "Profile projector": 2, "Contour tester": 2, "Rockwell": 0, "Rubber hardness tester": 1, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 2, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 2, "Drawing understanding (Material)": 3, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 2}, "Report Writing": {"Inspection notice writing ability": 2, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 3, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 3, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 63.2, "Spec/Drawing Understanding": 75.0, "Report Writing": 50.0, "Judgement": 58.3, "Work Attitude & Literacy": 71.4}}, {"name": "D.V Tien", "group": "MT", "meta": {"entered": "2023-03-20", "service": "3 Years_2 Month", "mainJob": "Auto MT", "oldFinalLevel": "Level 1C"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 1, "CMM": 3, "SCAN Arm": 0, "DL": 2, "Case depth tester": 3, "Roughness tester": 2, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 1, "Milling machine": 0, "Band saw machine": 1, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 2, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 2, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 47.4, "Spec/Drawing Understanding": 50.0, "Report Writing": 25.0, "Judgement": 50.0, "Work Attitude & Literacy": 71.4}}, {"name": "N.T Phu", "group": "MT", "meta": {"entered": "2024-11-12", "service": "1 Years_6 Month", "mainJob": "Auto MT", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 1, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 5.3, "Spec/Drawing Understanding": 25.0, "Report Writing": 25.0, "Judgement": 41.7, "Work Attitude & Literacy": 57.1}}, {"name": "N.V. Thong", "group": "MT", "meta": {"entered": "2024-07-03", "service": "1 Years_11 Month", "mainJob": "Auto MT", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 1, "Hole tester": 0, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 2, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 2}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 7.9, "Spec/Drawing Understanding": 58.3, "Report Writing": 25.0, "Judgement": 50.0, "Work Attitude & Literacy": 85.7}}, {"name": "T.Đ Tri", "group": "MT", "meta": {"entered": "2025-10-01", "service": "0 Years_8 Month", "mainJob": "Auto MT", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 0, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 0.0, "Spec/Drawing Understanding": 25.0, "Report Writing": 8.3, "Judgement": 25.0, "Work Attitude & Literacy": 71.4}}, {"name": "N.H.Đ. Dung", "group": "MT", "meta": {"entered": "2026-05-18", "service": "0 Years_0 Month", "mainJob": "#N/A", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 0, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 0.0, "Spec/Drawing Understanding": 25.0, "Report Writing": 8.3, "Judgement": 25.0, "Work Attitude & Literacy": 71.4}}, {"name": "V.T Tri", "group": "Case Depth & Hardness", "meta": {"entered": "2023-02-09", "service": "3 Years_3 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 2B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 3, "Case depth tester": 4, "Roughness tester": 3, "Profile projector": 2, "Contour tester": 0, "Rockwell": 2, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 2, "Band saw machine": 2, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 2}, "Spec/Drawing Understanding": {"Searching Drawing": 3, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 2, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 3, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 3}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 3, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 81.8, "Spec/Drawing Understanding": 66.7, "Report Writing": 66.7, "Judgement": 66.7, "Work Attitude & Literacy": 85.7}}, {"name": "P.N Truong", "group": "Case Depth & Hardness", "meta": {"entered": "2023-01-04", "service": "3 Years_5 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 3, "Case depth tester": 3, "Roughness tester": 3, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 45.5, "Spec/Drawing Understanding": 33.3, "Report Writing": 25.0, "Judgement": 50.0, "Work Attitude & Literacy": 71.4}}, {"name": "N.L Vu", "group": "Case Depth & Hardness", "meta": {"entered": "2025-07-01", "service": "0 Years_11 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 3, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 18.2, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 41.7, "Work Attitude & Literacy": 71.4}}, {"name": "N.M Huynh", "group": "Case Depth & Hardness", "meta": {"entered": "2025-07-01", "service": "0 Years_11 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 3, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 15.2, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 41.7, "Work Attitude & Literacy": 71.4}}, {"name": "N.T Nhan", "group": "Case Depth & Hardness", "meta": {"entered": "2025-08-01", "service": "0 Years_10 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 3, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 15.2, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 41.7, "Work Attitude & Literacy": 57.1}}, {"name": "N.H Phuc", "group": "Case Depth & Hardness", "meta": {"entered": "2025-07-09", "service": "0 Years_10 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 3, "Roughness tester": 2, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 2, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 36.4, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 41.7, "Work Attitude & Literacy": 71.4}}, {"name": "N.T Kien", "group": "Case Depth & Hardness", "meta": {"entered": "2025-08-01", "service": "0 Years_10 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 3, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 18.2, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 41.7, "Work Attitude & Literacy": 71.4}}, {"name": "T.N Tan", "group": "Case Depth & Hardness", "meta": {"entered": "2025-08-01", "service": "0 Years_10 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 3, "Roughness tester": 2, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 30.3, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 41.7, "Work Attitude & Literacy": 71.4}}, {"name": "L.Q Trung", "group": "Case Depth & Hardness", "meta": {"entered": "2025-10-10", "service": "0 Years_7 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 2, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 1}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 12.1, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 25.0, "Work Attitude & Literacy": 57.1}}, {"name": "B.H Phuoc", "group": "Case Depth & Hardness", "meta": {"entered": "2026-03-09", "service": "0 Years_2 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 2, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 1}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 12.1, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 25.0, "Work Attitude & Literacy": 57.1}}, {"name": "T.V. Hoan", "group": "Case Depth & Hardness", "meta": {"entered": "2026-05-11", "service": "0 Years_0 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 2, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 1}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 12.1, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 25.0, "Work Attitude & Literacy": 57.1}}, {"name": "Đ.N.M. Khoa", "group": "Case Depth & Hardness", "meta": {"entered": "2026-05-18", "service": "0 Years_0 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 2, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 1}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 12.1, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 25.0, "Work Attitude & Literacy": 57.1}}, {"name": "V.H. Long", "group": "Case Depth & Hardness", "meta": {"entered": "2026-05-21", "service": "0 Years_0 Month", "mainJob": "CDHN", "oldFinalLevel": "Level 1A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 2, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 0, "Drawing understanding (Material)": 0, "Drawing understanding (Subsidiary materials)": 0, "Drawing understanding (Assembly)": 0}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 0, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 0}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 1}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 12.1, "Spec/Drawing Understanding": 0.0, "Report Writing": 0.0, "Judgement": 25.0, "Work Attitude & Literacy": 57.1}}, {"name": "D.N. Vuong", "group": "CMM", "meta": {"entered": "2025-12-16", "service": "0 Years_5 Month", "mainJob": "CMM", "oldFinalLevel": "Level 1C"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 1, "CMM": 3, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 3, "Drawing understanding (Material)": 3, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 2}, "Report Writing": {"Inspection notice writing ability": 3, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 4, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 4, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 64.3, "Spec/Drawing Understanding": 83.3, "Report Writing": 50.0, "Judgement": 75.0, "Work Attitude & Literacy": 100.0}}, {"name": "H.N Linh", "group": "CMM", "meta": {"entered": "2024-10-22", "service": "1 Years_7 Month", "mainJob": "CMM", "oldFinalLevel": "Level 1C"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 2, "CMM": 3, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 3, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 3, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 71.4, "Spec/Drawing Understanding": 66.7, "Report Writing": 50.0, "Judgement": 58.3, "Work Attitude & Literacy": 71.4}}, {"name": "H.D. Nam", "group": "CMM", "meta": {"entered": "2026-04-20", "service": "0 Years_1 Month", "mainJob": "CMM", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 1, "Hole tester": 1, "Template (Chamfer": 1, "CMM": 2, "SCAN Arm": 1, "DL": 0, "Case depth tester": 0, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 3, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 2, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 50.0, "Spec/Drawing Understanding": 66.7, "Report Writing": 33.3, "Judgement": 58.3, "Work Attitude & Literacy": 71.4}}, {"name": "Q.T Khuong", "group": "CMM", "meta": {"entered": "2026-05-11", "service": "0 Years_0 Month", "mainJob": "CMM", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 2, "CMM": 3, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 0, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 3, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 2, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 71.4, "Spec/Drawing Understanding": 66.7, "Report Writing": 33.3, "Judgement": 58.3, "Work Attitude & Literacy": 71.4}}, {"name": "P.V Lieu", "group": "Incoming & DT test & CAV", "meta": {"entered": "2019-10-01", "service": "6 Years_8 Month", "mainJob": "Overall/DT", "oldFinalLevel": "Level 5"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 2, "CMM": 3, "SCAN Arm": 3, "DL": 3, "Case depth tester": 3, "Roughness tester": 3, "Profile projector": 3, "Contour tester": 2, "Rockwell": 3, "Rubber hardness tester": 1, "Coating thickness tester": 2, "Polishing machine": 1, "Milling machine": 3, "Band saw machine": 3, "Microscope": 3, "Mounting pressure": 3, "Micro Vickers": 3}, "Spec/Drawing Understanding": {"Searching Drawing": 3, "Drawing understanding (Material)": 3, "Drawing understanding (Subsidiary materials)": 3, "Drawing understanding (Assembly)": 3}, "Report Writing": {"Inspection notice writing ability": 4, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 4, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 4}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 4, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 4, "Working knowledge": 4}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 94.3, "Spec/Drawing Understanding": 100.0, "Report Writing": 100.0, "Judgement": 100.0, "Work Attitude & Literacy": 85.7}}, {"name": "P.H Dang", "group": "Incoming & DT test & CAV", "meta": {"entered": "2024-10-02", "service": "1 Years_8 Month", "mainJob": "DT/CAV/ Assembly", "oldFinalLevel": "Level 2A"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 2, "Profile projector": 3, "Contour tester": 3, "Rockwell": 2, "Rubber hardness tester": 1, "Coating thickness tester": 0, "Polishing machine": 1, "Milling machine": 3, "Band saw machine": 3, "Microscope": 0, "Mounting pressure": 3, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 2, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 2}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 1}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 50.9, "Spec/Drawing Understanding": 66.7, "Report Writing": 25.0, "Judgement": 33.3, "Work Attitude & Literacy": 71.4}}, {"name": "N.V Trinh", "group": "Incoming & DT test & CAV", "meta": {"entered": "2025-02-04", "service": "1 Years_4 Month", "mainJob": "Assembly", "oldFinalLevel": "Level 1C"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 2, "CMM": 0, "SCAN Arm": 0, "DL": 3, "Case depth tester": 0, "Roughness tester": 2, "Profile projector": 3, "Contour tester": 3, "Rockwell": 2, "Rubber hardness tester": 1, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 1, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 41.5, "Spec/Drawing Understanding": 33.3, "Report Writing": 25.0, "Judgement": 50.0, "Work Attitude & Literacy": 71.4}}, {"name": "P.V Duong", "group": "Assembly", "meta": {"entered": "2022-04-01", "service": "4 Years_2 Month", "mainJob": "Coating", "oldFinalLevel": "Level 2B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 2, "CMM": 0, "SCAN Arm": 0, "DL": 3, "Case depth tester": 0, "Roughness tester": 3, "Profile projector": 2, "Contour tester": 1, "Rockwell": 2, "Rubber hardness tester": 1, "Coating thickness tester": 0, "Polishing machine": 1, "Milling machine": 3, "Band saw machine": 3, "Microscope": 2, "Mounting pressure": 3, "Micro Vickers": 3}, "Spec/Drawing Understanding": {"Searching Drawing": 2, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 3}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 3, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 2}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 3, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 3, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 87.5, "Spec/Drawing Understanding": 75.0, "Report Writing": 41.7, "Judgement": 75.0, "Work Attitude & Literacy": 85.7}}, {"name": "V.T Binh", "group": "Assembly", "meta": {"entered": "2025-06-23", "service": "0 Years_11 Month", "mainJob": "Incoming /Assembly", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 0, "Roughness tester": 2, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 2, "Microscope": 0, "Mounting pressure": 2, "Micro Vickers": 2}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 40.0, "Spec/Drawing Understanding": 33.3, "Report Writing": 25.0, "Judgement": 41.7, "Work Attitude & Literacy": 57.1}}, {"name": "N.T Vuong", "group": "Assembly", "meta": {"entered": "2025-08-01", "service": "0 Years_10 Month", "mainJob": "Assembly", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 2, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 0, "Roughness tester": 2, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 0, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 1, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 1, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 2}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 2, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 25.0, "Spec/Drawing Understanding": 33.3, "Report Writing": 25.0, "Judgement": 41.7, "Work Attitude & Literacy": 57.1}}, {"name": "N.N Hoang", "group": "Coating", "meta": {"entered": "2022-07-20", "service": "3 Years_10 Month", "mainJob": "Assembly", "oldFinalLevel": "Level 2B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 0, "Roughness tester": 3, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 3, "Polishing machine": 0, "Milling machine": 2, "Band saw machine": 2, "Microscope": 0, "Mounting pressure": 2, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 2, "Drawing understanding (Material)": 2, "Drawing understanding (Subsidiary materials)": 2, "Drawing understanding (Assembly)": 2}, "Report Writing": {"Inspection notice writing ability": 3, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 3, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 3}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 4, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 4, "Working knowledge": 4}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 3}}, "basePct": {"Measuring Equipment": 80.8, "Spec/Drawing Understanding": 66.7, "Report Writing": 75.0, "Judgement": 100.0, "Work Attitude & Literacy": 85.7}}, {"name": "C.V Anh", "group": "Coating", "meta": {"entered": "2024-03-11", "service": "2 Years_2 Month", "mainJob": "Coating", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 3, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 2, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 3, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 3, "Working knowledge": 4}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 23.1, "Spec/Drawing Understanding": 33.3, "Report Writing": 25.0, "Judgement": 83.3, "Work Attitude & Literacy": 71.4}}, {"name": "H.Q Vien", "group": "Coating", "meta": {"entered": "2024-04-01", "service": "2 Years_2 Month", "mainJob": "Coating", "oldFinalLevel": "Level 1C"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 1, "CMM": 0, "SCAN Arm": 0, "DL": 2, "Case depth tester": 0, "Roughness tester": 3, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 2, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 2}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 3, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 3, "Working knowledge": 4}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 53.8, "Spec/Drawing Understanding": 41.7, "Report Writing": 25.0, "Judgement": 83.3, "Work Attitude & Literacy": 71.4}}, {"name": "N.Đ Thien", "group": "Coating", "meta": {"entered": "2025-10-01", "service": "0 Years_8 Month", "mainJob": "Coating", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 0, "Micrometer": 0, "Hole tester": 0, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 2, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 2, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 1, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 1}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 2, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 2, "Working knowledge": 3}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 1}}, "basePct": {"Measuring Equipment": 15.4, "Spec/Drawing Understanding": 33.3, "Report Writing": 16.7, "Judgement": 58.3, "Work Attitude & Literacy": 57.1}}, {"name": "N.D Vo", "group": "After Treatment Final & Packing", "meta": {"entered": "2023-02-09", "service": "3 Years_3 Month", "mainJob": "Final/Packing", "oldFinalLevel": "Level 1C"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 3, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 2, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 2}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 4, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 4, "Working knowledge": 4}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 91.7, "Spec/Drawing Understanding": 33.3, "Report Writing": 50.0, "Judgement": 100.0, "Work Attitude & Literacy": 71.4}}, {"name": "P.H Tien", "group": "After Treatment Final & Packing", "meta": {"entered": "2023-02-22", "service": "3 Years_3 Month", "mainJob": "Final/Packing", "oldFinalLevel": "Level 1C"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 3, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 2, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 2}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 4, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 4, "Working knowledge": 4}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 91.7, "Spec/Drawing Understanding": 33.3, "Report Writing": 50.0, "Judgement": 100.0, "Work Attitude & Literacy": 71.4}}, {"name": "T.H Vu", "group": "After Treatment Final & Packing", "meta": {"entered": "2024-03-06", "service": "2 Years_2 Month", "mainJob": "Final/Packing", "oldFinalLevel": "Level 1B"}, "scores": {"Measuring Equipment": {"Vernier Calipers": 1, "Micrometer": 2, "Hole tester": 3, "Template (Chamfer": 0, "CMM": 0, "SCAN Arm": 0, "DL": 0, "Case depth tester": 0, "Roughness tester": 3, "Profile projector": 0, "Contour tester": 0, "Rockwell": 0, "Rubber hardness tester": 0, "Coating thickness tester": 2, "Polishing machine": 0, "Milling machine": 0, "Band saw machine": 0, "Microscope": 0, "Mounting pressure": 0, "Micro Vickers": 0}, "Spec/Drawing Understanding": {"Searching Drawing": 1, "Drawing understanding (Material)": 1, "Drawing understanding (Subsidiary materials)": 1, "Drawing understanding (Assembly)": 1}, "Report Writing": {"Inspection notice writing ability": 0, "Ability to write an incoming inspection report (inc ERP) Khả năng lập báo cáo kiểm tra đầu vào (bao gồm ERP)": 2, "Ability to write final inspection report (including ERP) Khả năng lập báo cáo kiểm tra Final (bao gồm cả ERP)": 2}, "Judgement": {"Ability to hand with nonconformity (self-processing) Khả năng xử lý sự không phù hợp (tự xử lý)": 3, "Ability to hand with nonconformity (incoming) Khả năng xử lý sự không phù hợp (Đầu vào)": 3, "Working knowledge": 4}, "Work Attitude & Literacy": {"Leadership (Personal attitude)": 3, "Communication (Other departments and suppliers) Giao tiếp (Các phòng ban khác và nhà cung cấp)": 2}}, "basePct": {"Measuring Equipment": 91.7, "Spec/Drawing Understanding": 33.3, "Report Writing": 50.0, "Judgement": 83.3, "Work Attitude & Literacy": 71.4}}]};
+</script>
+<script>
+/* ============ CONFIG ============ */
+const CATS=[
+ {key:"Measuring Equipment",vn:"Sử dụng thiết bị đo",short:"Đo lường",color:"#3da5ff"},
+ {key:"Spec/Drawing Understanding",vn:"Hiểu tiêu chuẩn / bản vẽ",short:"Bản vẽ",color:"#26d0a5"},
+ {key:"Report Writing",vn:"Khả năng viết báo cáo",short:"Báo cáo",color:"#f0b429"},
+ {key:"Judgement",vn:"Phán định (Đạt/Không đạt)",short:"Phán định",color:"#f38b3c"},
+ {key:"Work Attitude & Literacy",vn:"Thái độ & trình độ",short:"Thái độ",color:"#b98bff"},
+];
+const DEFAULT_WEIGHTS={"Measuring Equipment":30,"Spec/Drawing Understanding":20,"Report Writing":15,"Judgement":20,"Work Attitude & Literacy":15};
+const DEFAULT_BANDS=[
+ {name:"Level 1A",min:0},{name:"Level 1B",min:20},{name:"Level 1C",min:32},
+ {name:"Level 2A",min:44},{name:"Level 2B",min:56},{name:"Level 3",min:68},
+ {name:"Level 4",min:80},{name:"Level 5",min:90}];
+const LVLCOLOR={"Level 1A":"#7d8b96","Level 1B":"#6a97c9","Level 1C":"#4f8bd6","Level 2A":"#3ec9a7","Level 2B":"#2eb389","Level 3":"#f0b429","Level 4":"#f38b3c","Level 5":"#e5484d"};
+const BASELINE="2026-06";
+
+/* ============ STATE / STORAGE ============ */
+/* Lưu trữ CHUNG trên server (thay localStorage). window.IE_REMOTE được cổng đăng nhập nạp trước. */
+function load(k,def){ const R=window.IE_REMOTE||{}; return (k in R && R[k]!=null)?R[k]:def; }
+function save(k,v){ if(!window.IE_REMOTE)window.IE_REMOTE={}; window.IE_REMOTE[k]=v; if(window.IE_persist)window.IE_persist(k,v); }
+let CONFIG={weights:{...DEFAULT_WEIGHTS},bands:JSON.parse(JSON.stringify(DEFAULT_BANDS)),leaders:{}};
+let CUSTOM=[];
+let MONTHS=null;
+/* Nạp trạng thái từ server — gọi trong bootApp() sau khi đăng nhập + tải dữ liệu. */
+function initState(){
+ CONFIG=load("qsl_config",{weights:{...DEFAULT_WEIGHTS},bands:JSON.parse(JSON.stringify(DEFAULT_BANDS)),leaders:{}});
+ CUSTOM=load("qsl_custom",[]);
+ CUSTOM.forEach(p=>{if(!APPDATA.people.find(x=>x.name===p.name))APPDATA.people.push(p);});
+ MONTHS=load("qsl_months",null);
+ if(!MONTHS){
+  MONTHS={}; MONTHS[BASELINE]={};
+  APPDATA.people.forEach(p=>{MONTHS[BASELINE][p.name]={pct:{...p.basePct},note:""};});
+  save("qsl_months",MONTHS);
+ }
+}
+function personByName(n){return APPDATA.people.find(p=>p.name===n);}
+function monthList(){return Object.keys(MONTHS).sort();}
+let latestMonthOverride=null;
+function latestMonth(){return latestMonthOverride||monthList().slice(-1)[0];}
+function getPct(month,name){
+ if(MONTHS[month]&&MONTHS[month][name])return MONTHS[month][name].pct;
+ return personByName(name).basePct;
+}
+function getNote(month,name){return (MONTHS[month]&&MONTHS[month][name])?(MONTHS[month][name].note||""):"";}
+
+/* ============ COMPUTE ============ */
+function composite(pct){
+ const w=CONFIG.weights;let tot=0,sum=0;
+ CATS.forEach(c=>{const wt=+w[c.key]||0;tot+=wt;sum+=(+pct[c.key]||0)*wt;});
+ return tot?sum/tot:0;
+}
+function levelOf(comp){
+ let lv=CONFIG.bands[0].name;
+ CONFIG.bands.forEach(b=>{if(comp>=b.min)lv=b.name;});
+ return lv;
+}
+function lvlBadge(lv){return `<span class="badge" style="background:${LVLCOLOR[lv]||'#888'}">${lv}</span>`;}
+function fmt(x){return (Math.round(x*10)/10).toFixed(1);}
+
+/* ============ NAV ============ */
+const TABS=[
+ {id:"dash",label:"📊 Tổng quan"},
+ {id:"groups",label:"👥 Nhóm (7)"},
+ {id:"monthly",label:"🗓️ Chấm điểm tháng"},
+ {id:"person",label:"🔍 Phân tích cá nhân"},
+ {id:"level",label:"⚙️ Cấu trúc Level"},
+];
+let current="dash";
+function renderNav(){
+ document.getElementById("nav").innerHTML=TABS.map(t=>`<button class="${t.id===current?'active':''}" onclick="go('${t.id}')">${t.label}</button>`).join("");
+}
+let dirtyMonth=null;
+function go(id){ if(dirtyMonth){ if(!confirm("Bạn có thay đổi chưa lưu ở tháng "+dirtyMonth+". Rời đi và bỏ thay đổi?"))return; discardMonth(); }
+ current=id;renderNav();render();window.scrollTo(0,0);}
+function render(){({dash:vDash,groups:vGroups,monthly:vMonthly,person:vPerson,level:vLevel}[current])();}
+
+function monthRows(month){
+ return APPDATA.people.map(p=>{
+  const pct=getPct(month,p.name);const comp=composite(pct);
+  return {name:p.name,group:p.group,job:(p.meta.mainJob||""),service:(p.meta.service||""),pct,comp,level:levelOf(comp),old:p.meta.oldFinalLevel,custom:!!p.custom};
+ });
+}
+
+/* ============ DASHBOARD ============ */
+let ch={};
+function destroyCharts(){Object.values(ch).forEach(c=>{try{c.destroy()}catch(e){}});ch={};}
+const barLabels={id:"barLabels",afterDatasetsDraw(chart){
+ const ctx=chart.ctx;
+ chart.data.datasets.forEach((ds,di)=>{
+  const meta=chart.getDatasetMeta(di);
+  meta.data.forEach((bar,i)=>{
+   const v=ds.data[i];if(v===null||v===undefined||v===0)return;
+   const txt=Number.isInteger(v)?String(v):(Math.round(v*10)/10).toFixed(1);
+   ctx.save();ctx.fillStyle="#e7eef5";ctx.font="bold 11px 'Segoe UI',sans-serif";ctx.textAlign="center";ctx.textBaseline="bottom";
+   ctx.fillText(txt,bar.x,bar.y-3);ctx.restore();
+  });
+ });
+}};
+function renderDashCharts(){
+ const rows=window._dashRows||[];
+ const lf=window._dashLevelFilter||"";
+ const gf=document.getElementById("dgfilter")?.value||"";
+ const order=DEFAULT_BANDS.map(b=>b.name);
+ const groups=APPDATA.groups;
+ // Distribution chart: respects the active GROUP filter
+ const distRows=gf?rows.filter(r=>r.group===gf):rows;
+ const dist={};order.forEach(l=>dist[l]=0);distRows.forEach(r=>dist[r.level]++);
+ // Group chart: if a LEVEL is selected -> count people per group in that level; else -> avg composite
+ let gData,gTitle,gColor;
+ if(lf){gData=groups.map(g=>rows.filter(r=>r.group===g&&r.level===lf).length);gTitle="Số người ở "+lf;gColor=groups.map(_=>LVLCOLOR[lf]);}
+ else{gData=groups.map(g=>{const a=rows.filter(r=>r.group===g);return a.length?a.reduce((s,r)=>s+r.comp,0)/a.length:0;});gTitle="Điểm TB";gColor="#3da5ff";}
+ if(ch.dist){ch.dist.destroy();}if(ch.grp){ch.grp.destroy();}
+ ch.dist=new Chart(cDist,{type:"bar",data:{labels:order,datasets:[{data:order.map(l=>dist[l]),backgroundColor:order.map(l=>LVLCOLOR[l]),borderWidth:order.map(l=>l===lf?2:0),borderColor:"#fff"}]},
+   options:Object.assign(barOpt("Số người"+(gf?" — "+shortGroup(gf):""),true),{onClick:(e,els)=>{if(els.length){const lv=order[els[0].index];window._dashLevelFilter=(window._dashLevelFilter===lv)?"":lv;updateDash();scrollToRank();}}}),plugins:[barLabels]});
+ ch.grp=new Chart(cGroup,{type:"bar",data:{labels:groups.map(shortGroup),datasets:[{data:gData,backgroundColor:gColor,borderWidth:groups.map(g=>g===gf?2:0),borderColor:"#fff"}]},
+   options:Object.assign(barOpt(gTitle,!!lf),{onClick:(e,els)=>{if(els.length){const g=groups[els[0].index];const s=document.getElementById("dgfilter");if(s)s.value=(s.value===g?"":g);updateDash();scrollToRank();}}}),plugins:[barLabels]});
+}
+function updateDash(){renderDashCharts();dashFilter();}
+function vDash(){
+ const m=latestMonth();const rows=monthRows(m);
+ if(window._dashLevelFilter===undefined)window._dashLevelFilter="";
+ const order=DEFAULT_BANDS.map(b=>b.name);
+ const dist={};order.forEach(l=>dist[l]=0);rows.forEach(r=>dist[r.level]++);
+ const byGroup={};APPDATA.groups.forEach(g=>byGroup[g]=rows.filter(r=>r.group===g));
+ const avgComp=rows.reduce((a,r)=>a+r.comp,0)/rows.length;
+ const el=document.getElementById("content");
+ el.innerHTML=`
+ <div class="card">
+  <div class="row spread"><h2>Tổng quan — tháng <b>${m}</b></h2>
+   <div class="row"><span class="muted small">Chọn tháng:</span><select id="dmonth" onchange="dashMonth(this.value)">${monthList().map(x=>`<option ${x===m?'selected':''}>${x}</option>`).join("")}</select></div></div>
+  <div class="grid kpis" style="margin-top:12px">
+   <div class="kpi"><div class="n">${rows.length}</div><div class="l">Tổng số Inspector</div></div>
+   <div class="kpi"><div class="n">7</div><div class="l">Nhóm công việc</div></div>
+   <div class="kpi"><div class="n">${fmt(avgComp)}</div><div class="l">Điểm tổng hợp TB (/100)</div></div>
+   <div class="kpi"><div class="n">${rows.filter(r=>["Level 3","Level 4","Level 5"].includes(r.level)).length}</div><div class="l">Đạt Level 3 trở lên</div></div>
+  </div>
+ </div>
+ <div class="grid two">
+  <div class="card"><h2>Phân bố Level</h2><div class="chartbox sm"><canvas id="cDist"></canvas></div></div>
+  <div class="card"><h2>Điểm tổng hợp trung bình theo nhóm</h2><div class="chartbox sm"><canvas id="cGroup"></canvas></div></div>
+ </div>
+ <div class="card">
+  <div class="row spread"><h2>Bảng xếp hạng Inspector</h2>
+   <div class="row small muted"><input type="text" id="dsearch" placeholder="Tìm tên..." oninput="dashFilter()" style="width:160px">
+   <select id="dgfilter" onchange="updateDash()"><option value="">Tất cả nhóm</option>${APPDATA.groups.map(g=>`<option>${g}</option>`).join("")}</select></div></div>
+  <p class="small muted" style="margin:8px 0 0">💡 Nhấn cột <b>Phân bố Level</b> → biểu đồ nhóm đổi sang "số người mỗi nhóm ở Level đó". Nhấn cột <b>Điểm TB theo nhóm</b> → biểu đồ Level đổi sang phân bố Level của riêng nhóm đó. Nhấn lại để bỏ lọc.</p>
+  <div id="dfchip" style="margin-top:6px"></div>
+  <div style="max-height:520px;overflow:auto;margin-top:10px"><table id="drank"></table></div>
+  <div class="legend">${CATS.map(c=>`<span><i class="dot" style="background:${c.color}"></i>${c.short}</span>`).join("")}</div>
+ </div>`;
+ destroyCharts();
+ window._dashRows=rows;
+ renderDashCharts();
+ dashFilter();
+}
+function shortGroup(g){return g.replace("Case Depth & Hardness","Case Depth").replace("Incoming & DT test & CAV","Incoming/DT").replace("After Treatment Final & Packing","Final/Packing");}
+function barOpt(y,integer){return {responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grace:"12%",ticks:Object.assign({color:"#8ba0b3",precision:0},integer?{stepSize:1}:{}),grid:{color:"#2b3d4d"},title:{display:true,text:y,color:"#8ba0b3"}},x:{ticks:{color:"#8ba0b3",font:{size:10}},grid:{display:false}}}};}
+function dashMonth(m){vDashWith(m);}
+function vDashWith(m){latestMonthOverride=m;vDash();latestMonthOverride=null;const s=document.getElementById("dmonth");if(s)s.value=m;}
+function scrollToRank(){const el=document.getElementById("drank");if(el)window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-130,behavior:"smooth"});}
+function clearLevelFilter(){window._dashLevelFilter="";updateDash();}
+function clearGroupFilter(){const s=document.getElementById("dgfilter");if(s)s.value="";updateDash();}
+function dashFilter(){
+ const q=(document.getElementById("dsearch")?.value||"").toLowerCase();
+ const gf=document.getElementById("dgfilter")?.value||"";
+ const lf=window._dashLevelFilter||"";
+ let rows=(window._dashRows||[]).filter(r=>r.name.toLowerCase().includes(q)&&(!gf||r.group===gf)&&(!lf||r.level===lf));
+ rows=rows.slice().sort((a,b)=>b.comp-a.comp);
+ const chip=document.getElementById("dfchip");
+ if(chip){let c=[];
+  if(lf)c.push(`<span class="pill" style="border-color:${LVLCOLOR[lf]};color:${LVLCOLOR[lf]}">Level: ${lf} <a href="#" onclick="clearLevelFilter();return false" style="color:inherit;text-decoration:none">✕</a></span>`);
+  if(gf)c.push(`<span class="pill">Nhóm: ${shortGroup(gf)} <a href="#" onclick="clearGroupFilter();return false" style="color:var(--acc);text-decoration:none">✕</a></span>`);
+  chip.innerHTML=c.length?('<span class="small muted">Đang lọc: </span>'+c.join(" ")+` <span class="small muted">— ${rows.length} người</span>`):"";}
+ const t=document.getElementById("drank");
+ t.innerHTML=`<tr><th>#</th><th>Tên</th><th>Nhóm</th><th>Công việc</th><th>Đo lường</th><th>Bản vẽ</th><th>Báo cáo</th><th>Phán định</th><th>Thái độ</th><th>Tổng hợp</th><th>Level mới</th><th>Level cũ</th></tr>`+
+  rows.map((r,i)=>`<tr>
+   <td>${i+1}</td><td><a href="#" onclick="openPerson('${r.name}');return false" style="color:var(--acc)">${r.name}</a></td>
+   <td class="small">${shortGroup(r.group)}</td><td class="small muted">${r.job}</td>
+   ${CATS.map(c=>`<td>${miniBar(r.pct[c.key],c.color)}</td>`).join("")}
+   <td><b>${fmt(r.comp)}</b></td><td>${lvlBadge(r.level)}</td><td class="small muted">${r.old||"-"}</td></tr>`).join("");
+}
+function miniBar(v,color){v=+v||0;return `<div style="display:flex;align-items:center;gap:6px"><div class="bar" style="width:44px"><i style="width:${Math.min(v,100)}%;background:${color}"></i></div><span class="small muted">${Math.round(v)}</span></div>`;}
+function openPerson(n){window._selPerson=n;go("person");}
+
+/* ============ GROUPS ============ */
+function vGroups(){
+ const m=latestMonth();const rows=monthRows(m);
+ const el=document.getElementById("content");
+ let html=`<div class="card"><div class="row spread"><h2>7 nhóm công việc</h2><button class="act" onclick="toggleAddForm()">➕ Thêm Inspector</button></div>
+  <p class="muted small">Mỗi nhóm do một Group Leader phụ trách chấm điểm hằng tháng. Nhấn tên để xem phân tích cá nhân. Bấm ✎ để đặt tên Group Leader.</p>
+  <div id="addForm" style="display:none;margin-top:10px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px">
+   <div class="row">
+    <input type="text" id="niName" placeholder="Tên (VD: N.V An)" style="width:150px">
+    <select id="niGroup">${APPDATA.groups.map(g=>`<option>${g}</option>`).join("")}</select>
+    <input type="text" id="niJob" placeholder="Công việc chính" style="width:150px">
+    <input type="text" id="niEntered" placeholder="Ngày vào (YYYY-MM-DD)" style="width:160px">
+    <button class="act" onclick="addInspector()">Lưu</button>
+    <button class="ghost" onclick="toggleAddForm()">Hủy</button>
+   </div>
+   <p class="small muted" style="margin:8px 0 0">Inspector mới bắt đầu ở 0 điểm. Vào tab <b>Chấm điểm tháng</b> để Group Leader nhập điểm.</p>
+  </div></div>`;
+ APPDATA.groups.forEach(g=>{
+  const gr=rows.filter(r=>r.group===g).sort((a,b)=>b.comp-a.comp);
+  const avg=gr.reduce((s,r)=>s+r.comp,0)/gr.length;
+  const leader=CONFIG.leaders[g]||"(chưa đặt)";
+  html+=`<div class="card">
+   <div class="row spread"><h2>${g} <span class="pill">${gr.length} người</span></h2>
+    <div class="row small"><span class="muted">Group Leader:</span> <b>${leader}</b> <button class="ghost small" style="padding:3px 8px" onclick="setLeader('${g.replace(/'/g,"")}')">✎</button>
+     <span class="muted" style="margin-left:10px">Điểm TB nhóm:</span> <b>${fmt(avg)}</b></div></div>
+   <table style="margin-top:10px"><tr><th>Tên</th><th>Công việc chính</th><th>Thâm niên</th>
+    ${CATS.map(c=>`<th class="small">${c.short}</th>`).join("")}<th>Tổng</th><th>Level</th></tr>
+   ${gr.map(r=>`<tr><td><a href="#" onclick="openPerson('${r.name}');return false" style="color:var(--acc)">${r.name}</a>${r.custom?` <a href="#" onclick="delInspector('${r.name}');return false" title="Xóa Inspector" style="color:var(--bad);text-decoration:none">✕</a>`:''}</td>
+     <td class="small muted">${r.job}</td><td class="small muted">${r.service}</td>
+     ${CATS.map(c=>`<td>${miniBar(r.pct[c.key],c.color)}</td>`).join("")}
+     <td><b>${fmt(r.comp)}</b></td><td>${lvlBadge(r.level)}</td></tr>`).join("")}
+   </table></div>`;
+ });
+ el.innerHTML=html;
+}
+function setLeader(g){const cur=CONFIG.leaders[g]||"";const v=prompt("Tên Group Leader cho nhóm: "+g,cur);if(v!==null){CONFIG.leaders[g]=v.trim();save("qsl_config",CONFIG);render();}}
+function toggleAddForm(){const f=document.getElementById("addForm");if(f)f.style.display=(f.style.display==="none"?"block":"none");}
+function addInspector(){
+ const name=(document.getElementById("niName").value||"").trim();
+ const group=document.getElementById("niGroup").value;
+ const job=(document.getElementById("niJob").value||"").trim();
+ const entered=(document.getElementById("niEntered").value||"").trim();
+ if(!name){alert("Vui lòng nhập tên Inspector.");return;}
+ if(APPDATA.people.find(p=>p.name===name)){alert("Tên này đã tồn tại.");return;}
+ const scores={},basePct={};
+ APPDATA.categories.forEach(c=>{scores[c.name]={};c.items.forEach(it=>scores[c.name][it]=0);basePct[c.name]=0;});
+ const p={name,group,meta:{mainJob:job,entered,service:"",oldFinalLevel:""},scores,basePct,custom:true};
+ APPDATA.people.push(p);
+ const cust=load("qsl_custom",[]);cust.push(p);save("qsl_custom",cust);
+ alert("Đã thêm "+name+" vào nhóm "+group+".\nVào tab 'Chấm điểm tháng' để nhập điểm.");
+ vGroups();
+}
+function delInspector(name){
+ if(!confirm("Xóa Inspector "+name+"? (Chỉ áp dụng cho người được thêm thủ công)"))return;
+ APPDATA.people=APPDATA.people.filter(p=>p.name!==name);
+ save("qsl_custom",load("qsl_custom",[]).filter(p=>p.name!==name));
+ Object.keys(MONTHS).forEach(m=>{if(MONTHS[m])delete MONTHS[m][name];});save("qsl_months",MONTHS);
+ vGroups();
+}
+
+/* ============ MONTHLY SCORING ============ */
+let editState=null;
+function vMonthly(){
+ const el=document.getElementById("content");
+ const g=window._mGroup||APPDATA.groups[0];
+ const m=window._mMonth||latestMonth();
+ el.innerHTML=`
+ <div class="card">
+  <h2>Chấm điểm hằng tháng — Group Leader</h2>
+  <div class="note"><b>Cách chấm (đề xuất):</b> Mỗi tháng, Group Leader đánh giá từng thành viên trên <b>5 tiêu chí</b>, thang <b>0–100</b> (0 = chưa làm được, 100 = thành thạo như chuyên gia). Ô được điền sẵn từ tháng gần nhất — chỉ cần điều chỉnh phần thay đổi. Hệ thống tự tính Điểm tổng hợp, Level và xu hướng. Điểm được lưu trong trình duyệt của máy này.</div>
+  <div class="row" style="margin-top:6px">
+   <label class="small muted">Nhóm:</label>
+   <select id="mgroup" onchange="mSel('g',this.value)">${APPDATA.groups.map(x=>`<option ${x===g?'selected':''}>${x}</option>`).join("")}</select>
+   <label class="small muted">Tháng:</label>
+   <select id="mmonth" onchange="mSel('m',this.value)">${monthList().map(x=>`<option ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select>
+   <button class="ghost" onclick="newMonth()">➕ Thêm tháng mới</button>
+   <span class="small muted" style="margin-left:auto">Leader: <b>${CONFIG.leaders[g]||"(chưa đặt)"}</b></span>
+  </div>
+ </div>
+ <div class="card">
+  <div class="row spread"><h2>${g} — ${m}</h2><span class="small muted">Nhập điểm 0–100 cho từng tiêu chí</span></div>
+  <div style="overflow:auto"><table id="mtable"></table></div>
+ </div>`;
+ mTable(g,m);
+}
+function mSel(t,v){ if(dirtyMonth&&!confirm("Bỏ thay đổi chưa lưu?"))return; if(dirtyMonth)discardMonth();
+ if(t==='g')window._mGroup=v;else window._mMonth=v;vMonthly();}
+function mTable(g,m){
+ const members=APPDATA.people.filter(p=>p.group===g);
+ const prevMonths=monthList().filter(x=>x<m);const prev=prevMonths.slice(-1)[0];
+ const t=document.getElementById("mtable");
+ t.innerHTML=`<tr><th>Tên</th>${CATS.map(c=>`<th class="small">${c.short}<br><span class="muted" style="font-weight:400">0–100</span></th>`).join("")}<th>Tổng hợp</th><th>Level</th><th>So tháng trước</th><th class="small">Ghi chú</th></tr>`+
+  members.map(p=>{
+   const pct=getPct(m,p.name);const comp=composite(pct);const lv=levelOf(comp);
+   const pcomp=prev?composite(getPct(prev,p.name)):null;
+   let trend='<span class="muted small">—</span>';
+   if(pcomp!==null){const d=comp-pcomp;trend=d>0.05?`<span class="up small">▲ +${fmt(d)}</span>`:d<-0.05?`<span class="down small">▼ ${fmt(d)}</span>`:'<span class="muted small">=</span>';}
+   return `<tr id="mr_${cssId(p.name)}"><td>${p.name}</td>
+    ${CATS.map(c=>`<td><input type="number" min="0" max="100" value="${Math.round(pct[c.key])}" data-p="${p.name}" data-c="${c.key}" oninput="mEdit(this)"></td>`).join("")}
+    <td class="mcomp"><b>${fmt(comp)}</b></td><td class="mlvl">${lvlBadge(lv)}</td><td class="mtrend">${trend}</td>
+    <td><input type="text" value="${getNote(m,p.name).replace(/"/g,'&quot;')}" data-note="${p.name}" oninput="mEditNote(this)" style="width:150px"></td></tr>`;
+  }).join("");
+ editState={group:g,month:m,data:{}};
+ members.forEach(p=>{editState.data[p.name]={pct:{...getPct(m,p.name)},note:getNote(m,p.name)};});
+}
+function cssId(s){return s.replace(/[^a-zA-Z0-9]/g,"_");}
+function mEdit(inp){
+ const name=inp.dataset.p,cat=inp.dataset.c;let v=+inp.value;if(v<0)v=0;if(v>100)v=100;
+ editState.data[name].pct[cat]=v;markDirty();
+ const comp=composite(editState.data[name].pct);const lv=levelOf(comp);
+ const row=document.getElementById("mr_"+cssId(name));
+ row.querySelector(".mcomp").innerHTML=`<b>${fmt(comp)}</b>`;
+ row.querySelector(".mlvl").innerHTML=lvlBadge(lv);
+ const prevMonths=monthList().filter(x=>x<editState.month);const prev=prevMonths.slice(-1)[0];
+ if(prev){const d=comp-composite(getPct(prev,name));row.querySelector(".mtrend").innerHTML=d>0.05?`<span class="up small">▲ +${fmt(d)}</span>`:d<-0.05?`<span class="down small">▼ ${fmt(d)}</span>`:'<span class="muted small">=</span>';}
+}
+function mEditNote(inp){editState.data[inp.dataset.note].note=inp.value;markDirty();}
+function markDirty(){dirtyMonth=editState.month;document.getElementById("savebar").classList.add("show");document.getElementById("saveinfo").textContent="Thay đổi chưa lưu — nhóm "+editState.group+", tháng "+editState.month;}
+function saveMonth(){
+ if(!editState)return;
+ if(!MONTHS[editState.month])MONTHS[editState.month]={};
+ Object.entries(editState.data).forEach(([n,v])=>{MONTHS[editState.month][n]={pct:{...v.pct},note:v.note};});
+ save("qsl_months",MONTHS);dirtyMonth=null;document.getElementById("savebar").classList.remove("show");
+ alert("Đã lưu điểm tháng "+editState.month+" cho nhóm "+editState.group);
+}
+function discardMonth(){dirtyMonth=null;document.getElementById("savebar").classList.remove("show");if(current==='monthly')vMonthly();}
+function newMonth(){
+ const d=new Date();const def=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+ const v=prompt("Nhập tháng mới (định dạng YYYY-MM):",def);
+ if(!v)return;if(!/^\d{4}-\d{2}$/.test(v)){alert("Sai định dạng. Ví dụ: 2026-07");return;}
+ if(MONTHS[v]){alert("Tháng này đã tồn tại.");window._mMonth=v;vMonthly();return;}
+ const base=latestMonth();MONTHS[v]={};
+ APPDATA.people.forEach(p=>{MONTHS[v][p.name]={pct:{...getPct(base,p.name)},note:""};});
+ save("qsl_months",MONTHS);window._mMonth=v;vMonthly();
+}
+
+/* ============ PERSON ============ */
+function vPerson(){
+ const el=document.getElementById("content");
+ const name=window._selPerson||APPDATA.people[0].name;
+ const p=personByName(name);const m=latestMonth();
+ const pct=getPct(m,name);const comp=composite(pct);const lv=levelOf(comp);
+ const months=monthList();
+ const groupRows=monthRows(m).filter(r=>r.group===p.group).sort((a,b)=>b.comp-a.comp);
+ const rankInGroup=groupRows.findIndex(r=>r.name===name)+1;
+ const catPcts=CATS.map(c=>({...c,v:+pct[c.key]||0})).sort((a,b)=>b.v-a.v);
+ const strength=catPcts[0],gap=catPcts[catPcts.length-1];
+ el.innerHTML=`
+ <div class="card">
+  <div class="row spread">
+   <div class="row"><label class="small muted">Chọn Inspector:</label>
+    <select onchange="window._selPerson=this.value;vPerson()">${APPDATA.people.map(x=>`<option ${x.name===name?'selected':''}>${x.name}</option>`).join("")}</select></div>
+   <div>${lvlBadge(lv)} <span class="muted small">tháng ${m}</span></div>
+  </div>
+  <div class="grid kpis" style="margin-top:14px">
+   <div class="kpi"><div class="n">${fmt(comp)}</div><div class="l">Điểm tổng hợp /100</div></div>
+   <div class="kpi"><div class="n">${shortGroup(p.group)}</div><div class="l">Nhóm • hạng ${rankInGroup}/${groupRows.length}</div></div>
+   <div class="kpi"><div class="n">${p.meta.service||"-"}</div><div class="l">Thâm niên • vào ${p.meta.entered||"-"}</div></div>
+   <div class="kpi"><div class="n">${p.meta.mainJob||"-"}</div><div class="l">Công việc chính</div></div>
+  </div>
+ </div>
+ <div class="grid two">
+  <div class="card"><h2>Hồ sơ năng lực (5 tiêu chí)</h2><div class="chartbox"><canvas id="cRadar"></canvas></div></div>
+  <div class="card"><h2>Diễn tiến điểm tổng hợp theo tháng</h2><div class="chartbox"><canvas id="cTrend"></canvas></div>
+   ${months.length<2?'<p class="note">Chỉ mới có 1 tháng dữ liệu. Sau khi Group Leader chấm thêm các tháng, đường xu hướng sẽ hiển thị rõ.</p>':''}</div>
+ </div>
+ <div class="grid two">
+  <div class="card"><h2>Điểm mạnh & khoảng trống</h2>
+   <p>💪 <b class="good">Mạnh nhất:</b> ${strength.vn} — <b>${Math.round(strength.v)}/100</b></p>
+   <p>🎯 <b style="color:var(--warn)">Cần cải thiện:</b> ${gap.vn} — <b>${Math.round(gap.v)}/100</b></p>
+   <h3>So với trung bình nhóm (${shortGroup(p.group)})</h3>
+   ${CATS.map(c=>{const ga=groupRows.reduce((s,r)=>s+(+r.pct[c.key]||0),0)/groupRows.length;const mine=+pct[c.key]||0;const diff=mine-ga;
+     return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:5px 0"><span class="small">${c.short}</span>
+      <span class="small">${Math.round(mine)} <span class="muted">(TB ${Math.round(ga)})</span> <b style="color:${diff>=0?'var(--acc2)':'var(--bad)'}">${diff>=0?'+':''}${Math.round(diff)}</b></span></div>`;}).join("")}
+  </div>
+  <div class="card"><h2>Khuyến nghị phát triển</h2>
+   ${recommend(p,pct,comp,lv)}
+   <h3>Thông tin</h3>
+   <p class="small muted">${certList(p)}</p>
+  </div>
+ </div>
+ <div class="card"><details><summary>Chi tiết điểm từng hạng mục (dữ liệu gốc 2026-06)</summary>
+  ${detailTable(p)}</details></div>`;
+ destroyCharts();
+ ch.radar=new Chart(cRadar,{type:"radar",data:{labels:CATS.map(c=>c.short),
+   datasets:[{label:name,data:CATS.map(c=>+pct[c.key]||0),backgroundColor:"rgba(61,165,255,.2)",borderColor:"#3da5ff",pointBackgroundColor:"#3da5ff"},
+   {label:"TB nhóm",data:CATS.map(c=>groupRows.reduce((s,r)=>s+(+r.pct[c.key]||0),0)/groupRows.length),backgroundColor:"rgba(38,208,165,.12)",borderColor:"#26d0a5",pointBackgroundColor:"#26d0a5"}]},
+   options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:"#e7eef5"}}},scales:{r:{min:0,max:100,ticks:{color:"#8ba0b3",backdropColor:"transparent"},grid:{color:"#2b3d4d"},angleLines:{color:"#2b3d4d"},pointLabels:{color:"#e7eef5",font:{size:12}}}}}});
+ ch.trend=new Chart(cTrend,{type:"line",data:{labels:months,datasets:[{label:"Tổng hợp",data:months.map(mm=>composite(getPct(mm,name))),borderColor:"#3da5ff",backgroundColor:"rgba(61,165,255,.15)",tension:.25,fill:true,pointRadius:4}]},
+   options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,ticks:{color:"#8ba0b3"},grid:{color:"#2b3d4d"}},x:{ticks:{color:"#8ba0b3"},grid:{display:false}}}}});
+}
+function recommend(p,pct,comp,lv){
+ const sorted=CATS.map(c=>({...c,v:+pct[c.key]||0})).sort((a,b)=>a.v-b.v);
+ const tips=[];
+ sorted.slice(0,2).forEach(c=>{
+  if(c.v<40)tips.push(`Ưu tiên nâng <b>${c.vn}</b> (đang ${Math.round(c.v)}/100): sắp xếp đào tạo / OJT tập trung tiêu chí này.`);
+  else if(c.v<65)tips.push(`Củng cố <b>${c.vn}</b> (${Math.round(c.v)}/100) để tiến lên mốc Level kế tiếp.`);
+ });
+ const bands=CONFIG.bands;const idx=bands.findIndex(b=>b.name===lv);
+ if(idx>=0&&idx<bands.length-1){const next=bands[idx+1];tips.push(`Cần thêm <b>${fmt(next.min-comp)}</b> điểm tổng hợp để đạt <b>${next.name}</b>.`);}
+ else tips.push(`Đã ở Level cao nhất — phù hợp vai trò kèm cặp / đào tạo người mới.`);
+ return "<ul style='margin:6px 0;padding-left:18px'>"+tips.map(t=>`<li style='margin:5px 0'>${t}</li>`).join("")+"</ul>";
+}
+function certList(p){return `Công việc: ${p.meta.mainJob||"-"} • Thâm niên: ${p.meta.service||"-"} • Level cũ (hệ cũ): ${p.meta.oldFinalLevel||"-"}`;}
+function detailTable(p){
+ let h="";
+ CATS.forEach(c=>{
+  const items=p.scores[c.key];const appl=APPDATA.groupApplicable[p.group][c.key];
+  h+=`<h3>${c.vn}</h3><table><tr><th>Hạng mục</th><th>Điểm</th><th>Benchmark</th><th>Áp dụng cho nhóm?</th></tr>`+
+   Object.entries(items).map(([k,v])=>`<tr><td class="small">${k}</td><td>${v}</td><td class="muted">${APPDATA.benchmark[c.key][k]}</td><td class="small ${appl.includes(k)?'good':'muted'}">${appl.includes(k)?'✓ Có':'– Không'}</td></tr>`).join("")+`</table>`;
+ });
+ return h;
+}
+
+/* ============ LEVEL STRUCTURE ============ */
+function vLevel(){
+ const el=document.getElementById("content");
+ const w=CONFIG.weights;const totalW=CATS.reduce((s,c)=>s+(+w[c.key]||0),0);
+ el.innerHTML=`
+ <div class="card">
+  <h2>Phân tích cấu trúc Level — hệ cũ vs hệ mới</h2>
+  <h3>Vấn đề của hệ thống cũ</h3>
+  <div class="grid two">
+   <div>
+    <p>🔴 <b>Đo lường chiếm 56/100 điểm (56%)</b> — lấn át toàn bộ. Inspector nhóm Coating, Assembly, Final/Packing gần như không dùng 20 loại thiết bị đo (CMM, case-depth, roughness…), nên <b>không thể đạt Level cao dù rất giỏi việc của mình.</b> Ví dụ N.N Hoang (Coating, 3+ năm) và P.V Duong (Assembly) bị kẹt ở Level 2B ở hệ cũ.</p>
+    <p>🔴 <b>Tiêu chí "Phán định" bị thổi phồng:</b> mốc ">9 điểm = Level 5" khiến nhiều người Coating/Final đạt "Level 5 Phán định" dù tổng thể chỉ Level 1B — không hợp lý.</p>
+   </div>
+   <div>
+    <p>🔴 <b>Các ngưỡng Level không nhất quán:</b> mỗi tiêu chí có dải điểm riêng, còn Level cuối lại tính theo % của 100 — hai hệ quy đổi khác nhau, khó giải thích.</p>
+    <p>🟢 <b>Hệ mới:</b> chuẩn hóa mỗi tiêu chí về thang 0–100 <b>theo đúng công cụ mà nhóm đó sử dụng</b> (group-relative), rồi áp trọng số cân bằng và <b>một bộ ngưỡng Level thống nhất</b>. Kết quả: người giỏi việc của nhóm mình được ghi nhận công bằng.</p>
+   </div>
+  </div>
+ </div>
+ <div class="grid two">
+  <div class="card">
+   <h2>Trọng số tiêu chí (điều chỉnh được)</h2>
+   <p class="small muted">Tổng hiện tại: <b id="wtot">${totalW}</b> (khuyến nghị = 100)</p>
+   ${CATS.map(c=>`<div class="row" style="justify-content:space-between;margin:8px 0">
+     <span><i class="dot" style="background:${c.color}"></i> ${c.vn}</span>
+     <span><input type="number" min="0" max="100" value="${w[c.key]}" data-w="${c.key}" oninput="wEdit(this)"> %</span></div>`).join("")}
+   <div class="note">Mặc định hệ mới: Đo lường 30 • Bản vẽ 20 • Báo cáo 15 • Phán định 20 • Thái độ 15. Giảm sự thống trị của Đo lường từ 56% xuống 30%.</div>
+  </div>
+  <div class="card">
+   <h2>Ngưỡng Level (điều chỉnh được)</h2>
+   <table><tr><th>Level</th><th>Điểm tổng hợp ≥</th><th></th></tr>
+   ${CONFIG.bands.map((b,i)=>`<tr><td>${lvlBadge(b.name)}</td><td><input type="number" min="0" max="100" value="${b.min}" data-b="${i}" oninput="bEdit(this)"></td><td class="small muted">${i<CONFIG.bands.length-1?'đến < '+CONFIG.bands[i+1].min:'trở lên'}</td></tr>`).join("")}
+   </table>
+   <div class="row" style="margin-top:12px"><button class="act" onclick="applyConfig()">✔ Áp dụng & tính lại</button><button class="ghost" onclick="resetConfig()">↺ Khôi phục mặc định</button></div>
+  </div>
+ </div>
+ <div class="card">
+  <h2>So sánh Level: hệ cũ → hệ mới</h2>
+  <p class="small muted">Dựa trên snapshot 2026-06. Các dòng <span class="hl">&nbsp;tô sáng&nbsp;</span> là người thay đổi Level nhiều nhất — thường là inspector nhóm phi-đo-lường được đánh giá công bằng hơn.</p>
+  <div style="max-height:460px;overflow:auto;margin-top:8px"><table id="cmpTable"></table></div>
+ </div>`;
+ renderCmp();
+}
+function wEdit(inp){CONFIG.weights[inp.dataset.w]=+inp.value||0;document.getElementById("wtot").textContent=CATS.reduce((s,c)=>s+(+CONFIG.weights[c.key]||0),0);}
+function bEdit(inp){CONFIG.bands[+inp.dataset.b].min=+inp.value||0;}
+function applyConfig(){save("qsl_config",CONFIG);renderCmp();alert("Đã áp dụng. Toàn bộ Level trong ứng dụng được tính lại theo cấu hình mới.");}
+function resetConfig(){CONFIG.weights={...DEFAULT_WEIGHTS};CONFIG.bands=JSON.parse(JSON.stringify(DEFAULT_BANDS));save("qsl_config",CONFIG);vLevel();}
+function renderCmp(){
+ const rows=monthRows(BASELINE).map(r=>{
+  const oldRank=DEFAULT_BANDS.findIndex(b=>b.name===r.old);
+  const newRank=DEFAULT_BANDS.findIndex(b=>b.name===r.level);
+  return {...r,delta:(oldRank>=0&&newRank>=0)?newRank-oldRank:0};
+ }).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)||b.comp-a.comp);
+ const t=document.getElementById("cmpTable");
+ t.innerHTML=`<tr><th>Tên</th><th>Nhóm</th><th>Tổng hợp</th><th>Level cũ</th><th>→</th><th>Level mới</th><th>Thay đổi</th></tr>`+
+  rows.map(r=>`<tr class="${Math.abs(r.delta)>=2?'hl':''}"><td>${r.name}</td><td class="small">${shortGroup(r.group)}</td>
+   <td><b>${fmt(r.comp)}</b></td><td>${r.old?lvlBadge(r.old):'-'}</td><td class="muted">→</td><td>${lvlBadge(r.level)}</td>
+   <td class="small ${r.delta>0?'up':r.delta<0?'down':'muted'}">${r.delta>0?'▲ +'+r.delta+' bậc':r.delta<0?'▼ '+r.delta+' bậc':'='}</td></tr>`).join("");
+}
+
+/* ============ INIT ============ */
+/* Không tự chạy — cổng đăng nhập (module bên dưới) gọi bootApp() sau khi xác thực + tải dữ liệu. */
+function bootApp(){ initState(); renderNav(); render(); }
+</script>
+
+<!-- ===== Cổng đăng nhập chung + lưu trữ server (Supabase) ===== -->
+<div id="ieGate" style="position:fixed;inset:0;z-index:9999;background:#0f1720;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="width:340px;max-width:92vw;background:#182430;border:1px solid #2b3d4d;border-radius:12px;padding:22px;">
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px;color:#e7eef5">Inspector Skill Evaluation</div>
+    <div id="ieMsg" style="color:#8ba0b3;font-size:13px;margin-bottom:14px;">Đăng nhập để tiếp tục</div>
+    <form id="ieForm">
+      <input id="ieEmail" type="email" placeholder="Email" autocomplete="username" style="width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:1px solid #2b3d4d;background:#1f2f3d;color:#e7eef5;">
+      <input id="iePass" type="password" placeholder="Mật khẩu" autocomplete="current-password" style="width:100%;margin-bottom:12px;padding:10px;border-radius:8px;border:1px solid #2b3d4d;background:#1f2f3d;color:#e7eef5;">
+      <button type="submit" style="width:100%;padding:10px;border:none;border-radius:8px;background:#3da5ff;color:#04121f;font-weight:700;cursor:pointer;">Đăng nhập</button>
+    </form>
+    <div id="ieErr" style="color:#ff6b6b;font-size:13px;margin-top:10px;display:none;"></div>
+    <button id="ieLogout" style="display:none;margin-top:10px;background:none;border:1px solid #2b3d4d;color:#8ba0b3;border-radius:8px;padding:6px 12px;cursor:pointer;">Đăng xuất</button>
+  </div>
+</div>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const gate=document.getElementById('ieGate'), msg=document.getElementById('ieMsg'), err=document.getElementById('ieErr'), logout=document.getElementById('ieLogout');
+let sb;
+async function getSb(){ if(sb)return sb; const cfg=await (await fetch('/api/auth-config')).json(); sb=createClient(cfg.url,cfg.anonKey); return sb; }
+async function hdr(){ const c=await getSb(); const {data:{session}}=await c.auth.getSession(); return session?{Authorization:'Bearer '+session.access_token}:null; }
+function showErr(m){ err.textContent=m; err.style.display='block'; }
+async function afterAuth(){
+  err.style.display='none'; logout.style.display='none';
+  const h=await hdr(); if(!h){ msg.textContent='Đăng nhập để tiếp tục'; return; }
+  msg.textContent='Đang kiểm tra quyền…';
+  const chk=await fetch('/api/inspector-eval?access=check',{headers:h});
+  if(chk.status===401){ msg.textContent='Đăng nhập để tiếp tục'; return; }
+  if(chk.status!==200){ showErr('Tài khoản chưa được cấp quyền vào Inspector Skill.'); logout.style.display='inline-block'; return; }
+  window.IE_ROLE=(await chk.json()).role;
+  msg.textContent='Đang tải dữ liệu…';
+  const st=await (await fetch('/api/inspector-eval',{headers:h})).json();
+  window.IE_REMOTE=st||{};
+  window.IE_persist=async(k,v)=>{ try{ const hh=await hdr(); const r=await fetch('/api/inspector-eval',{method:'POST',headers:{...hh,'Content-Type':'application/json'},body:JSON.stringify({k,v})}); if(!r.ok)console.error('persist',r.status);}catch(e){ console.error('persist',e); } };
+  gate.style.display='none';
+  window.bootApp();
+}
+document.getElementById('ieForm').addEventListener('submit', async(e)=>{
+  e.preventDefault(); err.style.display='none'; msg.textContent='Đang đăng nhập…';
+  try{
+    const c=await getSb();
+    const {error}=await c.auth.signInWithPassword({email:document.getElementById('ieEmail').value.trim(),password:document.getElementById('iePass').value});
+    if(error){ showErr('Sai email hoặc mật khẩu.'); msg.textContent='Đăng nhập để tiếp tục'; return; }
+    await afterAuth();
+  }catch(e){ showErr('Lỗi: '+(e.message||e)); msg.textContent='Đăng nhập để tiếp tục'; }
+});
+logout.addEventListener('click', async()=>{ const c=await getSb(); await c.auth.signOut(); location.reload(); });
+afterAuth();  // tự vào nếu đã đăng nhập sẵn ở hub (dùng chung phiên Supabase)
+</script>
+</body>
+</html>

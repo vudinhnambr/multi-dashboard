@@ -15,7 +15,7 @@ class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
-import { Activity, Database, FileWarning, PackageCheck, ClipboardList, Monitor } from 'lucide-react';
+import { Activity, Database, FileWarning, PackageCheck, ClipboardList, Monitor, Award } from 'lucide-react';
 import CMM from './pages/CMM.jsx';
 import InspectionNotice from './pages/InspectionNotice.jsx';
 import { LangProvider, useLang } from './LangContext.jsx';
@@ -30,6 +30,7 @@ const TABS = [
   { id: 'supplier-ncr', label: 'Supplier NCR', icon: FileWarning },
   { id: 'shipment-check', label: 'Shipment Check', icon: PackageCheck },
   { id: 'inspection-notice', label: 'Inspection Notice', icon: ClipboardList },
+  { id: 'inspector-eval', label: 'Inspector Skill', icon: Award },
 ];
 
 // Trang Overview (màn hình tổng) — không cần đăng nhập.
@@ -226,6 +227,9 @@ function AppInner() {
         )}
         {tab === 'shipment-check' && (
           <iframe className="shell-frame" src="/shipment-check/index.html" title="Shipment Check" />
+        )}
+        {tab === 'inspector-eval' && (
+          <iframe className="shell-frame" src="/inspector-eval/index.html" title="Inspector Skill Evaluation" />
         )}
       </main>
     </div>
