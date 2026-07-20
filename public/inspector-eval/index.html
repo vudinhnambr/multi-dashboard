@@ -73,6 +73,8 @@ input.zero{border-color:var(--warn)!important;background:#3a2f1a!important;color
 .org-leader{background:var(--panel2);border:1px solid var(--acc);border-radius:10px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
 .org-fe{display:inline-flex;align-items:center;gap:14px;background:var(--panel2);border:1px solid var(--warn);border-radius:12px;padding:12px 22px;text-align:left}
 .org-fe .org-lname{font-weight:700;font-size:15px}
+.org-fe-wrap{display:flex;justify-content:center;margin:6px 0 16px}
+.org-fe-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
 .org-leader .org-lname{font-weight:700;margin-top:6px}
 .org-lrole{color:var(--acc);font-size:12px;font-weight:600}
 .org-ljoin{color:var(--mut);font-size:11px}
@@ -129,6 +131,7 @@ function initState(){
  CONFIG=load("qsl_config",{weights:{...DEFAULT_WEIGHTS},bands:JSON.parse(JSON.stringify(DEFAULT_BANDS)),leaders:{}});
  CUSTOM=load("qsl_custom",[]);
  CUSTOM.forEach(p=>{if(!APPDATA.people.find(x=>x.name===p.name))APPDATA.people.push(p);});
+ if(!APPDATA.groups.includes("Field Engineer"))APPDATA.groups.push("Field Engineer"); // nhóm chức vụ cao nhất
  MONTHS=load("qsl_months",null);
  if(!MONTHS){
   MONTHS={}; MONTHS[BASELINE]={};
@@ -187,7 +190,7 @@ function fmt(x){return (Math.round(x*10)/10).toFixed(1);}
 /* ============ NAV ============ */
 const TABS=[
  {id:"dash",label:"📊 Tổng quan"},
- {id:"groups",label:"👥 Nhóm (7)"},
+ {id:"groups",label:"👥 Nhóm"},
  {id:"monthly",label:"🗓️ Chấm điểm tháng"},
  {id:"person",label:"🔍 Phân tích cá nhân"},
  {id:"org",label:"🏢 Sơ đồ tổ chức"},
@@ -324,7 +327,7 @@ function openPerson(n){window._selPerson=n;go("person");}
 function vGroups(){
  const m=latestMonth();const rows=monthRows(m);
  const el=document.getElementById("content");
- let html=`<div class="card"><div class="row spread"><h2>7 nhóm công việc</h2><button class="act" onclick="toggleAddForm()">➕ Thêm Inspector</button></div>
+ let html=`<div class="card"><div class="row spread"><h2>${APPDATA.groups.length} nhóm (gồm Field Engineer)</h2><button class="act" onclick="toggleAddForm()">➕ Thêm Inspector</button></div>
   <p class="muted small">Mỗi nhóm do một Group Leader phụ trách chấm điểm hằng tháng. Nhấn tên để xem phân tích cá nhân. Bấm ✎ để đặt tên Group Leader.</p>
   <div id="addForm" style="display:none;margin-top:10px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px">
    <div class="row">
@@ -503,17 +506,20 @@ function setFieldEngineer(name){CONFIG.fieldEngineer=name||"";save("qsl_config",
 function vOrg(){
  const el=document.getElementById("content");
  const m=orgMonthOverride||latestMonth();
- const feName=(CONFIG.fieldEngineer||"");
- // 4 cột theo Operating Leader; MỖI nhóm chuyển vào cột của Group Leader được gán (khớp tên)
+ // Field Engineer = những người thuộc nhóm "Field Engineer"
+ const feMembers=APPDATA.people.filter(p=>p.group==="Field Engineer" && !isInactive(p.name))
+   .map(p=>({p,comp:composite(getPct(m,p.name))})).sort((a,b)=>b.comp-a.comp);
+ // 4 cột theo Operating Leader; MỖI nhóm công việc chuyển vào cột của Group Leader được gán (bỏ nhóm Field Engineer)
  const cols=ORG_LEADERS.map(L=>({L,name:leaderName(L),groups:[]}));
  const byName={}; cols.forEach(c=>{byName[c.name]=c;});
  APPDATA.groups.forEach(g=>{
+  if(g==="Field Engineer")return;
   const assigned=(CONFIG.leaders&&CONFIG.leaders[g])||"";
   let col=(assigned&&byName[assigned]) || cols.find(c=>c.L.groups.includes(g)) || cols[0];
   col.groups.push(g);
  });
  // Người đã hiện ở ô cấp trên (Field Engineer + 4 Operating Leader) → không hiện lại ở nhánh con
- const topNames=new Set([feName,...cols.map(c=>c.name)].filter(Boolean));
+ const topNames=new Set([...feMembers.map(x=>x.p.name),...cols.map(c=>c.name)].filter(Boolean));
  const colsHtml=cols.map(col=>{
   const L=col.L, ln=col.name, lp=personByName(ln);
   const ljoin=(lp&&lp.meta&&lp.meta.entered)?lp.meta.entered:'-';
@@ -534,24 +540,23 @@ function vOrg(){
      <div class="org-ldesc">${escHtml(L.role||'')}</div></div>
     ${groupsHtml||'<div class="org-group muted small">— chưa có nhóm —</div>'}</div>`;
  }).join("");
- // Field Engineer (cấp cao nhất, trên Operating Leader)
- const fp=feName?personByName(feName):null;
- const feBadge=fp?lvlBadge(levelOf(composite(getPct(m,feName)))):'';
- const feJoin=(fp&&fp.meta&&fp.meta.entered)?fp.meta.entered:'-';
- const feHtml=feName
-  ? `<div class="org-fe" ${fp?`onclick="openPerson('${esc1(feName)}')" style="cursor:pointer" title="Xem hồ sơ"`:''}>
-      ${avatarHtml(feName,56)}
-      <div><div class="org-lname">${escHtml(dispName(feName))}</div>
-       <div class="org-lrole" style="color:var(--warn)">Field Engineer</div>
-       <div class="org-ljoin">Vào: ${feJoin}${feBadge?' · '+feBadge:''}</div></div>
-     </div>`
-  : `<div class="org-fe" style="border-style:dashed"><span class="muted small">Chưa chọn Field Engineer</span></div>`;
- const feOptions=`<option value="">(chưa chọn)</option>`+APPDATA.people.map(pp=>`<option value="${escHtml(pp.name)}" ${pp.name===feName?'selected':''}>${escHtml(dispName(pp.name))}</option>`).join("");
+ // Field Engineer (cấp cao nhất, trên Operating Leader) — bao nhiêu người trong nhóm đều hiện
+ const feCards=feMembers.map(({p})=>{
+  const lv=levelOf(composite(getPct(m,p.name)));
+  const join=(p.meta&&p.meta.entered)?p.meta.entered:'-';
+  return `<div class="org-fe" onclick="openPerson('${esc1(p.name)}')" style="cursor:pointer" title="Xem hồ sơ">
+    ${avatarHtml(p.name,52)}
+    <div><div class="org-lname">${escHtml(dispName(p.name))}</div>
+     <div class="org-lrole" style="color:var(--warn)">Field Engineer</div>
+     <div class="org-ljoin">Vào: ${join} · ${lvlBadge(lv)}</div></div></div>`;
+ }).join("");
+ const feRow=feMembers.length
+   ? `<div class="org-fe-row">${feCards}</div>`
+   : `<div class="org-fe" style="border-style:dashed"><span class="muted small">Chưa có Field Engineer — gán người vào nhóm "Field Engineer" (tab Nhóm hoặc Sửa thông tin).</span></div>`;
  el.innerHTML=`<div class="card"><div class="row spread">
-   <div><h2>Sơ đồ tổ chức</h2><p class="muted small" style="margin:2px 0 0">Field Engineer › 4 Operating Leader › 7 nhóm · Level theo tháng chọn · Nhấn 1 người để xem hồ sơ.</p></div>
-   <div class="row" style="gap:10px;flex-wrap:wrap"><span class="muted small">Field Engineer:</span><select onchange="setFieldEngineer(this.value)" style="min-width:150px">${feOptions}</select>
-    <span class="muted small">Level tháng:</span><select id="omonth" onchange="orgMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select></div></div>
-   <div style="display:flex;justify-content:center;margin:6px 0 16px">${feHtml}</div>
+   <div><h2>Sơ đồ tổ chức</h2><p class="muted small" style="margin:2px 0 0">Field Engineer › 4 Operating Leader › nhóm · Level theo tháng chọn · Nhấn 1 người để xem hồ sơ.</p></div>
+   <div class="row"><span class="muted small">Level tháng:</span><select id="omonth" onchange="orgMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select></div></div>
+   <div class="org-fe-wrap">${feRow}</div>
    <div class="org-wrap">${colsHtml}</div></div>`;
 }
 
@@ -706,7 +711,7 @@ function certList(p){return `Công việc: ${p.meta.mainJob||"-"} • Thâm niê
 function detailTable(p){
  let h="";
  CATS.forEach(c=>{
-  const items=p.scores[c.key];const appl=APPDATA.groupApplicable[p.group][c.key];
+  const items=p.scores[c.key];const appl=(APPDATA.groupApplicable[p.group]||{})[c.key]||[];
   h+=`<h3>${c.vn}</h3><table><tr><th>Hạng mục</th><th>Điểm</th><th>Benchmark</th><th>Áp dụng cho nhóm?</th></tr>`+
    Object.entries(items).map(([k,v])=>`<tr><td class="small">${k}</td><td>${v}</td><td class="muted">${APPDATA.benchmark[c.key][k]}</td><td class="small ${appl.includes(k)?'good':'muted'}">${appl.includes(k)?'✓ Có':'– Không'}</td></tr>`).join("")+`</table>`;
  });
