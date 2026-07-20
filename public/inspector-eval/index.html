@@ -556,6 +556,25 @@ function bootApp(){ initState(); renderNav(); render(); }
     <button id="ieLogout" style="display:none;margin-top:10px;background:none;border:1px solid #2b3d4d;color:#8ba0b3;border-radius:8px;padding:6px 12px;cursor:pointer;">Đăng xuất</button>
   </div>
 </div>
+<!-- Nút đăng xuất nổi + badge quyền (hiện sau khi vào app) -->
+<div id="ieTopRight" style="position:fixed;top:10px;right:14px;z-index:9000;display:none;align-items:center;gap:8px">
+  <span id="ieRoleBadge" style="font-size:11px;font-weight:700;color:#8ba0b3;background:#182430;border:1px solid #2b3d4d;border-radius:20px;padding:3px 10px"></span>
+  <button id="ieLogout2" style="background:#182430;border:1px solid #2b3d4d;color:#e7eef5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">Đăng xuất</button>
+</div>
+<style>
+/* Viewer: chỉ xem — ẩn mọi nút/thao tác chỉnh sửa và khoá input */
+body.ie-viewer .act,
+body.ie-viewer .savebar,
+body.ie-viewer #addForm,
+body.ie-viewer [onclick^="newMonth"],
+body.ie-viewer [onclick^="toggleAddForm"],
+body.ie-viewer [onclick^="addInspector"],
+body.ie-viewer [onclick^="delInspector"],
+body.ie-viewer [onclick^="setLeader"]{ display:none !important; }
+body.ie-viewer input,
+body.ie-viewer select,
+body.ie-viewer textarea{ pointer-events:none !important; opacity:.55 !important; }
+</style>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const gate=document.getElementById('ieGate'), msg=document.getElementById('ieMsg'), err=document.getElementById('ieErr'), logout=document.getElementById('ieLogout');
@@ -570,11 +589,20 @@ async function afterAuth(){
   const chk=await fetch('/api/inspector-eval?access=check',{headers:h});
   if(chk.status===401){ msg.textContent='Đăng nhập để tiếp tục'; return; }
   if(chk.status!==200){ showErr('Tài khoản chưa được cấp quyền vào Inspector Skill.'); logout.style.display='inline-block'; return; }
-  window.IE_ROLE=(await chk.json()).role;
+  const role=(await chk.json()).role;
+  window.IE_ROLE=role;
+  const isViewer = role==='viewer';
   msg.textContent='Đang tải dữ liệu…';
   const st=await (await fetch('/api/inspector-eval',{headers:h})).json();
   window.IE_REMOTE=st||{};
-  window.IE_persist=async(k,v)=>{ try{ const hh=await hdr(); const r=await fetch('/api/inspector-eval',{method:'POST',headers:{...hh,'Content-Type':'application/json'},body:JSON.stringify({k,v})}); if(!r.ok)console.error('persist',r.status);}catch(e){ console.error('persist',e); } };
+  window.IE_persist = isViewer
+    ? async()=>{}   // viewer không ghi
+    : async(k,v)=>{ try{ const hh=await hdr(); const r=await fetch('/api/inspector-eval',{method:'POST',headers:{...hh,'Content-Type':'application/json'},body:JSON.stringify({k,v})}); if(!r.ok)console.error('persist',r.status);}catch(e){ console.error('persist',e); } };
+  // Viewer: khoá chỉnh sửa toàn giao diện
+  if(isViewer) document.body.classList.add('ie-viewer');
+  // Badge quyền + nút đăng xuất
+  document.getElementById('ieRoleBadge').textContent = isViewer ? '👁 Chỉ xem' : ('✎ ' + role);
+  const tr=document.getElementById('ieTopRight'); tr.style.display='flex';
   gate.style.display='none';
   window.bootApp();
 }
@@ -587,7 +615,9 @@ document.getElementById('ieForm').addEventListener('submit', async(e)=>{
     await afterAuth();
   }catch(e){ showErr('Lỗi: '+(e.message||e)); msg.textContent='Đăng nhập để tiếp tục'; }
 });
-logout.addEventListener('click', async()=>{ const c=await getSb(); await c.auth.signOut(); location.reload(); });
+async function doLogout(){ const c=await getSb(); await c.auth.signOut(); location.reload(); }
+logout.addEventListener('click', doLogout);
+document.getElementById('ieLogout2').addEventListener('click', doLogout);
 afterAuth();  // tự vào nếu đã đăng nhập sẵn ở hub (dùng chung phiên Supabase)
 </script>
 </body>
