@@ -151,6 +151,7 @@ function initState(){
    if("entered" in o)p.meta.entered=o.entered;
    if("mainJob" in o)p.meta.mainJob=o.mainJob;
    if("id" in o)p.meta.id=o.id;
+   if("fullName" in o)p.meta.fullName=o.fullName;
    if("service" in o && !("entered" in o))p.meta.service=o.service; // tương thích bản ghi cũ
   }
   // Thâm niên luôn tính lại từ ngày vào làm (nếu có)
@@ -309,7 +310,7 @@ function dashFilter(){
  const t=document.getElementById("drank");
  t.innerHTML=`<tr><th>#</th><th>ID</th><th>Tên</th><th>Nhóm</th><th>Công việc</th><th>Đo lường</th><th>Bản vẽ</th><th>Báo cáo</th><th>Phán định</th><th>Thái độ</th><th>Tổng hợp</th><th>Level mới</th><th>Level cũ</th></tr>`+
   rows.map((r,i)=>`<tr>
-   <td>${i+1}</td><td class="small muted">${escHtml(r.id||"-")}</td><td><a href="#" onclick="openPerson('${esc1(r.name)}');return false" style="color:var(--acc)">${escHtml(r.name)}</a></td>
+   <td>${i+1}</td><td class="small muted">${escHtml(r.id||"-")}</td><td><a href="#" onclick="openPerson('${esc1(r.name)}');return false" style="color:var(--acc)">${escHtml(dispName(r.name))}</a></td>
    <td class="small">${shortGroup(r.group)}</td><td class="small muted">${r.job}</td>
    ${CATS.map(c=>`<td>${miniBar(r.pct[c.key],c.color)}</td>`).join("")}
    <td><b>${fmt(r.comp)}</b></td><td>${lvlBadge(r.level)}</td><td class="small muted">${r.old||"-"}</td></tr>`).join("");
@@ -351,7 +352,7 @@ function vGroups(){
      <span class="muted" style="margin-left:10px">Điểm TB nhóm:</span> <b>${fmt(avg)}</b></div></div>
    <table style="margin-top:10px"><tr><th>Tên</th><th>Công việc chính</th><th>Thâm niên</th>
     ${CATS.map(c=>`<th class="small">${c.short}</th>`).join("")}<th>Tổng</th><th>Level</th><th class="small" title="Đánh dấu người đã nghỉ — giữ dữ liệu nhưng không tính thống kê">Đã nghỉ</th></tr>
-   ${ordered.map(r=>`<tr style="${r.inactive?'opacity:.45':''}"><td><a href="#" onclick="openPerson('${r.name}');return false" style="color:var(--acc)">${r.name}</a>${r.inactive?' <span class="tag">nghỉ</span>':''}${r.custom?` <a href="#" onclick="delInspector('${r.name}');return false" title="Xóa Inspector" style="color:var(--bad);text-decoration:none">✕</a>`:''}</td>
+   ${ordered.map(r=>`<tr style="${r.inactive?'opacity:.45':''}"><td><a href="#" onclick="openPerson('${esc1(r.name)}');return false" style="color:var(--acc)">${escHtml(dispName(r.name))}</a>${r.inactive?' <span class="tag">nghỉ</span>':''}${r.custom?` <a href="#" onclick="delInspector('${esc1(r.name)}');return false" title="Xóa Inspector" style="color:var(--bad);text-decoration:none">✕</a>`:''}</td>
      <td class="small muted">${r.job}</td><td class="small muted">${r.service}</td>
      ${CATS.map(c=>`<td>${miniBar(r.pct[c.key],c.color)}</td>`).join("")}
      <td><b>${fmt(r.comp)}</b></td><td>${lvlBadge(r.level)}</td>
@@ -477,6 +478,8 @@ function escHtml(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&am
 function esc1(s){return String(s||"").replace(/'/g,"\\'");}
 function photoOf(n){return (window.__PHOTOS||{})[n]||"";}
 function certsOf(n){return (window.__CERTS||{})[n]||[];}
+// Tên hiển thị (Full Name nếu có) — key nội bộ vẫn là n
+function dispName(n){const p=personByName(n);return (p&&p.meta&&p.meta.fullName)?p.meta.fullName:n;}
 function avatarHtml(name,size){
  const ph=photoOf(name);
  if(ph)return `<img src="${ph}" style="width:${size}px;height:${size}px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:none">`;
@@ -489,7 +492,7 @@ function orgCard(p,m){
  const comp=composite(getPct(m,p.name));const lv=levelOf(comp);const nc=certsOf(p.name).length;
  return `<div class="org-person" onclick="openPerson('${esc1(p.name)}')" title="Xem hồ sơ">
    ${avatarHtml(p.name,40)}
-   <div style="flex:1;min-width:0"><div class="org-pname">${escHtml(p.name)}${nc?` <span title="${nc} chứng nhận">🎓</span>`:''}</div>
+   <div style="flex:1;min-width:0"><div class="org-pname">${escHtml(dispName(p.name))}${nc?` <span title="${nc} chứng nhận">🎓</span>`:''}</div>
     <div class="org-pjoin">${p.meta&&p.meta.entered?('Vào: '+p.meta.entered):''}</div></div>
    <div>${lvlBadge(lv)}</div>
  </div>`;
@@ -497,28 +500,37 @@ function orgCard(p,m){
 function vOrg(){
  const el=document.getElementById("content");
  const m=orgMonthOverride||latestMonth();
- const cols=ORG_LEADERS.map(L=>{
-  const groupsHtml=L.groups.map(g=>{
+ // 4 cột theo Operating Leader; MỖI nhóm chuyển vào cột của Group Leader được gán (khớp tên)
+ const cols=ORG_LEADERS.map(L=>({L,name:leaderName(L),groups:[]}));
+ const byName={}; cols.forEach(c=>{byName[c.name]=c;});
+ APPDATA.groups.forEach(g=>{
+  const assigned=(CONFIG.leaders&&CONFIG.leaders[g])||"";
+  let col=(assigned&&byName[assigned]) || cols.find(c=>c.L.groups.includes(g)) || cols[0];
+  col.groups.push(g);
+ });
+ const colsHtml=cols.map(col=>{
+  const L=col.L, ln=col.name, lp=personByName(ln);
+  const ljoin=(lp&&lp.meta&&lp.meta.entered)?lp.meta.entered:'-';
+  const lbadge=lp?lvlBadge(levelOf(composite(getPct(m,ln)))):'';
+  const groupsHtml=col.groups.map(g=>{
    const ppl=APPDATA.people.filter(p=>p.group===g && !isInactive(p.name))
      .map(p=>({p,comp:composite(getPct(m,p.name))})).sort((a,b)=>b.comp-a.comp);
    return `<div class="org-group"><div class="org-gtitle">${shortGroup(g)} <span class="pill">${ppl.length}</span></div>
      <div class="org-people">${ppl.map(({p})=>orgCard(p,m)).join("")||'<div class="muted small">— chưa có —</div>'}</div></div>`;
   }).join("");
-  const ln=leaderName(L);
-  const lp=personByName(ln);
-  const ljoin=(lp&&lp.meta&&lp.meta.entered)?lp.meta.entered:'-';
   return `<div class="org-col">
     <div class="org-leader">${avatarHtml(ln,56)}
-     <div class="org-lname">${escHtml(ln)}</div>
+     <div class="org-lname">${escHtml(dispName(ln))}</div>
      <div class="org-lrole">Operating Leader</div>
+     ${lbadge?`<div style="margin:2px 0 0">${lbadge}</div>`:''}
      <div class="org-ljoin">Vào: ${ljoin}</div>
      <div class="org-ldesc">${escHtml(L.role||'')}</div></div>
-    ${groupsHtml}</div>`;
+    ${groupsHtml||'<div class="org-group muted small">— chưa có nhóm —</div>'}</div>`;
  }).join("");
  el.innerHTML=`<div class="card"><div class="row spread">
-   <div><h2>Sơ đồ tổ chức</h2><p class="muted small" style="margin:2px 0 0">4 Operating Leader · 7 nhóm · Level hiển thị theo tháng chọn. Nhấn 1 người để xem hồ sơ.</p></div>
+   <div><h2>Sơ đồ tổ chức</h2><p class="muted small" style="margin:2px 0 0">4 Operating Leader · 7 nhóm · Level theo tháng chọn. Nhóm chuyển cột theo Group Leader. Nhấn 1 người để xem hồ sơ.</p></div>
    <div class="row"><span class="muted small">Level tháng:</span><select id="omonth" onchange="orgMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select></div></div>
-   <div class="org-wrap">${cols}</div></div>`;
+   <div class="org-wrap">${colsHtml}</div></div>`;
 }
 
 /* ============ ẢNH & CHỨNG NHẬN ============ */
@@ -561,8 +573,9 @@ function savePersonMeta(name){
  const entered=document.getElementById("peEntered").value;   // YYYY-MM-DD
  const mainJob=document.getElementById("peJob").value.trim();
  const id=document.getElementById("peId").value.trim();
- const META=window.__META||{}; META[name]={group,entered,mainJob,id}; window.__META=META; save("qsl_meta",META);
- const p=personByName(name); if(p){ p.group=group; p.meta=p.meta||{}; p.meta.entered=entered; p.meta.service=computeSeniority(entered); p.meta.mainJob=mainJob; p.meta.id=id; }
+ const fullName=document.getElementById("peFullName").value.trim();
+ const META=window.__META||{}; META[name]={group,entered,mainJob,id,fullName}; window.__META=META; save("qsl_meta",META);
+ const p=personByName(name); if(p){ p.group=group; p.meta=p.meta||{}; p.meta.entered=entered; p.meta.service=computeSeniority(entered); p.meta.mainJob=mainJob; p.meta.id=id; p.meta.fullName=fullName; }
  render();
 }
 function vPerson(){
@@ -579,7 +592,7 @@ function vPerson(){
  <div class="card">
   <div class="row spread">
    <div class="row"><label class="small muted">Chọn Inspector:</label>
-    <select onchange="window._selPerson=this.value;vPerson()">${APPDATA.people.map(x=>`<option ${x.name===name?'selected':''}>${x.name}</option>`).join("")}</select>
+    <select onchange="window._selPerson=this.value;vPerson()">${APPDATA.people.map(x=>`<option value="${escHtml(x.name)}" ${x.name===name?'selected':''}>${escHtml(dispName(x.name))}</option>`).join("")}</select>
     ${p.meta.id?`<span class="pill">ID: ${escHtml(p.meta.id)}</span>`:''}</div>
    <div>${lvlBadge(lv)} <span class="muted small">tháng ${m}</span>
     <button class="act" style="margin-left:10px;padding:6px 12px" onclick="togglePersonEdit()">✎ Sửa thông tin</button></div>
@@ -600,6 +613,8 @@ function vPerson(){
   </div>
   <div id="pEditForm" style="display:none;margin-top:12px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px">
    <div class="row" style="flex-wrap:wrap;gap:10px">
+    <label class="small muted">Full Name</label>
+    <input type="text" id="peFullName" value="${(p.meta.fullName||'').replace(/"/g,'&quot;')}" placeholder="Họ tên đầy đủ" style="width:200px">
     <label class="small muted">ID</label>
     <input type="text" id="peId" value="${(p.meta.id||'').replace(/"/g,'&quot;')}" placeholder="Mã nhân viên" style="width:120px">
     <label class="small muted">Nhóm</label>
