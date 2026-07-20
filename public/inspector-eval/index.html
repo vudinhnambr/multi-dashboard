@@ -150,6 +150,7 @@ function initState(){
    if(o.group)p.group=o.group;
    if("entered" in o)p.meta.entered=o.entered;
    if("mainJob" in o)p.meta.mainJob=o.mainJob;
+   if("id" in o)p.meta.id=o.id;
    if("service" in o && !("entered" in o))p.meta.service=o.service; // tương thích bản ghi cũ
   }
   // Thâm niên luôn tính lại từ ngày vào làm (nếu có)
@@ -201,7 +202,7 @@ function render(){({dash:vDash,groups:vGroups,monthly:vMonthly,person:vPerson,or
 function monthRows(month){
  return APPDATA.people.map(p=>{
   const pct=getPct(month,p.name);const comp=composite(pct);
-  return {name:p.name,group:p.group,job:(p.meta.mainJob||""),service:(p.meta.service||""),pct,comp,level:levelOf(comp),old:p.meta.oldFinalLevel,custom:!!p.custom,inactive:isInactive(p.name)};
+  return {name:p.name,id:(p.meta.id||""),group:p.group,job:(p.meta.mainJob||""),service:(p.meta.service||""),pct,comp,level:levelOf(comp),old:p.meta.oldFinalLevel,custom:!!p.custom,inactive:isInactive(p.name)};
  });
 }
 /* Chỉ những người ĐANG LÀM (bỏ người đã nghỉ) — dùng cho mọi thống kê. */
@@ -298,7 +299,7 @@ function dashFilter(){
  const q=noAccent(document.getElementById("dsearch")?.value||"");
  const gf=document.getElementById("dgfilter")?.value||"";
  const lf=window._dashLevelFilter||"";
- let rows=(window._dashRows||[]).filter(r=>noAccent(r.name).includes(q)&&(!gf||r.group===gf)&&(!lf||r.level===lf));
+ let rows=(window._dashRows||[]).filter(r=>(noAccent(r.name).includes(q)||noAccent(r.id).includes(q))&&(!gf||r.group===gf)&&(!lf||r.level===lf));
  rows=rows.slice().sort((a,b)=>b.comp-a.comp);
  const chip=document.getElementById("dfchip");
  if(chip){let c=[];
@@ -306,9 +307,9 @@ function dashFilter(){
   if(gf)c.push(`<span class="pill">Nhóm: ${shortGroup(gf)} <a href="#" onclick="clearGroupFilter();return false" style="color:var(--acc);text-decoration:none">✕</a></span>`);
   chip.innerHTML=c.length?('<span class="small muted">Đang lọc: </span>'+c.join(" ")+` <span class="small muted">— ${rows.length} người</span>`):"";}
  const t=document.getElementById("drank");
- t.innerHTML=`<tr><th>#</th><th>Tên</th><th>Nhóm</th><th>Công việc</th><th>Đo lường</th><th>Bản vẽ</th><th>Báo cáo</th><th>Phán định</th><th>Thái độ</th><th>Tổng hợp</th><th>Level mới</th><th>Level cũ</th></tr>`+
+ t.innerHTML=`<tr><th>#</th><th>ID</th><th>Tên</th><th>Nhóm</th><th>Công việc</th><th>Đo lường</th><th>Bản vẽ</th><th>Báo cáo</th><th>Phán định</th><th>Thái độ</th><th>Tổng hợp</th><th>Level mới</th><th>Level cũ</th></tr>`+
   rows.map((r,i)=>`<tr>
-   <td>${i+1}</td><td><a href="#" onclick="openPerson('${r.name}');return false" style="color:var(--acc)">${r.name}</a></td>
+   <td>${i+1}</td><td class="small muted">${escHtml(r.id||"-")}</td><td><a href="#" onclick="openPerson('${esc1(r.name)}');return false" style="color:var(--acc)">${escHtml(r.name)}</a></td>
    <td class="small">${shortGroup(r.group)}</td><td class="small muted">${r.job}</td>
    ${CATS.map(c=>`<td>${miniBar(r.pct[c.key],c.color)}</td>`).join("")}
    <td><b>${fmt(r.comp)}</b></td><td>${lvlBadge(r.level)}</td><td class="small muted">${r.old||"-"}</td></tr>`).join("");
@@ -342,7 +343,11 @@ function vGroups(){
   const leader=CONFIG.leaders[g]||"(chưa đặt)";
   html+=`<div class="card">
    <div class="row spread"><h2>${g} <span class="pill">${gr.length} đang làm${inact.length?` · ${inact.length} nghỉ`:''}</span></h2>
-    <div class="row small"><span class="muted">Group Leader:</span> <b>${leader}</b> <button class="ghost small" style="padding:3px 8px" onclick="setLeader('${g.replace(/'/g,"")}')">✎</button>
+    <div class="row small"><span class="muted">Group Leader:</span>
+     <select onchange="setLeaderVal('${esc1(g)}',this.value)" style="min-width:150px">
+      <option value="">(chưa đặt)</option>
+      ${APPDATA.people.map(pp=>`<option value="${escHtml(pp.name)}" ${pp.name===(CONFIG.leaders[g]||'')?'selected':''}>${escHtml(pp.name)}</option>`).join("")}
+     </select>
      <span class="muted" style="margin-left:10px">Điểm TB nhóm:</span> <b>${fmt(avg)}</b></div></div>
    <table style="margin-top:10px"><tr><th>Tên</th><th>Công việc chính</th><th>Thâm niên</th>
     ${CATS.map(c=>`<th class="small">${c.short}</th>`).join("")}<th>Tổng</th><th>Level</th><th class="small" title="Đánh dấu người đã nghỉ — giữ dữ liệu nhưng không tính thống kê">Đã nghỉ</th></tr>
@@ -356,6 +361,7 @@ function vGroups(){
  el.innerHTML=html;
 }
 function setLeader(g){const cur=CONFIG.leaders[g]||"";const v=prompt("Tên Group Leader cho nhóm: "+g,cur);if(v!==null){CONFIG.leaders[g]=v.trim();save("qsl_config",CONFIG);render();}}
+function setLeaderVal(g,name){CONFIG.leaders[g]=name||"";save("qsl_config",CONFIG);render();}
 function toggleAddForm(){const f=document.getElementById("addForm");if(f)f.style.display=(f.style.display==="none"?"block":"none");}
 function addInspector(){
  const name=(document.getElementById("niName").value||"").trim();
@@ -459,12 +465,14 @@ function newMonth(){
 
 /* ============ SƠ ĐỒ TỔ CHỨC ============ */
 // 4 Operating Leader → 7 nhóm (map theo sơ đồ). Có thể chỉnh tên/ngày/mô tả tại đây.
+// Tên leader LẤY TỪ Group Leader của primaryGroup (đặt ở tab Nhóm). fallbackName chỉ dùng khi chưa đặt.
 const ORG_LEADERS=[
- {name:"Lê Hữu Diêu", join:"2020-06-11", role:"Giám sát MT Inspector · quản lý & kiểm soát thiết bị NDT · duy trì hồ sơ NDT.", groups:["MT"]},
- {name:"Võ Thế Trí", join:"2023-02-08", role:"Giám sát CD, HN & MT inspector · quản lý thiết bị UT/HN/MT · ghi nhận kết quả kiểm.", groups:["Case Depth & Hardness"]},
- {name:"Đinh Ngọc Vương", join:"2025-01-15", role:"Giám sát Incoming/Assembly/CMM/Laser/Scan Arm · quản lý thiết bị & kiểm tra.", groups:["CMM","Incoming & DT test & CAV"]},
- {name:"Nguyễn Ngọc Hoàng", join:"2022-07-20", role:"Giám sát Coating & Packing inspector · quản lý thiết bị coating · ghi nhận kết quả.", groups:["Assembly","Coating","After Treatment Final & Packing"]},
+ {fallbackName:"Lê Hữu Diêu", primaryGroup:"MT", role:"Giám sát MT Inspector · quản lý & kiểm soát thiết bị NDT · duy trì hồ sơ NDT.", groups:["MT"]},
+ {fallbackName:"Võ Thế Trí", primaryGroup:"Case Depth & Hardness", role:"Giám sát CD, HN & MT inspector · quản lý thiết bị UT/HN/MT · ghi nhận kết quả kiểm.", groups:["Case Depth & Hardness"]},
+ {fallbackName:"Đinh Ngọc Vương", primaryGroup:"CMM", role:"Giám sát Incoming/Assembly/CMM/Laser/Scan Arm · quản lý thiết bị & kiểm tra.", groups:["CMM","Incoming & DT test & CAV"]},
+ {fallbackName:"Nguyễn Ngọc Hoàng", primaryGroup:"Coating", role:"Giám sát Coating & Packing inspector · quản lý thiết bị coating · ghi nhận kết quả.", groups:["Assembly","Coating","After Treatment Final & Packing"]},
 ];
+function leaderName(L){return (CONFIG.leaders&&CONFIG.leaders[L.primaryGroup])||L.fallbackName;}
 function escHtml(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function esc1(s){return String(s||"").replace(/'/g,"\\'");}
 function photoOf(n){return (window.__PHOTOS||{})[n]||"";}
@@ -496,11 +504,14 @@ function vOrg(){
    return `<div class="org-group"><div class="org-gtitle">${shortGroup(g)} <span class="pill">${ppl.length}</span></div>
      <div class="org-people">${ppl.map(({p})=>orgCard(p,m)).join("")||'<div class="muted small">— chưa có —</div>'}</div></div>`;
   }).join("");
+  const ln=leaderName(L);
+  const lp=personByName(ln);
+  const ljoin=(lp&&lp.meta&&lp.meta.entered)?lp.meta.entered:'-';
   return `<div class="org-col">
-    <div class="org-leader">${avatarHtml(L.name,56)}
-     <div class="org-lname">${escHtml(L.name)}</div>
+    <div class="org-leader">${avatarHtml(ln,56)}
+     <div class="org-lname">${escHtml(ln)}</div>
      <div class="org-lrole">Operating Leader</div>
-     <div class="org-ljoin">Vào: ${L.join||'-'}</div>
+     <div class="org-ljoin">Vào: ${ljoin}</div>
      <div class="org-ldesc">${escHtml(L.role||'')}</div></div>
     ${groupsHtml}</div>`;
  }).join("");
@@ -549,8 +560,9 @@ function savePersonMeta(name){
  const group=document.getElementById("peGroup").value;
  const entered=document.getElementById("peEntered").value;   // YYYY-MM-DD
  const mainJob=document.getElementById("peJob").value.trim();
- const META=window.__META||{}; META[name]={group,entered,mainJob}; window.__META=META; save("qsl_meta",META);
- const p=personByName(name); if(p){ p.group=group; p.meta=p.meta||{}; p.meta.entered=entered; p.meta.service=computeSeniority(entered); p.meta.mainJob=mainJob; }
+ const id=document.getElementById("peId").value.trim();
+ const META=window.__META||{}; META[name]={group,entered,mainJob,id}; window.__META=META; save("qsl_meta",META);
+ const p=personByName(name); if(p){ p.group=group; p.meta=p.meta||{}; p.meta.entered=entered; p.meta.service=computeSeniority(entered); p.meta.mainJob=mainJob; p.meta.id=id; }
  render();
 }
 function vPerson(){
@@ -567,7 +579,8 @@ function vPerson(){
  <div class="card">
   <div class="row spread">
    <div class="row"><label class="small muted">Chọn Inspector:</label>
-    <select onchange="window._selPerson=this.value;vPerson()">${APPDATA.people.map(x=>`<option ${x.name===name?'selected':''}>${x.name}</option>`).join("")}</select></div>
+    <select onchange="window._selPerson=this.value;vPerson()">${APPDATA.people.map(x=>`<option ${x.name===name?'selected':''}>${x.name}</option>`).join("")}</select>
+    ${p.meta.id?`<span class="pill">ID: ${escHtml(p.meta.id)}</span>`:''}</div>
    <div>${lvlBadge(lv)} <span class="muted small">tháng ${m}</span>
     <button class="act" style="margin-left:10px;padding:6px 12px" onclick="togglePersonEdit()">✎ Sửa thông tin</button></div>
   </div>
@@ -587,6 +600,8 @@ function vPerson(){
   </div>
   <div id="pEditForm" style="display:none;margin-top:12px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px">
    <div class="row" style="flex-wrap:wrap;gap:10px">
+    <label class="small muted">ID</label>
+    <input type="text" id="peId" value="${(p.meta.id||'').replace(/"/g,'&quot;')}" placeholder="Mã nhân viên" style="width:120px">
     <label class="small muted">Nhóm</label>
     <select id="peGroup">${APPDATA.groups.map(gg=>`<option ${gg===p.group?'selected':''}>${gg}</option>`).join("")}</select>
     <label class="small muted">Ngày vào làm</label>
