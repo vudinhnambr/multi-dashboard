@@ -298,7 +298,8 @@ function vDash(){
  <div class="card">
   <div class="row spread"><h2>Bảng xếp hạng Inspector</h2>
    <div class="row small muted"><input type="text" id="dsearch" placeholder="Tìm tên..." oninput="dashFilter()" style="width:160px">
-   <select id="dgfilter" onchange="updateDash()"><option value="">Tất cả nhóm</option>${APPDATA.groups.map(g=>`<option>${g}</option>`).join("")}</select></div></div>
+   <select id="dgfilter" onchange="updateDash()"><option value="">Tất cả nhóm</option>${APPDATA.groups.map(g=>`<option>${g}</option>`).join("")}</select>
+   <button class="act" style="padding:7px 12px" onclick="exportRankingExcel()">⬇ Xuất Excel</button></div></div>
   <p class="small muted" style="margin:8px 0 0">💡 Nhấn cột <b>Phân bố Level</b> → biểu đồ nhóm đổi sang "số người mỗi nhóm ở Level đó". Nhấn cột <b>Điểm TB theo nhóm</b> → biểu đồ Level đổi sang phân bố Level của riêng nhóm đó. Nhấn lại để bỏ lọc.</p>
   <div id="dfchip" style="margin-top:6px"></div>
   <div style="max-height:520px;overflow:auto;margin-top:10px"><table id="drank"></table></div>
@@ -317,6 +318,28 @@ function scrollToRank(){const el=document.getElementById("drank");if(el)window.s
 function clearLevelFilter(){window._dashLevelFilter="";updateDash();}
 function clearGroupFilter(){const s=document.getElementById("dgfilter");if(s)s.value="";updateDash();}
 function noAccent(s){return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLowerCase().trim();}
+// Xuất Bảng xếp hạng ra Excel (đúng theo bộ lọc + sắp xếp đang hiển thị)
+function exportRankingExcel(){
+ const q=noAccent(document.getElementById("dsearch")?.value||"");
+ const gf=document.getElementById("dgfilter")?.value||"";
+ const lf=window._dashLevelFilter||"";
+ let rows=(window._dashRows||[]).filter(r=>(noAccent(r.name).includes(q)||noAccent(r.id).includes(q))&&(!gf||r.group===gf)&&(!lf||r.level===lf));
+ rows=rows.slice().sort((a,b)=>b.comp-a.comp);
+ const cols=["#","ID","Tên","Nhóm","Công việc",...CATS.map(c=>c.short),"Tổng hợp","Level mới","Level cũ"];
+ const e=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+ const head="<tr>"+cols.map(c=>`<th>${e(c)}</th>`).join("")+"</tr>";
+ const body=rows.map((r,i)=>"<tr>"+[
+   i+1, r.id||"", dispName(r.name), shortGroup(r.group), r.job||"",
+   ...CATS.map(c=>Math.round(r.pct[c.key]||0)), fmt(r.comp), r.level, r.old||""
+ ].map(v=>`<td>${e(v)}</td>`).join("")+"</tr>").join("");
+ const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1">${head}${body}</table></body></html>`;
+ const blob=new Blob(["﻿"+html],{type:"application/vnd.ms-excel"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url; a.download=`BXH_Inspector_${latestMonth()||""}.xls`;
+ document.body.appendChild(a); a.click(); a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 function dashFilter(){
  const q=noAccent(document.getElementById("dsearch")?.value||"");
  const gf=document.getElementById("dgfilter")?.value||"";
