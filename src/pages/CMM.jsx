@@ -996,7 +996,7 @@ function POCapacitySection({ avail, setAvail }) {
   );
 }
 
-function DailyPlannerSection({ avail = 80 }) {
+function DailyPlannerSection({ avail = 80, stdTable }) {
   const { t } = useLang();
   const [sets, setSets]   = React.useState({});
   const [shifts, setShifts] = React.useState(2);
@@ -1004,9 +1004,14 @@ function DailyPlannerSection({ avail = 80 }) {
   const capMin  = Math.round(shifts * 620 * avail / 100);        // 620 min/ca × availability
   const capHours = +(shifts * 620 * avail / 100 / 60).toFixed(2);
 
+  // Std ĐỘNG từ Combined ST (cột CMM Total). Fallback stdMin cứng nếu tên không khớp.
+  const totMap = {};
+  (stdTable || []).forEach(r => { const n = Number(r.total); if (r.part && n > 0) totMap[String(r.part).trim().toLowerCase()] = n; });
+  const stdOf = (part, fb) => { const v = totMap[String(part).trim().toLowerCase()]; return (v > 0) ? v : fb; };
+
   const rows = PLANNER_PARTS.map((p) => {
     const s   = Number(sets[p.part] || 0);
-    const min = s * p.stdMin;
+    const min = s * stdOf(p.part, p.stdMin);
     return { ...p, planned: s, totalMin: min, totalHours: +(min / 60).toFixed(2) };
   }).filter((r) => r.planned > 0 || true);
 
@@ -1095,7 +1100,8 @@ function DailyPlannerSection({ avail = 80 }) {
           <tbody>
             {PLANNER_PARTS.map((p, i) => {
               const s       = Number(sets[p.part] || 0);
-              const rowMin  = s * p.stdMin;
+              const pStd    = stdOf(p.part, p.stdMin);
+              const rowMin  = s * pStd;
               const rowH    = +(rowMin / 60).toFixed(2);
               const rowPct  = capMin > 0 ? Math.round(rowMin / capMin * 100) : 0;
               const rowOver = rowMin > capMin;
@@ -1106,8 +1112,8 @@ function DailyPlannerSection({ avail = 80 }) {
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: PART_COLORS[i % PART_COLORS.length], flexShrink: 0 }} />
                     {p.part}
                   </td>
-                  <td className="mono">{p.stdMin}</td>
-                  <td className="mono">{(p.stdMin / 60).toFixed(2)}</td>
+                  <td className="mono">{pStd}</td>
+                  <td className="mono">{(pStd / 60).toFixed(2)}</td>
                   <td>
                     <input
                       type="number" min="0" max="99"
@@ -1179,7 +1185,7 @@ const DAYS = [
   { key: 'sun', label: 'Sun' },
 ];
 
-function WeeklyPlannerSection({ avail = 80 }) {
+function WeeklyPlannerSection({ avail = 80, stdTable }) {
   const { t } = useLang();
   const [sets, setSets]           = React.useState({});
   const [totalManual, setTotalManual] = React.useState({}); // part -> manual total sets override
@@ -1189,6 +1195,11 @@ function WeeklyPlannerSection({ avail = 80 }) {
   const capDayMin  = Math.round(shifts * 620 * avail / 100);       // 620 min/ca × availability
   const capWeekMin = capDayMin * 7;
   const capDayH    = +(shifts * 620 * avail / 100 / 60).toFixed(2);
+
+  // Std ĐỘNG từ Combined ST (cột CMM Total). Fallback stdMin cứng nếu tên không khớp.
+  const totMap = {};
+  (stdTable || []).forEach(r => { const n = Number(r.total); if (r.part && n > 0) totMap[String(r.part).trim().toLowerCase()] = n; });
+  const stdOf = (part, fb) => { const v = totMap[String(part).trim().toLowerCase()]; return (v > 0) ? v : fb; };
 
   const getVal = (part, day) => Number(sets[part + '||' + day] || 0);
 
@@ -1215,8 +1226,8 @@ function WeeklyPlannerSection({ avail = 80 }) {
       ? totalManual[part]
       : DAYS.reduce((s, d) => s + getVal(part, d.key), 0);
 
-  const dayTotalMin  = (day)  => PLANNER_PARTS.reduce((s, p) => s + getVal(p.part, day) * p.stdMin, 0);
-  const partTotalMin = (part) => partEffSets(part) * PLANNER_PARTS.find(p => p.part === part).stdMin;
+  const dayTotalMin  = (day)  => PLANNER_PARTS.reduce((s, p) => s + getVal(p.part, day) * stdOf(p.part, p.stdMin), 0);
+  const partTotalMin = (part) => { const p = PLANNER_PARTS.find(p => p.part === part); return partEffSets(part) * stdOf(part, p ? p.stdMin : 0); };
   const weekTotalMin  = PLANNER_PARTS.reduce((s, p) => s + partTotalMin(p.part), 0);
   const weekTotalH    = +(weekTotalMin / 60).toFixed(2);
   const weekUtil      = weekTotalMin > 0 ? Math.round(weekTotalMin / capWeekMin * 100) : 0;
@@ -1331,7 +1342,7 @@ function WeeklyPlannerSection({ avail = 80 }) {
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: PART_COLORS[i % PART_COLORS.length], flexShrink: 0 }} />
                     {p.part}
                   </td>
-                  <td className="mono" style={{ color: 'var(--txt-low)' }}>{p.stdMin}</td>
+                  <td className="mono" style={{ color: 'var(--txt-low)' }}>{stdOf(p.part, p.stdMin)}</td>
                   {DAYS.map(d => {
                     const v = getVal(p.part, d.key);
                     return (
@@ -1721,11 +1732,11 @@ export default function CMM() {
       )}
 
       <CollapsibleSection eyebrow={t('s01.eyebrow')} title={t('s01.title')} defaultOpen={false}>
-        <DailyPlannerSection avail={avail} />
+        <DailyPlannerSection avail={avail} stdTable={stdTable} />
       </CollapsibleSection>
 
       <CollapsibleSection eyebrow={t('s01b.eyebrow')} title={t('s01b.title')} defaultOpen={false}>
-        <WeeklyPlannerSection avail={avail} />
+        <WeeklyPlannerSection avail={avail} stdTable={stdTable} />
       </CollapsibleSection>
 
       <CollapsibleSection eyebrow={t('s02.eyebrow')} title={t('s02.title')} defaultOpen={true}>

@@ -171,6 +171,22 @@ export async function loadCmmWeeklyData() {
     if (h.includes('re-check') || h.includes('re check') || h.includes('recheck')) { reCheckCol = i; break; }
   }
 
+  // Standard time ĐỘNG từ 'Combined ST' (cập nhật file nguồn là đổi theo). Fallback bảng cứng nếu thiếu.
+  let dynStd = {};
+  try {
+    const tbl = await loadCmmStdTable();
+    if (tbl && tbl.length) {
+      tbl.forEach(r => {
+        const k = normPart(r.part); if (!k) return;
+        const m = {};
+        const put = (c, v) => { const n = Number(v); if (n > 0) m[c] = n; };
+        put(4, r.itr); put(5, r.singleRing); put(6, r.outer); put(7, r.inner);
+        put(8, r.inner1); put(9, r.inner2); put(10, r.innerAsm); put(11, r.outerRGap); put(12, r.assembly);
+        if (Object.keys(m).length) dynStd[k] = m;
+      });
+    }
+  } catch (e) { /* Combined ST lỗi → dùng bảng cứng */ }
+
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row) continue;
@@ -200,7 +216,7 @@ export async function loadCmmWeeklyData() {
     const stepName = String(row[4] || '').trim().toLowerCase();
     const col = STEP_TO_COL[stepName];
     const key = normPart(rawPart);
-    const stepStd = PART_COL_STD[key];
+    const stepStd = dynStd[key] || PART_COL_STD[key];   // ưu tiên std động từ Combined ST
     const baseStd = (col !== undefined && stepStd && stepStd[col]) ? stepStd[col] : 0;
 
     // "Re-Check Time" (cột tìm theo tên tiêu đề)
