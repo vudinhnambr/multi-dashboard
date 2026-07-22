@@ -230,6 +230,16 @@ function StdTimeSection({ avail = 95 }) {
             &nbsp;·&nbsp;<span style={{ color: 'var(--txt-low)', fontSize: 10 }}>Sync: CMM Daily Inspection _2026.xlsx</span>
           </div>
           <div className="panel-sub" style={{ marginTop: -4, color: 'var(--txt-low)', fontSize: 10 }}>{t('std.avail_note', { a: avail })}</div>
+          {data2026.stdError && (
+            <div style={{ margin: '8px 0', padding: '8px 12px', borderRadius: 8, background: 'rgba(244,63,94,0.12)', border: '1px solid var(--rose)', color: 'var(--rose)', fontSize: 12, fontWeight: 600 }}>
+              ⚠ Không đọc được file "Combined standard time Auto MT and CMM" — giờ CMM Daily không tính được. Kiểm tra quyền chia sẻ / kết nối rồi tải lại trang.
+            </div>
+          )}
+          {!data2026.stdError && data2026.unmatchedParts && data2026.unmatchedParts.length > 0 && (
+            <div style={{ margin: '8px 0', padding: '8px 12px', borderRadius: 8, background: 'rgba(251,191,36,0.12)', border: '1px solid var(--amber)', color: 'var(--amber)', fontSize: 12 }}>
+              ⚠ <b>{data2026.unmatchedParts.length} part</b> trong "CMM Daily" không khớp tên trong Combined ST nên <b>không được tính giờ</b>: {data2026.unmatchedParts.join(', ')}. Hãy sửa tên part cho khớp cột Part của Combined ST.
+            </div>
+          )}
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart
               data={chartData2026}
@@ -294,14 +304,15 @@ function StdTimeSection({ avail = 95 }) {
                           const dow = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dt.getDay()];
                           const dm = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
                           const isSel = d.date === expandedDay;
+                          const low = d.hours < 20;   // ngày dưới 20h → tô đỏ cả ô
                           return (
                             <div key={i} onClick={() => { setExpandedDay(isSel ? null : d.date); setExpandedDayPart(null); }}
-                              style={{ background: isSel ? 'var(--surface-2)' : 'var(--surface-1)', border: `1px solid ${isSel ? 'var(--txt-hi)' : srcColor}`, borderRadius: 8, padding: '5px 10px', minWidth: 92, cursor: 'pointer' }}>
+                              style={{ background: isSel ? 'var(--surface-2)' : (low ? 'rgba(244,63,94,0.14)' : 'var(--surface-1)'), border: `1px solid ${isSel ? 'var(--txt-hi)' : (low ? 'var(--rose)' : srcColor)}`, borderRadius: 8, padding: '5px 10px', minWidth: 92, cursor: 'pointer' }}>
                               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                                 <span style={{ fontWeight: 700, color: srcColor, fontSize: 11 }}>{isSel ? '▾ ' : ''}{dow}</span>
                                 <span style={{ color: 'var(--txt-low)', fontSize: 10 }}>{dm}</span>
                               </div>
-                              <div className="mono" style={{ fontWeight: 700, fontSize: 14 }}>{d.hours}h</div>
+                              <div className="mono" style={{ fontWeight: 700, fontSize: 14, color: low ? 'var(--rose)' : undefined }}>{d.hours}h</div>
                               <div style={{ color: 'var(--txt-low)', fontSize: 10 }}>
                                 {d.sets} {t('std.rings_steps')}
                                 {d.reCheckMin > 0 && <span style={{ color: 'var(--amber)' }}> · ⟳{d.reCheckMin}′</span>}

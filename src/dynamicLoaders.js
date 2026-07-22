@@ -171,8 +171,9 @@ export async function loadCmmWeeklyData() {
     if (h.includes('re-check') || h.includes('re check') || h.includes('recheck')) { reCheckCol = i; break; }
   }
 
-  // Standard time ĐỘNG từ 'Combined ST' (cập nhật file nguồn là đổi theo). Fallback bảng cứng nếu thiếu.
-  let dynStd = {};
+  // Standard time BẮT BUỘC từ 'Combined ST'. stdError = true nếu không đọc được file.
+  let dynStd = {}, stdError = false;
+  const unmatchedSet = new Set(); // part có trong CMM Daily nhưng KHÔNG khớp Combined ST
   try {
     const tbl = await loadCmmStdTable();
     if (tbl && tbl.length) {
@@ -184,8 +185,8 @@ export async function loadCmmWeeklyData() {
         put(8, r.inner1); put(9, r.inner2); put(10, r.innerAsm); put(11, r.outerRGap); put(12, r.assembly);
         if (Object.keys(m).length) dynStd[k] = m;
       });
-    }
-  } catch (e) { /* Combined ST lỗi → dùng bảng cứng */ }
+    } else { stdError = true; }
+  } catch (e) { stdError = true; }
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -217,6 +218,7 @@ export async function loadCmmWeeklyData() {
     const col = STEP_TO_COL[stepName];
     const key = normPart(rawPart);
     const stepStd = dynStd[key];   // BẮT BUỘC lấy std từ Combined ST (không dùng bảng cứng)
+    if (!isITR && !stdError && !stepStd) unmatchedSet.add(getDisplayName(rawPart)); // part không khớp Combined ST
     const baseStd = (col !== undefined && stepStd && stepStd[col]) ? stepStd[col] : 0;
 
     // "Re-Check Time" (cột tìm theo tên tiêu đề)
@@ -349,6 +351,8 @@ export async function loadCmmWeeklyData() {
       ? `${String(maxDate.getDate()).padStart(2, '0')}/${String(maxDate.getMonth() + 1).padStart(2, '0')}/${maxDate.getFullYear()}`
       : null,
     lastSynced: `Google Sheets · 1. Mass Product (CMM Daily) · ${today} · đến FW${lastFW.replace('FW','')}`,
+    stdError,                               // true nếu không đọc được Combined ST
+    unmatchedParts: [...unmatchedSet].sort(), // part trong CMM Daily không khớp Combined ST
   };
 }
 
