@@ -309,7 +309,7 @@ function StdTimeSection({ avail = 95 }) {
                           const dow = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dt.getDay()];
                           const dm = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
                           const isSel = d.date === expandedDay;
-                          const low = d.hours < 20;   // ngày dưới 20h → tô nền vàng nổi bật
+                          const low = d.hours < 19;   // ngày dưới 19h → tô nền vàng nổi bật
                           return (
                             <div key={i} onClick={() => { setExpandedDay(isSel ? null : d.date); setExpandedDayPart(null); }}
                               style={{ background: low ? 'rgba(250,204,21,0.22)' : (isSel ? 'var(--surface-2)' : 'var(--surface-1)'), border: `2px solid ${isSel ? 'var(--txt-hi)' : (low ? 'var(--amber)' : srcColor)}`, borderRadius: 8, padding: '5px 10px', minWidth: 92, cursor: 'pointer', boxShadow: low ? '0 0 0 1px var(--amber) inset' : undefined }}>

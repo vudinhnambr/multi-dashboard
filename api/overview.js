@@ -43,25 +43,31 @@ export default async function handler(req, res) {
   const qd = req.query.date;
   const date = (typeof qd === "string" && /^\d{4}-\d{2}-\d{2}$/.test(qd)) ? qd : yesterdayVN();
   try {
-    // ---- CMM ----
-    const cmmRows = await fetchSheet(CMM_DAILY_ID, "CMM Daily");
-    const cmm = aggregateCmmDaily(cmmRows, date);
-    // CMM theo tuần: 5 tuần gần nhất + Avg 4 tuần đã xong
-    const cmmWk = aggregateCmmWeekly(cmmRows);
-    cmm.weekly = cmmWk.slice(-5).map(w => ({ week: w.week, qty: w.hours }));
-    const cmmDone = cmm.weekly.slice(0, Math.max(0, cmm.weekly.length - 1));
-    cmm.weeklyAvg = cmmDone.length ? Math.round(cmmDone.reduce((s, w) => s + w.qty, 0) / cmmDone.length * 10) / 10 : 0;
-
-    // ---- Auto MT std (per-ring) từ Combined ST ----
+    // ---- Std từ Combined ST (dùng cho cả CMM và Auto MT) ----
     const stRows = await fetchSheet(COMBINED_ST_ID, "Combined ST");
     const mtStd = {};
+    const cmmStd = {}; // BẮT BUỘC: std CMM lấy từ Combined ST (đồng bộ với tab CMM)
     for (let i = 3; i < stRows.length; i++) {
       const r = stRows[i]; if (!r || !r[1]) continue;
-      mtStd[norm(r[1])] = {
+      const k = norm(r[1]);
+      mtStd[k] = {
         single: Number(r[3]) || 0, outer: Number(r[4]) || 0, inner: Number(r[5]) || 0,
         inner1: Number(r[6]) || 0, inner2: Number(r[7]) || 0,
       };
+      // Cột CMM: 9=Outer,10=ITR,11=Single,12=Inner,13=Inner1,14=Inner2,15=InnerAsm,16=OuterR+Gap,17=Assembly
+      const m = {};
+      const put = (c, v) => { const n = Number(v); if (n > 0) m[c] = n; };
+      put(4, r[10]); put(5, r[11]); put(6, r[9]); put(7, r[12]); put(8, r[13]); put(9, r[14]); put(10, r[15]); put(11, r[16]); put(12, r[17]);
+      if (Object.keys(m).length) cmmStd[k] = m;
     }
+
+    // ---- CMM (std lấy từ Combined ST) ----
+    const cmmRows = await fetchSheet(CMM_DAILY_ID, "CMM Daily");
+    const cmm = aggregateCmmDaily(cmmRows, date, cmmStd);
+    const cmmWk = aggregateCmmWeekly(cmmRows, cmmStd);
+    cmm.weekly = cmmWk.slice(-5).map(w => ({ week: w.week, qty: w.hours }));
+    const cmmDone = cmm.weekly.slice(0, Math.max(0, cmm.weekly.length - 1));
+    cmm.weeklyAvg = cmmDone.length ? Math.round(cmmDone.reduce((s, w) => s + w.qty, 0) / cmmDone.length * 10) / 10 : 0;
 
     // ---- Auto MT: ~6 tuần gần nhất (service key, bypass RLS) → hôm trước + theo tuần ----
     let mt = { qty: 0, people: 0, hours: 0, byMachine: [], byPersonDay: [], weekly: [], weeklyAvg: 0 };
