@@ -216,7 +216,7 @@ export async function loadCmmWeeklyData() {
     const stepName = String(row[4] || '').trim().toLowerCase();
     const col = STEP_TO_COL[stepName];
     const key = normPart(rawPart);
-    const stepStd = dynStd[key] || PART_COL_STD[key];   // ưu tiên std động từ Combined ST
+    const stepStd = dynStd[key];   // BẮT BUỘC lấy std từ Combined ST (không dùng bảng cứng)
     const baseStd = (col !== undefined && stepStd && stepStd[col]) ? stepStd[col] : 0;
 
     // "Re-Check Time" (cột tìm theo tên tiêu đề)

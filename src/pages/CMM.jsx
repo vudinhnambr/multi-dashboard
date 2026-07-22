@@ -1004,16 +1004,16 @@ function DailyPlannerSection({ avail = 80, stdTable }) {
   const capMin  = Math.round(shifts * 620 * avail / 100);        // 620 min/ca × availability
   const capHours = +(shifts * 620 * avail / 100 / 60).toFixed(2);
 
-  // Std ĐỘNG từ Combined ST (cột CMM Total). Fallback stdMin cứng nếu tên không khớp.
-  const totMap = {};
-  (stdTable || []).forEach(r => { const n = Number(r.total); if (r.part && n > 0) totMap[String(r.part).trim().toLowerCase()] = n; });
-  const stdOf = (part, fb) => { const v = totMap[String(part).trim().toLowerCase()]; return (v > 0) ? v : fb; };
+  // BẮT BUỘC lấy Part Name + Std từ Combined ST (cột CMM Total).
+  const parts = (stdTable || []).filter(r => Number(r.total) > 0)
+    .map(r => ({ part: String(r.part).trim(), stdMin: Number(r.total) }))
+    .sort((a, b) => a.part.localeCompare(b.part));
 
-  const rows = PLANNER_PARTS.map((p) => {
+  const rows = parts.map((p) => {
     const s   = Number(sets[p.part] || 0);
-    const min = s * stdOf(p.part, p.stdMin);
+    const min = s * p.stdMin;
     return { ...p, planned: s, totalMin: min, totalHours: +(min / 60).toFixed(2) };
-  }).filter((r) => r.planned > 0 || true);
+  });
 
   const totalMin   = rows.reduce((a, r) => a + r.totalMin, 0);
   const totalHours = +(totalMin / 60).toFixed(2);
@@ -1098,9 +1098,9 @@ function DailyPlannerSection({ avail = 80, stdTable }) {
             </tr>
           </thead>
           <tbody>
-            {PLANNER_PARTS.map((p, i) => {
+            {parts.map((p, i) => {
               const s       = Number(sets[p.part] || 0);
-              const pStd    = stdOf(p.part, p.stdMin);
+              const pStd    = p.stdMin;
               const rowMin  = s * pStd;
               const rowH    = +(rowMin / 60).toFixed(2);
               const rowPct  = capMin > 0 ? Math.round(rowMin / capMin * 100) : 0;
@@ -1196,10 +1196,10 @@ function WeeklyPlannerSection({ avail = 80, stdTable }) {
   const capWeekMin = capDayMin * 7;
   const capDayH    = +(shifts * 620 * avail / 100 / 60).toFixed(2);
 
-  // Std ĐỘNG từ Combined ST (cột CMM Total). Fallback stdMin cứng nếu tên không khớp.
-  const totMap = {};
-  (stdTable || []).forEach(r => { const n = Number(r.total); if (r.part && n > 0) totMap[String(r.part).trim().toLowerCase()] = n; });
-  const stdOf = (part, fb) => { const v = totMap[String(part).trim().toLowerCase()]; return (v > 0) ? v : fb; };
+  // BẮT BUỘC lấy Part Name + Std từ Combined ST (cột CMM Total).
+  const parts = (stdTable || []).filter(r => Number(r.total) > 0)
+    .map(r => ({ part: String(r.part).trim(), stdMin: Number(r.total) }))
+    .sort((a, b) => a.part.localeCompare(b.part));
 
   const getVal = (part, day) => Number(sets[part + '||' + day] || 0);
 
@@ -1226,14 +1226,14 @@ function WeeklyPlannerSection({ avail = 80, stdTable }) {
       ? totalManual[part]
       : DAYS.reduce((s, d) => s + getVal(part, d.key), 0);
 
-  const dayTotalMin  = (day)  => PLANNER_PARTS.reduce((s, p) => s + getVal(p.part, day) * stdOf(p.part, p.stdMin), 0);
-  const partTotalMin = (part) => { const p = PLANNER_PARTS.find(p => p.part === part); return partEffSets(part) * stdOf(part, p ? p.stdMin : 0); };
-  const weekTotalMin  = PLANNER_PARTS.reduce((s, p) => s + partTotalMin(p.part), 0);
+  const dayTotalMin  = (day)  => parts.reduce((s, p) => s + getVal(p.part, day) * p.stdMin, 0);
+  const partTotalMin = (part) => { const p = parts.find(x => x.part === part); return partEffSets(part) * (p ? p.stdMin : 0); };
+  const weekTotalMin  = parts.reduce((s, p) => s + partTotalMin(p.part), 0);
   const weekTotalH    = +(weekTotalMin / 60).toFixed(2);
   const weekUtil      = weekTotalMin > 0 ? Math.round(weekTotalMin / capWeekMin * 100) : 0;
   const weekRemain    = +((capWeekMin - weekTotalMin) / 60).toFixed(2);
   const weekOverload  = weekTotalMin > capWeekMin;
-  const weekTotalSets = PLANNER_PARTS.reduce((s, p) => s + partEffSets(p.part), 0);
+  const weekTotalSets = parts.reduce((s, p) => s + partEffSets(p.part), 0);
   const weekBarColor  = weekOverload ? 'var(--rose)' : weekUtil > 80 ? 'var(--amber)' : 'var(--signal)';
 
   function reset() { setSets({}); setTotalManual({}); }
@@ -1307,7 +1307,7 @@ function WeeklyPlannerSection({ avail = 80, stdTable }) {
           <div className="label"><Package size={13} style={{ marginRight: 4 }} />{t('wp.total_sets')}</div>
           <div className="value">{weekTotalSets}</div>
           <div className="foot ok">
-            <Layers size={13} /> {t('dp.part_types', { n: PLANNER_PARTS.filter(p => DAYS.some(d => getVal(p.part, d.key) > 0)).length })}
+            <Layers size={13} /> {t('dp.part_types', { n: parts.filter(p => DAYS.some(d => getVal(p.part, d.key) > 0)).length })}
           </div>
         </div>
       </div>
@@ -1328,7 +1328,7 @@ function WeeklyPlannerSection({ avail = 80, stdTable }) {
             </tr>
           </thead>
           <tbody>
-            {PLANNER_PARTS.map((p, i) => {
+            {parts.map((p, i) => {
               const ptSets  = partEffSets(p.part);
               const ptMin   = partTotalMin(p.part);
               const ptH     = +(ptMin / 60).toFixed(2);
@@ -1342,7 +1342,7 @@ function WeeklyPlannerSection({ avail = 80, stdTable }) {
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: PART_COLORS[i % PART_COLORS.length], flexShrink: 0 }} />
                     {p.part}
                   </td>
-                  <td className="mono" style={{ color: 'var(--txt-low)' }}>{stdOf(p.part, p.stdMin)}</td>
+                  <td className="mono" style={{ color: 'var(--txt-low)' }}>{p.stdMin}</td>
                   {DAYS.map(d => {
                     const v = getVal(p.part, d.key);
                     return (
