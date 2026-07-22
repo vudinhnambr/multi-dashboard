@@ -576,7 +576,7 @@ function vOrg(){
  const el=document.getElementById("content");
  const m=orgMonthOverride||defaultQuarter();
  // Field Engineer = những người thuộc nhóm "Field Engineer"
- const feMembers=APPDATA.people.filter(p=>p.group==="Field Engineer" && !isInactive(p.name))
+ const feMembers=APPDATA.people.filter(p=>p.group==="Field Engineer" && !isInactive(p.name) && eligibleQ(p,m))
    .map(p=>({p,comp:composite(getPct(m,p.name))})).sort((a,b)=>b.comp-a.comp);
  // 4 cột theo Operating Leader; MỖI nhóm công việc chuyển vào cột của Group Leader được gán (bỏ nhóm Field Engineer)
  const cols=ORG_LEADERS.map(L=>({L,name:leaderName(L),groups:[]}));
@@ -595,7 +595,7 @@ function vOrg(){
   const lbadge=lp?lvlBadge(levelOf(composite(getPct(m,ln)))):'';
   const clickL=lp?`onclick="openPerson('${esc1(ln)}')" title="Xem hồ sơ"`:'';
   const groupsHtml=col.groups.map(g=>{
-   const ppl=APPDATA.people.filter(p=>p.group===g && !isInactive(p.name) && !topNames.has(p.name))
+   const ppl=APPDATA.people.filter(p=>p.group===g && !isInactive(p.name) && !topNames.has(p.name) && eligibleQ(p,m))
      .map(p=>({p,comp:composite(getPct(m,p.name))})).sort((a,b)=>b.comp-a.comp);
    return `<div class="org-group"><div class="org-gtitle">${shortGroup(g)} <span class="pill">${ppl.length}</span></div>
      <div class="org-people">${ppl.map(({p})=>orgCard(p,m)).join("")||'<div class="muted small">— chưa có —</div>'}</div></div>`;
