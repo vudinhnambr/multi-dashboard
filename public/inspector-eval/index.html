@@ -543,19 +543,21 @@ function vOrg(){
   const L=col.L, ln=col.name, lp=personByName(ln);
   const ljoin=(lp&&lp.meta&&lp.meta.entered)?lp.meta.entered:'-';
   const lbadge=lp?lvlBadge(levelOf(composite(getPct(m,ln)))):'';
-  const clickL=lp?`onclick="openPerson('${esc1(ln)}')" style="cursor:pointer" title="Xem hồ sơ"`:'';
+  const clickL=lp?`onclick="openPerson('${esc1(ln)}')" title="Xem hồ sơ"`:'';
   const groupsHtml=col.groups.map(g=>{
    const ppl=APPDATA.people.filter(p=>p.group===g && !isInactive(p.name) && !topNames.has(p.name))
      .map(p=>({p,comp:composite(getPct(m,p.name))})).sort((a,b)=>b.comp-a.comp);
    return `<div class="org-group"><div class="org-gtitle">${shortGroup(g)} <span class="pill">${ppl.length}</span></div>
      <div class="org-people">${ppl.map(({p})=>orgCard(p,m)).join("")||'<div class="muted small">— chưa có —</div>'}</div></div>`;
   }).join("");
+  const lsb=lp?statusBadgesHtml(ln):'';const ltint=lp?statusTint(ln):'';
   return `<div class="org-col">
-    <div class="org-leader" ${clickL}>${avatarHtml(ln,56)}
+    <div class="org-leader" ${clickL} style="${lp?'cursor:pointer;':''}${ltint?`background:${ltint}`:''}">${avatarHtml(ln,56)}
      <div class="org-lname">${escHtml(dispName(ln))}</div>
      <div class="org-lrole">Operating Leader</div>
      ${lbadge?`<div style="margin:2px 0 0">${lbadge}</div>`:''}
      <div class="org-ljoin">Vào: ${ljoin}</div>
+     ${lsb?`<div style="margin-top:2px">${lsb}</div>`:''}
      <div class="org-ldesc">${escHtml(L.role||'')}</div></div>
     ${groupsHtml||'<div class="org-group muted small">— chưa có nhóm —</div>'}</div>`;
  }).join("");
@@ -563,11 +565,13 @@ function vOrg(){
  const feCards=feMembers.map(({p})=>{
   const lv=levelOf(composite(getPct(m,p.name)));
   const join=(p.meta&&p.meta.entered)?p.meta.entered:'-';
-  return `<div class="org-fe" onclick="openPerson('${esc1(p.name)}')" style="cursor:pointer" title="Xem hồ sơ">
+  const sb=statusBadgesHtml(p.name);const tint=statusTint(p.name);
+  return `<div class="org-fe" onclick="openPerson('${esc1(p.name)}')" style="cursor:pointer;${tint?`background:${tint}`:''}" title="Xem hồ sơ">
     ${avatarHtml(p.name,52)}
     <div><div class="org-lname">${escHtml(dispName(p.name))}</div>
      <div class="org-lrole" style="color:var(--warn)">Field Engineer</div>
-     <div class="org-ljoin">Vào: ${join} · ${lvlBadge(lv)}</div></div></div>`;
+     <div class="org-ljoin">Vào: ${join} · ${lvlBadge(lv)}</div>
+     ${sb?`<div style="margin-top:3px">${sb}</div>`:''}</div></div>`;
  }).join("");
  const feRow=feMembers.length
    ? `<div class="org-fe-row">${feCards}</div>`
