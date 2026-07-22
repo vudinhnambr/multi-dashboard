@@ -522,7 +522,26 @@ function avatarHtml(name,size){
 }
 let orgMonthOverride=null;
 function orgMonth(v){orgMonthOverride=v;vOrg();}
-function printOrg(){window.print();}
+function printOrg(){
+ const card=document.getElementById("orgCard");
+ if(!card){window.print();return;}
+ const pageW=730, pageH=1050;            // vùng in A4 dọc (px, đã trừ lề ~8mm)
+ const w=card.scrollWidth||card.offsetWidth, h=card.scrollHeight||card.offsetHeight;
+ const scale=Math.min(pageW/w, pageH/h, 1);
+ const st=document.createElement("style"); st.id="orgPrintStyle";
+ st.textContent=`@media print{
+   @page{size:A4 portrait;margin:8mm}
+   header,nav,.savebar,#ieTopRight,#ieGate,.noprint{display:none !important}
+   body *{visibility:hidden}
+   #orgCard,#orgCard *{visibility:visible}
+   #orgCard{position:fixed;left:0;top:0;width:${w}px;transform:scale(${scale});transform-origin:top left;border:none;background:#0f1720;margin:0}
+   .org-col,.org-group,.org-person,.org-fe,.org-leader{break-inside:avoid}
+ }`;
+ document.head.appendChild(st);
+ const cleanup=()=>{const s=document.getElementById("orgPrintStyle");if(s)s.remove();window.removeEventListener("afterprint",cleanup);};
+ window.addEventListener("afterprint",cleanup);
+ setTimeout(()=>window.print(), 60);
+}
 function orgCard(p,m){
  const comp=composite(getPct(m,p.name));const lv=levelOf(comp);const nc=certsOf(p.name).length;
  const tint=statusTint(p.name);const sb=statusBadgesHtml(p.name);
@@ -589,7 +608,7 @@ function vOrg(){
  const feRow=feMembers.length
    ? `<div class="org-fe-row">${feCards}</div>`
    : `<div class="org-fe" style="border-style:dashed"><span class="muted small">Chưa có Field Engineer — gán người vào nhóm "Field Engineer" (tab Nhóm hoặc Sửa thông tin).</span></div>`;
- el.innerHTML=`<div class="card"><div class="row spread">
+ el.innerHTML=`<div class="card" id="orgCard"><div class="row spread">
    <div><h2>Sơ đồ tổ chức</h2><p class="muted small" style="margin:2px 0 0">Field Engineer › 4 Operating Leader › nhóm · Level theo quý chọn · Nhấn 1 người để xem hồ sơ.</p></div>
    <div class="row noprint"><button class="ghost" onclick="printOrg()" style="padding:6px 12px">🖨 In PDF</button><span class="muted small">Level quý:</span><select id="omonth" onchange="orgMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select></div></div>
    <div class="org-fe-wrap">${feRow}</div>
