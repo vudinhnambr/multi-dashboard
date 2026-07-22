@@ -166,8 +166,13 @@ function StdTimeSection({ avail = 95 }) {
   const effectiveCapStd = Math.round(CAP_WEEK_BASE * avail / 100 * 10) / 10;
 
   useEffect(() => {
-    loadCmmWeeklyData().then(setLiveWeeklyData).catch(() => {});
-    loadCmmStdTable().then(d => { if (d) setLiveStdTable(d); }).catch(() => {});
+    const reload = () => {
+      loadCmmWeeklyData().then(setLiveWeeklyData).catch(() => {});
+      loadCmmStdTable().then(d => { if (d) setLiveStdTable(d); }).catch(() => {});
+    };
+    reload();
+    const id = setInterval(reload, 2 * 60 * 60 * 1000); // tự làm mới mỗi 2 giờ
+    return () => clearInterval(id);
   }, []);
 
   const data2026 = liveWeeklyData || cmmStdTimeData2026;
@@ -1564,7 +1569,11 @@ export default function CMM() {
     loadCmmStdTable().then(setStdTable).catch(() => {});
     loadCmmWeeklyData().then(d => { if (d?.dataDate) setDataDate(d.dataDate); }).catch(() => {});
   }
-  useEffect(() => { reloadAll(); }, []);
+  useEffect(() => {
+    reloadAll();
+    const id = setInterval(reloadAll, 2 * 60 * 60 * 1000); // tự làm mới mỗi 2 giờ
+    return () => clearInterval(id);
+  }, []);
 
   const items = state.items || [];
   const m = useMemo(() => computeMetrics(items), [items]);

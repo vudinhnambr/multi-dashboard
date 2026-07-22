@@ -161,6 +161,8 @@ function AccessGate({ children, checkUrl = '/api/sheets?access=check', title = '
 
 function AppInner() {
   const [tab, setTab] = useState(tabFromHash());
+  // Giữ (keep-alive) các tab đã mở → chuyển qua lại KHÔNG tải lại; chưa mở thì chưa dựng.
+  const [visited, setVisited] = useState(() => new Set([tabFromHash()]));
   const { lang, setLang, t } = useLang();
 
   useEffect(() => {
@@ -169,9 +171,28 @@ function AppInner() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  useEffect(() => {
+    setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab)));
+  }, [tab]);
+
   const go = (id) => {
     window.location.hash = id;
     setTab(id);
+  };
+
+  // Nội dung từng tab (chỉ dựng khi đã mở, giữ nguyên khi ẩn)
+  const paneFor = (id) => {
+    switch (id) {
+      case 'overview': return <iframe className="shell-frame" src={OVERVIEW_SRC} title="Overview" />;
+      case 'cmm': return <AccessGate><CMM /></AccessGate>;
+      case 'inspection-notice': return <AccessGate checkUrl="/api/inspection?access=check" title="Inspection Notice"><InspectionNotice /></AccessGate>;
+      case 'auto-mt': return <iframe className="shell-frame" src="/auto-mt.html" title="Auto MT Dashboard" />;
+      case 'supplier-ncr': return <iframe className="shell-frame" src="/supplier-ncr/index.html" title="Supplier NCR Dashboard" />;
+      case 'shipment-check': return <iframe className="shell-frame" src="/shipment-check/index.html" title="Shipment Check" />;
+      case 'inspector-eval': return <iframe className="shell-frame" src="/inspector-eval/index.html" title="Inspector Skill Evaluation" />;
+      case 'access-admin': return <AccessGate checkUrl="/api/access-admin?access=check" title="Quản trị quyền"><AccessAdmin /></AccessGate>;
+      default: return null;
+    }
   };
 
   return (
@@ -214,28 +235,11 @@ function AppInner() {
       </header>
 
       <main className="shell-body">
-        {tab === 'overview' && (
-          <iframe className="shell-frame" src={OVERVIEW_SRC} title="Overview" />
-        )}
-        {tab === 'cmm' && <AccessGate><CMM /></AccessGate>}
-        {tab === 'inspection-notice' && (
-          <AccessGate checkUrl="/api/inspection?access=check" title="Inspection Notice"><InspectionNotice /></AccessGate>
-        )}
-        {tab === 'auto-mt' && (
-          <iframe className="shell-frame" src="/auto-mt.html" title="Auto MT Dashboard" />
-        )}
-        {tab === 'supplier-ncr' && (
-          <iframe className="shell-frame" src="/supplier-ncr/index.html" title="Supplier NCR Dashboard" />
-        )}
-        {tab === 'shipment-check' && (
-          <iframe className="shell-frame" src="/shipment-check/index.html" title="Shipment Check" />
-        )}
-        {tab === 'inspector-eval' && (
-          <iframe className="shell-frame" src="/inspector-eval/index.html" title="Inspector Skill Evaluation" />
-        )}
-        {tab === 'access-admin' && (
-          <AccessGate checkUrl="/api/access-admin?access=check" title="Quản trị quyền"><AccessAdmin /></AccessGate>
-        )}
+        {TABS.filter((tb) => visited.has(tb.id)).map((tb) => (
+          <div key={tb.id} style={{ display: tab === tb.id ? 'block' : 'none', height: '100%' }}>
+            {paneFor(tb.id)}
+          </div>
+        ))}
       </main>
     </div>
   );
