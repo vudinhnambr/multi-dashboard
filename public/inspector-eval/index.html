@@ -436,23 +436,32 @@ function vMonthly(){
 }
 function mSel(t,v){ if(dirtyMonth&&!confirm("Bỏ thay đổi chưa lưu?"))return; if(dirtyMonth)discardMonth();
  if(t==='g')window._mGroup=v;else window._mMonth=v;vMonthly();}
+// Quý vào làm của 1 người ("YYYY-Qn") + kiểm tra đủ điều kiện chấm điểm quý q
+function enteredQ(p){ const e=p&&p.meta&&p.meta.entered; if(!e)return null; const mm=/^(\d{4})-(\d{2})/.exec(e); return mm?monthToQuarter(mm[1]+"-"+mm[2]):null; }
+function eligibleQ(p,q){ const eq=enteredQ(p); return !eq || eq<=q; }
 function mTable(g,m){
  const members=APPDATA.people.filter(p=>p.group===g);
  const prevMonths=monthList().filter(x=>x<m);const prev=prevMonths.slice(-1)[0];
  const t=document.getElementById("mtable");
  t.innerHTML=`<tr><th>Tên</th>${CATS.map(c=>`<th class="small">${c.short}<br><span class="muted" style="font-weight:400">0–100</span></th>`).join("")}<th>Tổng hợp</th><th>Level</th><th>So tháng trước</th><th class="small">Ghi chú</th></tr>`+
   members.map(p=>{
+   // Vào làm sau khi quý này kết thúc → chưa chấm điểm quý này
+   if(!eligibleQ(p,m)){
+    return `<tr style="opacity:.55"><td>${escHtml(dispName(p.name))}</td>
+     <td colspan="${CATS.length}" class="muted small" style="text-align:center">⏳ Chưa vào làm quý này (vào ${p.meta.entered||'-'})</td>
+     <td></td><td></td><td></td><td></td></tr>`;
+   }
    const pct=getPct(m,p.name);const comp=composite(pct);const lv=levelOf(comp);
    const pcomp=prev?composite(getPct(prev,p.name)):null;
    let trend='<span class="muted small">—</span>';
    if(pcomp!==null){const d=comp-pcomp;trend=d>0.05?`<span class="up small">▲ +${fmt(d)}</span>`:d<-0.05?`<span class="down small">▼ ${fmt(d)}</span>`:'<span class="muted small">=</span>';}
-   return `<tr id="mr_${cssId(p.name)}"><td>${p.name}</td>
+   return `<tr id="mr_${cssId(p.name)}"><td>${escHtml(dispName(p.name))}</td>
     ${CATS.map(c=>{const _v=Math.round(pct[c.key]);return `<td><input type="number" min="0" max="100" value="${_v}" class="${_v===0?'zero':''}" data-p="${p.name}" data-c="${c.key}" oninput="mEdit(this)"></td>`;}).join("")}
     <td class="mcomp"><b>${fmt(comp)}</b></td><td class="mlvl">${lvlBadge(lv)}</td><td class="mtrend">${trend}</td>
     <td><input type="text" value="${getNote(m,p.name).replace(/"/g,'&quot;')}" data-note="${p.name}" oninput="mEditNote(this)" style="width:150px"></td></tr>`;
   }).join("");
  editState={group:g,month:m,data:{}};
- members.forEach(p=>{editState.data[p.name]={pct:{...getPct(m,p.name)},note:getNote(m,p.name)};});
+ members.filter(p=>eligibleQ(p,m)).forEach(p=>{editState.data[p.name]={pct:{...getPct(m,p.name)},note:getNote(m,p.name)};});
 }
 function cssId(s){return s.replace(/[^a-zA-Z0-9]/g,"_");}
 function mEdit(inp){
