@@ -86,6 +86,10 @@ input.zero{border-color:var(--warn)!important;background:#3a2f1a!important;color
 .org-person:hover{border-color:var(--acc)}
 .org-pname{font-weight:600;font-size:13px}
 .org-pjoin{color:var(--mut);font-size:11px}
+.stag{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;white-space:nowrap;margin:1px 2px 1px 0}
+.stag.leave{background:rgba(248,113,113,.2);color:#fca5a5;border:1px solid rgba(248,113,113,.5)}
+.stag.hired{background:rgba(52,211,153,.18);color:#6ee7b7;border:1px solid rgba(52,211,153,.5)}
+.stag.pend{background:rgba(251,191,36,.18);color:#fcd34d;border:1px solid rgba(251,191,36,.5)}
 </style>
 </head>
 <body>
@@ -146,6 +150,7 @@ function initState(){
  window.__INACTIVE=load("qsl_inactive",[]);   // danh sách người đã nghỉ (không thống kê)
  window.__PHOTOS=load("qsl_photos",{});       // ảnh (base64) theo tên
  window.__CERTS=load("qsl_certs",{});         // chứng nhận theo tên (mảng {title,date,note})
+ window.__STATUS=load("qsl_status",{});       // trạng thái nhân sự: {leaving,leaveDate,hired,startDate,pending,pvDate}
  window.__META=load("qsl_meta",{});           // ghi đè Nhóm / Thâm niên / Công việc chính
  const META=window.__META||{};
  APPDATA.people.forEach(p=>{
@@ -314,8 +319,8 @@ function dashFilter(){
   chip.innerHTML=c.length?('<span class="small muted">Đang lọc: </span>'+c.join(" ")+` <span class="small muted">— ${rows.length} người</span>`):"";}
  const t=document.getElementById("drank");
  t.innerHTML=`<tr><th>#</th><th>ID</th><th>Tên</th><th>Nhóm</th><th>Công việc</th><th>Đo lường</th><th>Bản vẽ</th><th>Báo cáo</th><th>Phán định</th><th>Thái độ</th><th>Tổng hợp</th><th>Level mới</th><th>Level cũ</th></tr>`+
-  rows.map((r,i)=>`<tr>
-   <td>${i+1}</td><td class="small muted">${escHtml(r.id||"-")}</td><td><a href="#" onclick="openPerson('${esc1(r.name)}');return false" style="color:var(--acc)">${escHtml(dispName(r.name))}</a></td>
+  rows.map((r,i)=>`<tr style="${statusTint(r.name)?`background:${statusTint(r.name)}`:''}">
+   <td>${i+1}</td><td class="small muted">${escHtml(r.id||"-")}</td><td><a href="#" onclick="openPerson('${esc1(r.name)}');return false" style="color:var(--acc)">${escHtml(dispName(r.name))}</a> ${statusBadgesHtml(r.name)}</td>
    <td class="small">${shortGroup(r.group)}</td><td class="small muted">${r.job}</td>
    ${CATS.map(c=>`<td>${miniBar(r.pct[c.key],c.color)}</td>`).join("")}
    <td><b>${fmt(r.comp)}</b></td><td>${lvlBadge(r.level)}</td><td class="small muted">${r.old||"-"}</td></tr>`).join("");
@@ -485,6 +490,18 @@ function photoOf(n){return (window.__PHOTOS||{})[n]||"";}
 function certsOf(n){return (window.__CERTS||{})[n]||[];}
 // Tên hiển thị (Full Name nếu có) — key nội bộ vẫn là n
 function dispName(n){const p=personByName(n);return (p&&p.meta&&p.meta.fullName)?p.meta.fullName:n;}
+// Trạng thái nhân sự
+function statusOf(n){return (window.__STATUS||{})[n]||{};}
+function setStatus(n,patch){const S=window.__STATUS||{};S[n]={...(S[n]||{}),...patch};window.__STATUS=S;save("qsl_status",S);render();}
+function hasStatus(n){const s=statusOf(n);return !!(s.leaving||s.hired||s.pending);}
+function statusTint(n){const s=statusOf(n);if(s.leaving)return"rgba(248,113,113,0.12)";if(s.hired)return"rgba(52,211,153,0.12)";if(s.pending)return"rgba(251,191,36,0.12)";return"";}
+function statusBadgesHtml(n){
+ const s=statusOf(n);const b=[];
+ if(s.leaving)b.push(`<span class="stag leave" title="Sắp nghỉ việc">⚠ Sắp nghỉ${s.leaveDate?' '+s.leaveDate:''}</span>`);
+ if(s.hired)b.push(`<span class="stag hired" title="Phỏng vấn đậu">✔ PV đậu${s.startDate?' · nhận '+s.startDate:''}</span>`);
+ if(s.pending)b.push(`<span class="stag pend" title="Đang chờ hẹn lịch phỏng vấn">⏳ Chờ PV${s.pvDate?' '+s.pvDate:''}</span>`);
+ return b.join(" ");
+}
 function avatarHtml(name,size){
  const ph=photoOf(name);
  if(ph)return `<img src="${ph}" style="width:${size}px;height:${size}px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:none">`;
@@ -495,10 +512,12 @@ let orgMonthOverride=null;
 function orgMonth(v){orgMonthOverride=v;vOrg();}
 function orgCard(p,m){
  const comp=composite(getPct(m,p.name));const lv=levelOf(comp);const nc=certsOf(p.name).length;
- return `<div class="org-person" onclick="openPerson('${esc1(p.name)}')" title="Xem hồ sơ">
+ const tint=statusTint(p.name);const sb=statusBadgesHtml(p.name);
+ return `<div class="org-person" onclick="openPerson('${esc1(p.name)}')" title="Xem hồ sơ" style="cursor:pointer;${tint?`background:${tint}`:''}">
    ${avatarHtml(p.name,40)}
    <div style="flex:1;min-width:0"><div class="org-pname">${escHtml(dispName(p.name))}${nc?` <span title="${nc} chứng nhận">🎓</span>`:''}</div>
-    <div class="org-pjoin">${p.meta&&p.meta.entered?('Vào: '+p.meta.entered):''}</div></div>
+    <div class="org-pjoin">${p.meta&&p.meta.entered?('Vào: '+p.meta.entered):''}</div>
+    ${sb?`<div style="margin-top:3px">${sb}</div>`:''}</div>
    <div>${lvlBadge(lv)}</div>
  </div>`;
 }
@@ -675,6 +694,26 @@ function vPerson(){
    <h3>Thông tin</h3>
    <p class="small muted">${certList(p)}</p>
   </div>
+ </div>
+ <div class="card"><h2>Trạng thái nhân sự</h2>
+  ${(()=>{const s=statusOf(name);const nm=esc1(name);return `
+   <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+    <div class="row" style="gap:12px;flex-wrap:wrap">
+     <label style="display:inline-flex;align-items:center;gap:6px;min-width:230px"><input type="checkbox" ${s.leaving?'checked':''} onchange="setStatus('${nm}',{leaving:this.checked})"> ⚠ Sắp nghỉ việc</label>
+     <span class="small muted">Ngày dự định nghỉ:</span>
+     <input type="date" value="${s.leaveDate||''}" onchange="setStatus('${nm}',{leaveDate:this.value})" style="color-scheme:dark">
+    </div>
+    <div class="row" style="gap:12px;flex-wrap:wrap">
+     <label style="display:inline-flex;align-items:center;gap:6px;min-width:230px"><input type="checkbox" ${s.hired?'checked':''} onchange="setStatus('${nm}',{hired:this.checked})"> ✔ Phỏng vấn đậu</label>
+     <span class="small muted">Ngày dự định nhận việc:</span>
+     <input type="date" value="${s.startDate||''}" onchange="setStatus('${nm}',{startDate:this.value})" style="color-scheme:dark">
+    </div>
+    <div class="row" style="gap:12px;flex-wrap:wrap">
+     <label style="display:inline-flex;align-items:center;gap:6px;min-width:230px"><input type="checkbox" ${s.pending?'checked':''} onchange="setStatus('${nm}',{pending:this.checked})"> ⏳ Thiếu, đang chờ hẹn lịch PV</label>
+     <span class="small muted">Ngày dự định PV:</span>
+     <input type="date" value="${s.pvDate||''}" onchange="setStatus('${nm}',{pvDate:this.value})" style="color-scheme:dark">
+    </div>
+   </div>`;})()}
  </div>
  <div class="card"><h2>Chứng nhận / Bằng cấp</h2>
   <div class="row" style="flex-wrap:wrap;gap:8px;margin:8px 0 12px">
