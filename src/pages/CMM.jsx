@@ -1558,11 +1558,13 @@ export default function CMM() {
       setState({ status: 'error', message: e.message });
     }
   }
-  useEffect(() => {
+  // Làm mới toàn bộ dữ liệu động (ITR/shipment + std Combined ST + Data date)
+  function reloadAll() {
     fetchAll();
-    loadCmmStdTable().then(setStdTable).catch(() => {}); // std time linh động từ Combined ST
-    loadCmmWeeklyData().then(d => { if (d?.dataDate) setDataDate(d.dataDate); }).catch(() => {}); // Data date (CMM Daily)
-  }, []);
+    loadCmmStdTable().then(setStdTable).catch(() => {});
+    loadCmmWeeklyData().then(d => { if (d?.dataDate) setDataDate(d.dataDate); }).catch(() => {});
+  }
+  useEffect(() => { reloadAll(); }, []);
 
   const items = state.items || [];
   const m = useMemo(() => computeMetrics(items), [items]);
@@ -1705,7 +1707,7 @@ export default function CMM() {
       <div className="app"><div className="center-state">
         <div className="err-box">
           <b>{t('err.load_failed')}</b><br />{state.message}
-          <br /><br /><button className="refresh-btn" onClick={fetchAll}><RefreshCw size={13} /> Thu lai</button>
+          <br /><br /><button className="refresh-btn" onClick={reloadAll}><RefreshCw size={13} /> Thu lai</button>
         </div>
       </div></div>
     );
@@ -1731,7 +1733,7 @@ export default function CMM() {
               {t('misc.data_date')} {dataDate}
             </div>
           )}
-          <button className="refresh-btn" onClick={fetchAll}><RefreshCw size={13} /> {t('btn.reload')}</button>
+          <button className="refresh-btn" onClick={reloadAll}><RefreshCw size={13} /> {t('btn.reload')}</button>
         </div>
       </header>
 
