@@ -297,6 +297,14 @@
         <div id="trendChart" class="chart-box" style="height: 420px"></div>
       </section>
 
+      <section class="glass mb-8 rounded-2xl p-6">
+        <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div class="text-2xl font-bold">Số người làm mỗi ngày</div>
+          <div class="text-sm text-slate-400">Số nhân sự khác nhau có bản ghi trong ngày</div>
+        </div>
+        <div id="headcountChart" class="chart-box" style="height: 360px"></div>
+      </section>
+
       <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
         <div class="glass rounded-2xl p-6">
           <div class="mb-1 text-2xl font-bold">By Person — Last Day</div>
@@ -994,6 +1002,35 @@
       })
     }
 
+    // Số người (nhân sự khác nhau) làm mỗi ngày
+    function renderHeadcountChart(data) {
+      const byDay = {}
+      data.forEach(row => {
+        if (!byDay[row.date]) byDay[row.date] = { set: new Set(), dateValue: row.dateValue }
+        if (row.personDisplay) byDay[row.date].set.add(row.personDisplay)
+      })
+      const days = Object.entries(byDay)
+        .map(([date, v]) => ({ date, people: v.set.size, dateValue: v.dateValue }))
+        .sort((a, b) => a.dateValue - b.dateValue)
+
+      const chart = getChart('headcountChart')
+      chart.setOption({
+        backgroundColor: 'transparent',
+        textStyle: baseTextStyle(),
+        grid: { left: 40, right: 18, top: 40, bottom: 64 },
+        tooltip: { trigger: 'axis', formatter: p => `${p[0].axisValue}<br/>${p[0].data} người` },
+        xAxis: { type: 'category', data: days.map(x => x.date), axisLabel: { color: '#cbd5e1', rotate: 35 } },
+        yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#cbd5e1' }, splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } } },
+        series: [{
+          data: days.map(x => x.people),
+          type: 'bar',
+          barMaxWidth: 34,
+          itemStyle: { color: '#22d3ee', borderRadius: [4, 4, 0, 0] },
+          label: { show: true, position: 'top', color: '#e2e8f0', fontWeight: 700 }
+        }]
+      }, true)
+    }
+
     function renderLastFiveWeekChart(data) {
       const grouped = sumBy(data, 'week', 'qty')
       // Lấy tất cả tuần hợp lệ, sắp tăng dần
@@ -1250,6 +1287,7 @@
       document.getElementById('emptyState').classList.toggle('hidden', hasData)
 
       renderTrendChart(filteredData)
+      renderHeadcountChart(filteredData)
       const avgWeek = renderLastFiveWeekChart(filteredData)
       setMetric('avgWeek', avgWeek.toLocaleString())
       renderMonthChart()
