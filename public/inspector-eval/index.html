@@ -525,16 +525,25 @@ function orgMonth(v){orgMonthOverride=v;vOrg();}
 function printOrg(){
  const card=document.getElementById("orgCard");
  if(!card){window.print();return;}
- const pageW=730, pageH=1050;            // vùng in A4 dọc (px, đã trừ lề ~8mm)
- const w=card.scrollWidth||card.offsetWidth, h=card.scrollHeight||card.offsetHeight;
- const scale=Math.min(pageW/w, pageH/h, 1);
+ const pageW=730, pageH=1050;   // vùng in A4 dọc (px, đã trừ lề ~8mm)
+ const FW=1180;                 // bề rộng chuẩn cho 4 cột khi in
+ const wrap=card.querySelector(".org-wrap");
+ // Ép 4 cột + bề rộng chuẩn để ĐO chiều cao thật (tránh layout co về 2 cột)
+ const prevCardW=card.style.width, prevWrap=wrap?wrap.getAttribute("style"):null;
+ card.style.width=FW+"px";
+ if(wrap) wrap.style.gridTemplateColumns="repeat(4,1fr)";
+ const h=card.scrollHeight;
+ card.style.width=prevCardW;
+ if(wrap){ if(prevWrap!==null) wrap.setAttribute("style",prevWrap); else wrap.removeAttribute("style"); }
+ const scale=Math.min(pageW/FW, pageH/h, 1);
  const st=document.createElement("style"); st.id="orgPrintStyle";
  st.textContent=`@media print{
    @page{size:A4 portrait;margin:8mm}
    header,nav,.savebar,#ieTopRight,#ieGate,.noprint{display:none !important}
    body *{visibility:hidden}
    #orgCard,#orgCard *{visibility:visible}
-   #orgCard{position:fixed;left:0;top:0;width:${w}px;transform:scale(${scale});transform-origin:top left;border:none;background:#0f1720;margin:0}
+   #orgCard .org-wrap{grid-template-columns:repeat(4,1fr) !important}
+   #orgCard{position:fixed;left:0;top:0;width:${FW}px !important;transform:scale(${scale});transform-origin:top left;border:none;background:#0f1720;margin:0;padding:8px}
    .org-col,.org-group,.org-person,.org-fe,.org-leader{break-inside:avoid}
  }`;
  document.head.appendChild(st);
