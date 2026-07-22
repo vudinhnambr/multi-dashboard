@@ -71,7 +71,7 @@
     // ── i18n ──
     const T = {
       vi: {
-        title:"Kết quả kiểm tra", updated:"Cập nhật", refresh:"tự làm mới mỗi 60 phút",
+        title:"Kết quả kiểm tra", updated:"Cập nhật", refresh:"tự làm mới mỗi 120 phút", refreshBtn:"↻ Làm mới",
         k_mt_ring:"Auto MT · Ring", k_mt_hours:"Auto MT · Giờ quy đổi", k_mt_people:"Auto MT · Người",
         k_cmm_hours:"CMM · Giờ", k_cmm_steps:"CMM · Ring/bước", k_cmm_parts:"CMM · Part",
         t_mt_person:"Auto MT — Theo người (hôm qua)", t_mt_weekly:"Auto MT — Output 5 tuần gần nhất",
@@ -81,7 +81,7 @@
         loading:"Đang tải…", missingKey:"Thiếu key. Mở bằng link kèm ?key=…", badKey:"Key không đúng.", loadErr:"Không tải được dữ liệu: ",
       },
       en: {
-        title:"Inspection Results", updated:"Updated", refresh:"auto-refresh every 60 min",
+        title:"Inspection Results", updated:"Updated", refresh:"auto-refresh every 120 min", refreshBtn:"↻ Refresh",
         k_mt_ring:"Auto MT · Rings", k_mt_hours:"Auto MT · Earned hours", k_mt_people:"Auto MT · People",
         k_cmm_hours:"CMM · Hours", k_cmm_steps:"CMM · Rings/steps", k_cmm_parts:"CMM · Parts",
         t_mt_person:"Auto MT — By person (yesterday)", t_mt_weekly:"Auto MT — Output, last 5 weeks",
@@ -196,6 +196,7 @@
               <span>${t("pickDate")}</span>
               <input type="date" id="dateInput" value="${esc(d.date)}" max="${maxDate}" />
               ${selectedDate ? `<button id="resetDay">${t("resetDay")}</button>` : ``}
+              <button id="refreshBtn">${t("refreshBtn")}</button>
             </div>
             <div class="meta">${t("updated")}: ${new Date(d.refreshedAt).toLocaleString(loc)} · ${t("refresh")}</div>
             ${EMBEDDED ? `` : `<div class="langtog">
@@ -244,6 +245,8 @@
       if(di) di.addEventListener("change", () => { if(di.value){ selectedDate = di.value; loadData(selectedDate); } });
       const rb = document.getElementById("resetDay");
       if(rb) rb.addEventListener("click", () => { selectedDate = null; loadData(); });
+      const rf = document.getElementById("refreshBtn");
+      if(rf) rf.addEventListener("click", () => loadData(selectedDate));
 
       // CMM By part: nhãn 2 dòng — dòng 1 tên part (luôn hiện), dòng 2 bước ×số lượng.
       const ps = cmm.partSteps || [];
@@ -289,8 +292,8 @@
         '<div class="msg">Trang này chỉ xem trong tab <b style="color:#38bdf8">Overview</b> của Quality Management Hub.</div>';
     } else {
       loadData();
-      // Mỗi 60 phút: quay về ngày mặc định (hôm qua)
-      setInterval(() => { selectedDate = null; loadData(); }, 60*60*1000);
+      // Mỗi 120 phút: quay về ngày mặc định (hôm qua)
+      setInterval(() => { selectedDate = null; loadData(); }, 120*60*1000);
     }
   </script>
 </body>

@@ -4,6 +4,7 @@
 //      (tùy chọn) CMM_DAILY_FILE_ID, COMBINED_ST_FILE_ID.
 import * as XLSX from "xlsx";
 import { aggregateCmmDaily, aggregateCmmWeekly } from "../lib/cmmDaily.js";
+import { memo } from "../lib/memoCache.js";
 
 const CMM_DAILY_ID = process.env.CMM_DAILY_FILE_ID || "1M0cBUpk77DWW3gAaXe9WnNMW6YPPVy1d";
 const COMBINED_ST_ID = process.env.COMBINED_ST_FILE_ID || "1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8";
@@ -14,12 +15,15 @@ function yesterdayVN() {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
 }
 async function fetchSheet(id, sheet) {
-  const url = `https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`;
-  const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
-  if (!r.ok) throw new Error(`Drive HTTP ${r.status}`);
-  const wb = XLSX.read(Buffer.from(await r.arrayBuffer()), { type: "buffer", cellDates: false });
-  const ws = wb.Sheets[sheet] || wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  // Cache 15 phút: tránh tải + parse lại file Excel lớn mỗi lần gọi
+  return memo(`ov:${id}:${sheet}`, 15 * 60 * 1000, async () => {
+    const url = `https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`;
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(`Drive HTTP ${r.status}`);
+    const wb = XLSX.read(Buffer.from(await r.arrayBuffer()), { type: "buffer", cellDates: false });
+    const ws = wb.Sheets[sheet] || wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  });
 }
 const norm = (s) => String(s || "").trim().toLowerCase();
 const typeField = (t) => {

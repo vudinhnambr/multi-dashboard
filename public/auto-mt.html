@@ -298,11 +298,16 @@
       </section>
 
       <section class="glass mb-8 rounded-2xl p-6">
-        <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div class="text-2xl font-bold">Số người làm mỗi ngày</div>
-          <div class="text-sm text-slate-400">Số nhân sự khác nhau có bản ghi trong ngày</div>
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div class="text-2xl font-bold">Số người làm mỗi ngày</div>
+            <div class="text-sm text-slate-400">Số nhân sự khác nhau có bản ghi trong ngày</div>
+          </div>
+          <button id="headcountToggle" type="button" class="rounded-xl border border-slate-600 px-5 py-2.5 text-sm font-bold text-slate-200 hover:border-blue-300 hover:text-white">Hiện biểu đồ ▾</button>
         </div>
-        <div id="headcountChart" class="chart-box" style="height: 360px"></div>
+        <div id="headcountWrap" style="display:none">
+          <div id="headcountChart" class="chart-box" style="height: 420px; margin-top: 16px"></div>
+        </div>
       </section>
 
       <section class="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-2">
@@ -1002,8 +1007,10 @@
       })
     }
 
-    // Số người (nhân sự khác nhau) làm mỗi ngày
+    // Số người (nhân sự khác nhau) làm mỗi ngày — dạng đường giống Production Trend
+    let headcountVisible = false
     function renderHeadcountChart(data) {
+      if (!headcountVisible) return   // chỉ vẽ khi đã xổ ra (container hiển thị)
       const byDay = {}
       data.forEach(row => {
         if (!byDay[row.date]) byDay[row.date] = { set: new Set(), dateValue: row.dateValue }
@@ -1023,9 +1030,12 @@
         yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#cbd5e1' }, splitLine: { lineStyle: { color: 'rgba(148, 163, 184, 0.18)' } } },
         series: [{
           data: days.map(x => x.people),
-          type: 'bar',
-          barMaxWidth: 34,
-          itemStyle: { color: '#22d3ee', borderRadius: [4, 4, 0, 0] },
+          type: 'line',
+          smooth: true,
+          areaStyle: { color: 'rgba(34, 211, 238, 0.20)' },
+          lineStyle: { width: 4, color: '#22d3ee' },
+          itemStyle: { color: '#22d3ee' },
+          symbolSize: 7,
           label: { show: true, position: 'top', color: '#e2e8f0', fontWeight: 700 }
         }]
       }, true)
@@ -1579,6 +1589,15 @@
       // Re-Inspection: click to reveal all re-inspected serials
       const reBtn = document.getElementById('reInspectionToggleBtn')
       if (reBtn) reBtn.addEventListener('click', toggleReInspection)
+
+      // Số người làm mỗi ngày: xổ ra / thu gọn (mặc định ẩn để đỡ nặng)
+      const hcBtn = document.getElementById('headcountToggle')
+      if (hcBtn) hcBtn.addEventListener('click', () => {
+        headcountVisible = !headcountVisible
+        document.getElementById('headcountWrap').style.display = headcountVisible ? 'block' : 'none'
+        hcBtn.textContent = headcountVisible ? 'Ẩn biểu đồ ▴' : 'Hiện biểu đồ ▾'
+        if (headcountVisible) { renderHeadcountChart(filteredData); getChart('headcountChart').resize() }
+      })
 
       bindEfficiencyEvents()
 

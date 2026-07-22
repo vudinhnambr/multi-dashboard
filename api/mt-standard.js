@@ -4,6 +4,7 @@
 // Cột 'Combined ST' (0-based): 1=Part, 3=Single, 4=Outer, 5=Inner, 6=Inner1, 7=Inner2, 8=MT Total.
 import * as XLSX from "xlsx";
 import { isRateLimited, getClientIp } from "../lib/rateLimit.js";
+import { memo } from "../lib/memoCache.js";
 
 const COMBINED_ST_ID = process.env.COMBINED_ST_FILE_ID || "1R_eoCseRbx4VBdJ81O_-BHcWurswP_p8";
 const PO_FORECAST_ID = process.env.PO_FORECAST_FILE_ID || "1-L2ms12iaI3Ds95ap1URFuQ3O41FFqby";
@@ -14,12 +15,15 @@ const num = (v) => (v === null || v === "" || Number.isNaN(Number(v)) ? null : N
 const num0 = (v) => (typeof v === "number" ? v : (v == null || v === "" || Number.isNaN(Number(v)) ? 0 : Number(v)));
 
 async function fetchSheet(id, sheetName) {
-  const url = `https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`;
-  const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
-  if (!r.ok) throw new Error(`Drive HTTP ${r.status} (${id})`);
-  const wb = XLSX.read(Buffer.from(await r.arrayBuffer()), { type: "buffer" });
-  const ws = wb.Sheets[sheetName] || wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  // Cache 15 phút để tránh tải + parse lại file Excel mỗi lần gọi
+  return memo(`mt:${id}:${sheetName}`, 15 * 60 * 1000, async () => {
+    const url = `https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`;
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(`Drive HTTP ${r.status} (${id})`);
+    const wb = XLSX.read(Buffer.from(await r.arrayBuffer()), { type: "buffer" });
+    const ws = wb.Sheets[sheetName] || wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  });
 }
 
 export default async function handler(req, res) {
