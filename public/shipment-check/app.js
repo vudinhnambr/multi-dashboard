@@ -231,11 +231,12 @@ async function runCheck(refresh) {
 // ---- Nhật ký kiểm tra (ai + thời điểm + S/N + kết quả) ----
 function summarizeResults(json) {
   const rs = (json && json.results) || [];
-  const ok = rs.filter(r => r.overallOk === true).length;
-  const bad = rs.filter(r => r.overallOk === false).length;
+  const okList = rs.filter(r => r.overallOk === true);
+  const badList = rs.filter(r => r.overallOk === false);
   const notFound = rs.filter(r => !r.found);
   const nf = notFound.length;
-  let s = `${rs.length} S/N: ${ok} OK, ${bad} CHƯA OK`;
+  let s = `${rs.length} S/N: ${okList.length} OK, ${badList.length} CHƯA OK`;
+  if (badList.length) s += ` (${badList.map(r => r.assySn).join(", ")})`;
   if (nf) s += `, ${nf} không thấy: ${notFound.map(r => r.assySn).join(", ")}`;
   return s;
 }
@@ -248,7 +249,7 @@ async function logCheck(query, json) {
       user_id: session.user.id,
       user_email: session.user.email,
       query: String(query).slice(0, 2000),
-      result: summarizeResults(json).slice(0, 500),
+      result: summarizeResults(json).slice(0, 1500),
     });
   } catch { /* lỗi ghi log không chặn tra cứu */ }
 }
@@ -375,6 +376,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   $("scHistSearchBtn").addEventListener("click", () => loadHistory($("scHistSearch").value));
   $("scHistSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") loadHistory($("scHistSearch").value); });
-  $("scHistClearBtn").addEventListener("click", () => { $("scHistSearch").value = ""; loadHistory(); });
+  $("scHistClearBtn").addEventListener("click", () => { $("scHistSearch").value = ""; const d = $("scHistDate"); if (d) d.value = ""; loadHistory(); });
+  { const d = $("scHistDate"); if (d) d.addEventListener("change", () => { $("scHistSearch").value = ""; loadHistory(d.value); }); }
   try { const sb = await getSupabase(); const { data: { session } } = await sb.auth.getSession(); if (session) await enterIfAllowed(); } catch { /* ignore */ }
 });
