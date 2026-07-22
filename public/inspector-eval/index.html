@@ -75,6 +75,12 @@ input.zero{border-color:var(--warn)!important;background:#3a2f1a!important;color
 .org-fe .org-lname{font-weight:700;font-size:15px}
 .org-fe-wrap{display:flex;justify-content:center;margin:6px 0 16px}
 .org-fe-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+@media print{
+ header,nav,.savebar,#ieTopRight,#ieGate,.noprint{display:none !important}
+ body{background:#0f1720}
+ main{padding:0 !important}
+ .org-col,.org-group,.org-person,.org-fe,.org-leader{break-inside:avoid}
+}
 .org-leader .org-lname{font-weight:700;margin-top:6px}
 .org-lrole{color:var(--acc);font-size:12px;font-weight:600}
 .org-ljoin{color:var(--mut);font-size:11px}
@@ -95,7 +101,7 @@ input.zero{border-color:var(--warn)!important;background:#3a2f1a!important;color
 <body>
 <header>
  <h1>Quality Skill Level Program — Đánh giá kỹ năng Inspector</h1>
- <div class="sub">Bản nâng cấp • Chia 7 nhóm • Chấm điểm hằng tháng bởi Group Leader • Phân tích cá nhân • Cấu trúc Level mới &nbsp;|&nbsp; Dữ liệu gốc: snapshot 2026-06</div>
+ <div class="sub">Bản nâng cấp • Chia 7 nhóm • Chấm điểm hằng quý bởi Group Leader • Phân tích cá nhân • Cấu trúc Level mới &nbsp;|&nbsp; Dữ liệu gốc: Quý 2/2026</div>
 </header>
 <nav id="nav"></nav>
 <main id="content"></main>
@@ -121,7 +127,7 @@ const DEFAULT_BANDS=[
  {name:"Level 2A",min:44},{name:"Level 2B",min:56},{name:"Level 3",min:68},
  {name:"Level 4",min:80},{name:"Level 5",min:90}];
 const LVLCOLOR={"Level 1A":"#7d8b96","Level 1B":"#6a97c9","Level 1C":"#4f8bd6","Level 2A":"#3ec9a7","Level 2B":"#2eb389","Level 3":"#f0b429","Level 4":"#f38b3c","Level 5":"#e5484d"};
-const BASELINE="2026-06";
+const BASELINE="2026-Q2";  // dữ liệu gốc = Quý 2/2026
 
 /* ============ STATE / STORAGE ============ */
 /* Lưu trữ CHUNG trên server (thay localStorage). window.IE_REMOTE được cổng đăng nhập nạp trước. */
@@ -142,10 +148,10 @@ function initState(){
   APPDATA.people.forEach(p=>{MONTHS[BASELINE][p.name]={pct:{...p.basePct},note:""};});
   save("qsl_months",MONTHS);
  }
- // Dọn key tháng lỗi (vd '2026-06 (gốc)' sinh ra do bug option không có value) — chỉ giữ YYYY-MM
- { const valid={}; let changed=false;
-   Object.keys(MONTHS).forEach(k=>{ if(/^\d{4}-\d{2}$/.test(k)) valid[k]=MONTHS[k]; else changed=true; });
-   if(changed){ MONTHS=valid; save("qsl_months",MONTHS); }
+ // Chuyển key THÁNG (YYYY-MM) → QUÝ (YYYY-Qn); bỏ key lỗi. Chạy 1 lần rồi giữ nguyên.
+ { const conv={}; let changed=false;
+   Object.keys(MONTHS).sort().forEach(k=>{ const q=monthToQuarter(k); if(!q){changed=true;return;} if(q!==k)changed=true; conv[q]=MONTHS[k]; });
+   if(changed){ MONTHS=conv; save("qsl_months",MONTHS); }
  }
  window.__INACTIVE=load("qsl_inactive",[]);   // danh sách người đã nghỉ (không thống kê)
  window.__PHOTOS=load("qsl_photos",{});       // ảnh (base64) theo tên
@@ -172,6 +178,11 @@ function personByName(n){return APPDATA.people.find(p=>p.name===n);}
 function monthList(){return Object.keys(MONTHS).sort();}
 let latestMonthOverride=null;
 function latestMonth(){return latestMonthOverride||monthList().slice(-1)[0];}
+// ===== Quý =====
+function currentQuarter(){const d=new Date();return d.getFullYear()+"-Q"+(Math.floor(d.getMonth()/3)+1);}
+function monthToQuarter(k){const mm=/^(\d{4})-(\d{2})$/.exec(k);if(mm){return mm[1]+"-Q"+(Math.floor((+mm[2]-1)/3)+1);}return /^\d{4}-Q[1-4]$/.test(k)?k:null;}
+function quarterDeadline(q){const mm=/^(\d{4})-Q([1-4])$/.exec(q||"");if(!mm)return null;return mm[1]+"-"+String((+mm[2])*3).padStart(2,"0")+"-15";}
+function defaultQuarter(){return MONTHS[currentQuarter()]?currentQuarter():latestMonth();}
 function getPct(month,name){
  if(MONTHS[month]&&MONTHS[month][name])return MONTHS[month][name].pct;
  return personByName(name).basePct;
@@ -196,7 +207,7 @@ function fmt(x){return (Math.round(x*10)/10).toFixed(1);}
 const TABS=[
  {id:"dash",label:"📊 Tổng quan"},
  {id:"groups",label:"👥 Nhóm"},
- {id:"monthly",label:"🗓️ Chấm điểm tháng"},
+ {id:"monthly",label:"🗓️ Chấm điểm quý"},
  {id:"person",label:"🔍 Phân tích cá nhân"},
  {id:"org",label:"🏢 Sơ đồ tổ chức"},
  {id:"level",label:"⚙️ Cấu trúc Level"},
@@ -272,7 +283,7 @@ function vDash(){
  el.innerHTML=`
  <div class="card">
   <div class="row spread"><h2>Tổng quan — tháng <b>${m}</b></h2>
-   <div class="row"><span class="muted small">Chọn tháng:</span><select id="dmonth" onchange="dashMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}</option>`).join("")}</select></div></div>
+   <div class="row"><span class="muted small">Chọn quý:</span><select id="dmonth" onchange="dashMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}</option>`).join("")}</select></div></div>
   <div class="grid kpis" style="margin-top:12px">
    <div class="kpi"><div class="n">${rows.length}</div><div class="l">Tổng số Inspector</div></div>
    <div class="kpi"><div class="n">7</div><div class="l">Nhóm công việc</div></div>
@@ -343,7 +354,7 @@ function vGroups(){
     <button class="act" onclick="addInspector()">Lưu</button>
     <button class="ghost" onclick="toggleAddForm()">Hủy</button>
    </div>
-   <p class="small muted" style="margin:8px 0 0">Inspector mới bắt đầu ở 0 điểm. Vào tab <b>Chấm điểm tháng</b> để Group Leader nhập điểm.</p>
+   <p class="small muted" style="margin:8px 0 0">Inspector mới bắt đầu ở 0 điểm. Vào tab <b>Chấm điểm quý</b> để Group Leader nhập điểm.</p>
   </div></div>`;
  APPDATA.groups.forEach(g=>{
   const all=rows.filter(r=>r.group===g);
@@ -386,7 +397,7 @@ function addInspector(){
  const p={name,group,meta:{mainJob:job,entered,service:"",oldFinalLevel:""},scores,basePct,custom:true};
  APPDATA.people.push(p);
  const cust=load("qsl_custom",[]);cust.push(p);save("qsl_custom",cust);
- alert("Đã thêm "+name+" vào nhóm "+group+".\nVào tab 'Chấm điểm tháng' để nhập điểm.");
+ alert("Đã thêm "+name+" vào nhóm "+group+".\nVào tab 'Chấm điểm quý' để nhập điểm.");
  vGroups();
 }
 function delInspector(name){
@@ -402,17 +413,18 @@ let editState=null;
 function vMonthly(){
  const el=document.getElementById("content");
  const g=window._mGroup||APPDATA.groups[0];
- const m=window._mMonth||latestMonth();
+ const m=window._mMonth||defaultQuarter();
  el.innerHTML=`
  <div class="card">
-  <h2>Chấm điểm hằng tháng — Group Leader</h2>
-  <div class="note"><b>Cách chấm (đề xuất):</b> Mỗi tháng, Group Leader đánh giá từng thành viên trên <b>5 tiêu chí</b>, thang <b>0–100</b> (0 = chưa làm được, 100 = thành thạo như chuyên gia). Ô được điền sẵn từ tháng gần nhất — chỉ cần điều chỉnh phần thay đổi. Hệ thống tự tính Điểm tổng hợp, Level và xu hướng. Điểm được lưu trong trình duyệt của máy này.</div>
+  <h2>Chấm điểm hằng quý — Group Leader</h2>
+  <div class="note"><b>Cách chấm (đề xuất):</b> Mỗi quý, Group Leader đánh giá từng thành viên trên <b>5 tiêu chí</b>, thang <b>0–100</b> (0 = chưa làm được, 100 = thành thạo như chuyên gia). Ô được điền sẵn từ quý gần nhất — chỉ cần điều chỉnh phần thay đổi. Hệ thống tự tính Điểm tổng hợp, Level và xu hướng. Dữ liệu lưu chung trên server.</div>
+  <div class="note" style="border-left-color:var(--warn)">📌 Đánh giá hằng quý <b>trước ngày 15 của tháng cuối quý</b>. Hạn của quý hiện tại (${currentQuarter()}): <b>${quarterDeadline(currentQuarter())}</b>.</div>
   <div class="row" style="margin-top:6px">
    <label class="small muted">Nhóm:</label>
    <select id="mgroup" onchange="mSel('g',this.value)">${APPDATA.groups.map(x=>`<option ${x===g?'selected':''}>${x}</option>`).join("")}</select>
-   <label class="small muted">Tháng:</label>
+   <label class="small muted">Quý:</label>
    <select id="mmonth" onchange="mSel('m',this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select>
-   <button class="ghost" onclick="newMonth()">➕ Thêm tháng mới</button>
+   <button class="ghost" onclick="newMonth()">➕ Thêm quý mới</button>
    <span class="small muted" style="margin-left:auto">Leader: <b>${CONFIG.leaders[g]||"(chưa đặt)"}</b></span>
   </div>
  </div>
@@ -465,10 +477,10 @@ function saveMonth(){
 }
 function discardMonth(){dirtyMonth=null;document.getElementById("savebar").classList.remove("show");if(current==='monthly')vMonthly();}
 function newMonth(){
- const d=new Date();const def=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
- const v=prompt("Nhập tháng mới (định dạng YYYY-MM):",def);
- if(!v)return;if(!/^\d{4}-\d{2}$/.test(v)){alert("Sai định dạng. Ví dụ: 2026-07");return;}
- if(MONTHS[v]){alert("Tháng này đã tồn tại.");window._mMonth=v;vMonthly();return;}
+ const def=currentQuarter();
+ const v=prompt("Nhập quý mới (định dạng YYYY-Qn, vd 2026-Q3):",def);
+ if(!v)return;if(!/^\d{4}-Q[1-4]$/.test(v)){alert("Sai định dạng. Ví dụ: 2026-Q3");return;}
+ if(MONTHS[v]){alert("Quý này đã tồn tại.");window._mMonth=v;vMonthly();return;}
  const base=latestMonth();MONTHS[v]={};
  APPDATA.people.forEach(p=>{MONTHS[v][p.name]={pct:{...getPct(base,p.name)},note:""};});
  save("qsl_months",MONTHS);window._mMonth=v;vMonthly();
@@ -510,6 +522,7 @@ function avatarHtml(name,size){
 }
 let orgMonthOverride=null;
 function orgMonth(v){orgMonthOverride=v;vOrg();}
+function printOrg(){window.print();}
 function orgCard(p,m){
  const comp=composite(getPct(m,p.name));const lv=levelOf(comp);const nc=certsOf(p.name).length;
  const tint=statusTint(p.name);const sb=statusBadgesHtml(p.name);
@@ -524,7 +537,7 @@ function orgCard(p,m){
 function setFieldEngineer(name){CONFIG.fieldEngineer=name||"";save("qsl_config",CONFIG);render();}
 function vOrg(){
  const el=document.getElementById("content");
- const m=orgMonthOverride||latestMonth();
+ const m=orgMonthOverride||defaultQuarter();
  // Field Engineer = những người thuộc nhóm "Field Engineer"
  const feMembers=APPDATA.people.filter(p=>p.group==="Field Engineer" && !isInactive(p.name))
    .map(p=>({p,comp:composite(getPct(m,p.name))})).sort((a,b)=>b.comp-a.comp);
@@ -577,8 +590,8 @@ function vOrg(){
    ? `<div class="org-fe-row">${feCards}</div>`
    : `<div class="org-fe" style="border-style:dashed"><span class="muted small">Chưa có Field Engineer — gán người vào nhóm "Field Engineer" (tab Nhóm hoặc Sửa thông tin).</span></div>`;
  el.innerHTML=`<div class="card"><div class="row spread">
-   <div><h2>Sơ đồ tổ chức</h2><p class="muted small" style="margin:2px 0 0">Field Engineer › 4 Operating Leader › nhóm · Level theo tháng chọn · Nhấn 1 người để xem hồ sơ.</p></div>
-   <div class="row"><span class="muted small">Level tháng:</span><select id="omonth" onchange="orgMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select></div></div>
+   <div><h2>Sơ đồ tổ chức</h2><p class="muted small" style="margin:2px 0 0">Field Engineer › 4 Operating Leader › nhóm · Level theo quý chọn · Nhấn 1 người để xem hồ sơ.</p></div>
+   <div class="row noprint"><button class="ghost" onclick="printOrg()" style="padding:6px 12px">🖨 In PDF</button><span class="muted small">Level quý:</span><select id="omonth" onchange="orgMonth(this.value)">${monthList().map(x=>`<option value="${x}" ${x===m?'selected':''}>${x}${x===BASELINE?' (gốc)':''}</option>`).join("")}</select></div></div>
    <div class="org-fe-wrap">${feRow}</div>
    <div class="org-wrap">${colsHtml}</div></div>`;
 }
@@ -644,7 +657,7 @@ function vPerson(){
    <div class="row"><label class="small muted">Chọn Inspector:</label>
     <select onchange="window._selPerson=this.value;vPerson()">${APPDATA.people.map(x=>`<option value="${escHtml(x.name)}" ${x.name===name?'selected':''}>${escHtml(dispName(x.name))}</option>`).join("")}</select>
     ${p.meta.id?`<span class="pill">ID: ${escHtml(p.meta.id)}</span>`:''}</div>
-   <div>${lvlBadge(lv)} <span class="muted small">tháng ${m}</span>
+   <div>${lvlBadge(lv)} <span class="muted small">quý ${m}</span>
     <button class="act" style="margin-left:10px;padding:6px 12px" onclick="togglePersonEdit()">✎ Sửa thông tin</button></div>
   </div>
   <div class="row" style="align-items:center;gap:14px;margin-top:12px">
@@ -681,8 +694,8 @@ function vPerson(){
  </div>
  <div class="grid two">
   <div class="card"><h2>Hồ sơ năng lực (5 tiêu chí)</h2><div class="chartbox"><canvas id="cRadar"></canvas></div></div>
-  <div class="card"><h2>Diễn tiến điểm tổng hợp theo tháng</h2><div class="chartbox"><canvas id="cTrend"></canvas></div>
-   ${months.length<2?'<p class="note">Chỉ mới có 1 tháng dữ liệu. Sau khi Group Leader chấm thêm các tháng, đường xu hướng sẽ hiển thị rõ.</p>':''}</div>
+  <div class="card"><h2>Diễn tiến điểm tổng hợp theo quý</h2><div class="chartbox"><canvas id="cTrend"></canvas></div>
+   ${months.length<2?'<p class="note">Chỉ mới có 1 quý dữ liệu. Sau khi Group Leader chấm thêm các quý, đường xu hướng sẽ hiển thị rõ.</p>':''}</div>
  </div>
  <div class="grid two">
   <div class="card"><h2>Điểm mạnh & khoảng trống</h2>
