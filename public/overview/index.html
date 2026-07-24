@@ -71,7 +71,7 @@
     // ── i18n ──
     const T = {
       vi: {
-        title:"Kết quả kiểm tra", updated:"Cập nhật", refresh:"tự làm mới mỗi 120 phút", refreshBtn:"↻ Làm mới",
+        title:"Kết quả kiểm tra", updated:"Cập nhật", refresh:"tự làm mới mỗi 6 giờ", refreshBtn:"↻ Làm mới",
         k_mt_ring:"Auto MT · Ring", k_mt_hours:"Auto MT · Giờ quy đổi", k_mt_people:"Auto MT · Người",
         k_cmm_hours:"CMM · Giờ", k_cmm_steps:"CMM · Ring/bước", k_cmm_parts:"CMM · Part",
         t_mt_person:"Auto MT — Theo người (hôm qua)", t_mt_weekly:"Auto MT — Output 5 tuần gần nhất",
@@ -81,7 +81,7 @@
         loading:"Đang tải…", missingKey:"Thiếu key. Mở bằng link kèm ?key=…", badKey:"Key không đúng.", loadErr:"Không tải được dữ liệu: ",
       },
       en: {
-        title:"Inspection Results", updated:"Updated", refresh:"auto-refresh every 120 min", refreshBtn:"↻ Refresh",
+        title:"Inspection Results", updated:"Updated", refresh:"auto-refresh every 6 h", refreshBtn:"↻ Refresh",
         k_mt_ring:"Auto MT · Rings", k_mt_hours:"Auto MT · Earned hours", k_mt_people:"Auto MT · People",
         k_cmm_hours:"CMM · Hours", k_cmm_steps:"CMM · Rings/steps", k_cmm_parts:"CMM · Parts",
         t_mt_person:"Auto MT — By person (yesterday)", t_mt_weekly:"Auto MT — Output, last 5 weeks",
@@ -292,8 +292,8 @@
         '<div class="msg">Trang này chỉ xem trong tab <b style="color:#38bdf8">Overview</b> của Quality Management Hub.</div>';
     } else {
       loadData();
-      // Mỗi 120 phút: quay về ngày mặc định (hôm qua)
-      setInterval(() => { selectedDate = null; loadData(); }, 120*60*1000);
+      // Mỗi 6 giờ: quay về ngày mặc định (đủ để cập nhật sang ngày mới; dữ liệu chốt buổi sáng)
+      setInterval(() => { selectedDate = null; loadData(); }, 6*60*60*1000);
     }
   </script>
 </body>
