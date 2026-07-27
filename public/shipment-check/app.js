@@ -358,6 +358,14 @@ function numCounts(result) {
   return { ok: mo ? +mo[1] : 0, bad: mb ? +mb[1] : 0, nf: mn ? +mn[1] : 0 };
 }
 const DOW_VN = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+// Số tuần ISO (FW) từ 1 Date (theo UTC)
+function isoWeekNum(d) {
+  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = x.getUTCDay() || 7; x.setUTCDate(x.getUTCDate() + 4 - day);
+  const ys = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+  return Math.ceil((((x - ys) / 86400000) + 1) / 7);
+}
+const fmtDM = (dt) => `${String(dt.getUTCDate()).padStart(2, "0")}/${String(dt.getUTCMonth() + 1).padStart(2, "0")}`;
 let anaRows = [], anaLabel = "";
 async function loadAnalysis() {
   const box = $("scAnalysis"); box.innerHTML = '<div class="hist-empty">Đang tải...</div>';
@@ -371,8 +379,14 @@ async function loadAnalysis() {
       .gte("checked_at", startISO).order("checked_at", { ascending: false }).limit(5000);
     if (error) throw error;
     const rows = data || []; anaRows = rows;
-    const codeToLabel = {}; parts.forEach(p => { codeToLabel[String(p.code).toUpperCase()] = p.label; });
-    const partOf = (sn) => codeToLabel[String(sn).split("*")[0].trim().toUpperCase()] || String(sn).split("*")[0].trim().toUpperCase();
+    // Nhận diện TÊN part: S/N bắt đầu bằng mã assembly nào thì lấy tên part đó (khớp dài nhất).
+    const partsUp = (parts || []).map(p => ({ code: String(p.code || "").trim().toUpperCase(), label: p.label }))
+      .filter(p => p.code).sort((a, b) => b.code.length - a.code.length);
+    const partOf = (sn) => {
+      const s = String(sn || "").trim().toUpperCase();
+      for (const p of partsUp) { if (s.startsWith(p.code)) return p.label; }
+      return s.split("*")[0].replace(/[-*]\d+$/, "").trim() || s; // không khớp → tiền tố
+    };
 
     let ok = 0, bad = 0, nf = 0;
     const byUser = {}, byHour = {}, byDow = {}, byWeek = {};
@@ -387,8 +401,8 @@ async function loadAnalysis() {
       byDow[dVN.getUTCDay()] = (byDow[dVN.getUTCDay()] || 0) + 1;
       // tuần (thứ Hai) theo VN
       const mon = new Date(dVN); mon.setUTCDate(dVN.getUTCDate() - ((dVN.getUTCDay() + 6) % 7));
-      const wk = `${String(mon.getUTCDate()).padStart(2, "0")}/${String(mon.getUTCMonth() + 1).padStart(2, "0")}`;
-      const w = byWeek[wk] || (byWeek[wk] = { key: mon.getTime(), luot: 0, ok: 0, bad: 0, nf: 0 });
+      const wk = mon.toISOString().slice(0, 10);
+      const w = byWeek[wk] || (byWeek[wk] = { key: mon.getTime(), mon: new Date(mon), luot: 0, ok: 0, bad: 0, nf: 0 });
       w.luot++; w.ok += c.ok; w.bad += c.bad; w.nf += c.nf;
       // theo part + S/N
       const cl = classifyRow(r.query, r.result);
@@ -404,10 +418,13 @@ async function loadAnalysis() {
     const hourTop = top(byHour, 3).map(([h, c]) => `${String(h).padStart(2, "0")}h (${c})`).join(" · ");
 
     // (2) Xu hướng theo tuần
-    const weeks = Object.entries(byWeek).sort((a, b) => a[1].key - b[1].key);
-    const maxBadPct = Math.max(1, ...weeks.map(([, w]) => { const t = w.ok + w.bad + w.nf; return t ? w.bad / t * 100 : 0; }));
-    const weekRows = weeks.map(([wk, w]) => { const t = w.ok + w.bad + w.nf; const bp = t ? w.bad / t * 100 : 0;
-      return `<tr><td>${wk}</td><td>${w.luot}</td><td>${t}</td><td>${w.ok}</td><td class="c-bad">${w.bad}</td><td>${w.nf}</td>
+    const weeks = Object.values(byWeek).sort((a, b) => a.key - b.key);
+    const maxBadPct = Math.max(1, ...weeks.map(w => { const t = w.ok + w.bad + w.nf; return t ? w.bad / t * 100 : 0; }));
+    const weekRows = weeks.map(w => {
+      const t = w.ok + w.bad + w.nf, bp = t ? w.bad / t * 100 : 0;
+      const sun = new Date(w.mon.getTime() + 6 * 86400e3);
+      const lbl = `FW${isoWeekNum(w.mon)} (${fmtDM(w.mon)}~${fmtDM(sun)})`;
+      return `<tr><td>${lbl}</td><td>${w.luot}</td><td>${t}</td><td>${w.ok}</td><td class="c-bad">${w.bad}</td><td>${w.nf}</td>
         <td><div class="ana-bar"><i style="width:${(bp / maxBadPct * 100).toFixed(0)}%"></i></div><span>${pct(w.bad, t)}</span></td></tr>`; }).join("");
 
     // (3) Part tỷ lệ Chưa OK cao nhất (ưu tiên tỷ lệ, min 3 S/N)
