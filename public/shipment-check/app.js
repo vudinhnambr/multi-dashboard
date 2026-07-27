@@ -454,9 +454,18 @@ async function loadAnalysis() {
     // (6) Phân bố theo thứ + ca
     const dowRows = [1,2,3,4,5,6,0].map(d => `<div class="ana-row"><span>${DOW_VN[d]}</span><b>${byDow[d] || 0}</b></div>`).join("");
 
+    // Lưu số liệu để xuất báo cáo PDF
+    window.__ANA = {
+      label, luot: rows.length, totalSN, ok, bad, nf,
+      weeks: weeks.map(w => { const t = w.ok + w.bad + w.nf; const sun = new Date(w.mon.getTime() + 6 * 86400e3);
+        return { lbl: `FW${isoWeekNum(w.mon)} (${fmtDM(w.mon)}~${fmtDM(sun)})`, luot: w.luot, t, ok: w.ok, bad: w.bad, nf: w.nf, bp: t ? Math.round(w.bad / t * 1000) / 10 : 0 }; }),
+      partRank, users: top(byUser, 10), partsTop: top(byPartTot, 10), nfParts: top(byPartNf, 10),
+      dow: [1, 2, 3, 4, 5, 6, 0].map(d => [DOW_VN[d], byDow[d] || 0]),
+      morning, afternoon, hourTop,
+    };
     box.innerHTML = `<div class="hist-scope" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <span>${esc(label)} · ${rows.length} lượt · ${totalSN} S/N</span>
-        <button type="button" id="scAnaExport" class="ana-export">⬇ Xuất Excel</button></div>
+        <span style="display:flex;gap:8px"><button type="button" id="scAnaPdf" class="ana-export">🖨 Xuất PDF</button><button type="button" id="scAnaExport" class="ana-export" style="background:var(--surface);color:var(--text)">⬇ Excel</button></span></div>
       <div class="ana-kpis">
         <div class="ana-kpi"><div class="n">${rows.length}</div><div class="l">Lượt kiểm</div></div>
         <div class="ana-kpi"><div class="n">${totalSN}</div><div class="l">Tổng S/N</div></div>
@@ -481,6 +490,7 @@ async function loadAnalysis() {
           <div class="ana-row"><span>Giờ cao điểm</span><b>${hourTop || "—"}</b></div></div>
       </div>`;
     const ex = $("scAnaExport"); if (ex) ex.addEventListener("click", exportAnalysis);
+    const pf = $("scAnaPdf"); if (pf) pf.addEventListener("click", exportShipmentPdf);
   } catch (e) {
     box.innerHTML = '<div class="hist-empty">Không tải được: ' + esc(e.message) + "</div>";
   }
@@ -495,6 +505,62 @@ function exportAnalysis() {
   const url = URL.createObjectURL(blob); const a = document.createElement("a");
   a.href = url; a.download = "ShipmentCheck_" + (anaLabel.match(/\d{4}-\d{2}-\d{2}/) || ["export"])[0] + ".xls";
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Xuất báo cáo KPI dạng PDF (mở cửa sổ báo cáo có định dạng -> in / lưu PDF)
+function exportShipmentPdf() {
+  const A = window.__ANA;
+  if (!A) { alert("Chưa có dữ liệu phân tích. Hãy mở 📊 Phân tích lịch sử trước."); return; }
+  const e = s => String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const P = (n, t) => t > 0 ? (Math.round(n / t * 1000) / 10) + "%" : "0%";
+  const kpi = (n, l, cls) => `<div class="k ${cls || ""}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  const weekRows = A.weeks.map(w => `<tr><td>${e(w.lbl)}</td><td>${w.luot}</td><td>${w.t}</td><td>${w.ok}</td><td class="bad">${w.bad}</td><td>${w.nf}</td><td>${w.bp}%</td></tr>`).join("");
+  const partRows = A.partRank.map(x => `<tr><td>${e(x.p)}</td><td>${x.tot}</td><td class="bad">${x.bad}</td><td>${P(x.bad, x.tot)}</td></tr>`).join("");
+  const list = (title, arr) => `<div class="blk"><h3>${title}</h3><table>${(arr && arr.length ? arr : []).map(([k, v]) => `<tr><td>${e(k)}</td><td class="r">${v}</td></tr>`).join("") || "<tr><td>—</td><td></td></tr>"}</table></div>`;
+  const dowRows = A.dow.map(([d, c]) => `<tr><td>${e(d)}</td><td class="r">${c}</td></tr>`).join("");
+  const html = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Shipment Check — Báo cáo phân tích</title>
+  <style>
+   *{box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+   body{margin:24px;color:#16181d}
+   h1{font-size:20px;margin:0 0 2px}.sub{color:#6b7280;font-size:13px;margin-bottom:16px}
+   .kpis{display:flex;gap:10px;margin-bottom:16px}
+   .k{flex:1;border:1px solid #e4e7ee;border-radius:8px;padding:10px 8px;text-align:center}
+   .k .n{font-size:22px;font-weight:800;line-height:1.1}.k .l{font-size:11px;color:#6b7280;margin-top:3px}
+   .k.ok .n{color:#157347}.k.bad .n{color:#c0342b}.k.nf .n{color:#b45309}
+   h2{font-size:15px;margin:16px 0 6px;border-bottom:2px solid #e4e7ee;padding-bottom:3px}
+   table{width:100%;border-collapse:collapse;font-size:12px}
+   th,td{border:1px solid #e4e7ee;padding:5px 7px;text-align:center}
+   th{background:#f4f6fb;color:#374151}td:first-child,th:first-child{text-align:left}
+   td.bad{color:#c0342b;font-weight:700}.r{text-align:right}
+   .cols{display:flex;gap:12px}.blk{flex:1}.blk h3{font-size:12px;margin:8px 0 4px;color:#374151}
+   @media print{@page{size:A4;margin:12mm}body{margin:0}}
+  </style></head><body onload="setTimeout(function(){window.print()},250)">
+   <h1>Shipment Check — Báo cáo phân tích</h1>
+   <div class="sub">${e(A.label)} · Xuất: ${e(new Date().toLocaleString("vi-VN"))}</div>
+   <div class="kpis">
+     ${kpi(A.luot, "Lượt kiểm")}${kpi(A.totalSN, "Tổng S/N")}
+     ${kpi(A.ok + " (" + P(A.ok, A.totalSN) + ")", "OK", "ok")}
+     ${kpi(A.bad + " (" + P(A.bad, A.totalSN) + ")", "CHƯA OK", "bad")}
+     ${kpi(A.nf + " (" + P(A.nf, A.totalSN) + ")", "Không thấy", "nf")}
+   </div>
+   <h2>Xu hướng theo tuần</h2>
+   <table><thead><tr><th>Tuần</th><th>Lượt</th><th>S/N</th><th>OK</th><th>Chưa OK</th><th>Ko thấy</th><th>% Chưa OK</th></tr></thead><tbody>${weekRows || '<tr><td colspan="7">—</td></tr>'}</tbody></table>
+   <h2>Part có tỷ lệ Chưa OK cao</h2>
+   <table><thead><tr><th>Part</th><th>S/N</th><th>Chưa OK</th><th>%</th></tr></thead><tbody>${partRows || '<tr><td colspan="4">—</td></tr>'}</tbody></table>
+   <h2>Chi tiết</h2>
+   <div class="cols">
+     ${list("Người kiểm nhiều nhất", A.users)}
+     ${list("Part kiểm nhiều (số S/N)", A.partsTop)}
+     ${list("Không thấy — theo Part", A.nfParts)}
+   </div>
+   <div class="cols" style="margin-top:12px">
+     <div class="blk"><h3>Phân bố theo thứ</h3><table>${dowRows}</table></div>
+     <div class="blk"><h3>Ca / Giờ</h3><table><tr><td>Ca sáng / chiều</td><td class="r">${A.morning} / ${A.afternoon}</td></tr><tr><td>Giờ cao điểm</td><td class="r">${e(A.hourTop || "—")}</td></tr></table></div>
+   </div>
+  </body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) { alert("Trình duyệt chặn cửa sổ. Hãy cho phép pop-up rồi thử lại."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
 }
 
 function isBadStatus(s) { return s === "OPEN_REVIEW" || s === "UNKNOWN"; }
