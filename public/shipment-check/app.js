@@ -319,6 +319,74 @@ async function loadHistory(term) {
   }
 }
 
+// ---- Phân tích lịch sử (admin) ----
+function anaStart(period) {
+  const nowVN = new Date(Date.now() + 7 * 3600e3);
+  let start;
+  if (period === "week") { const dow = (nowVN.getUTCDay() + 6) % 7; start = new Date(nowVN); start.setUTCDate(nowVN.getUTCDate() - dow); }
+  else if (period === "month") { start = new Date(Date.UTC(nowVN.getUTCFullYear(), nowVN.getUTCMonth(), 1)); }
+  else { const n = Number(period) || 7; start = new Date(nowVN); start.setUTCDate(nowVN.getUTCDate() - (n - 1)); }
+  const y = start.getUTCFullYear(), m = String(start.getUTCMonth() + 1).padStart(2, "0"), d = String(start.getUTCDate()).padStart(2, "0");
+  const labels = { week: "Tuần này", month: "Tháng này", "7": "7 ngày qua", "30": "30 ngày qua" };
+  return { startISO: `${y}-${m}-${d}T00:00:00+07:00`, label: `${labels[period] || period} (từ ${y}-${m}-${d})` };
+}
+function anaList(title, arr) {
+  return `<div class="ana-block"><h4>${title}</h4>${arr.length ? arr.map(([k, v]) => `<div class="ana-row"><span>${esc(k)}</span><b>${v}</b></div>`).join("") : '<div class="ana-row muted">—</div>'}</div>`;
+}
+async function loadAnalysis() {
+  const box = $("scAnalysis"); box.innerHTML = '<div class="hist-empty">Đang tải...</div>';
+  const period = $("scAnaPeriod").value;
+  const { startISO, label } = anaStart(period);
+  try {
+    const sb = await getSupabase();
+    const { data, error } = await sb.from("shipment_check_log")
+      .select("checked_at, user_email, query, result")
+      .gte("checked_at", startISO).order("checked_at", { ascending: false }).limit(5000);
+    if (error) throw error;
+    const rows = data || [];
+    let ok = 0, bad = 0, nf = 0;
+    const byUser = {}, byPart = {}, byHour = {};
+    const codeToLabel = {}; parts.forEach(p => { codeToLabel[String(p.code).toUpperCase()] = p.label; });
+    rows.forEach(r => {
+      const res = String(r.result || "").trim();
+      if (/^OK$/i.test(res)) ok++;
+      else if (/^CHƯA OK$/i.test(res)) bad++;
+      else if (/^Không thấy$/i.test(res)) nf++;
+      else {
+        const mo = res.match(/:\s*(\d+)\s*OK/); if (mo) ok += +mo[1];
+        const mb = res.match(/(\d+)\s*CHƯA OK/); if (mb) bad += +mb[1];
+        const mn = res.match(/(\d+)\s*không thấy/i); if (mn) nf += +mn[1];
+      }
+      const u = r.user_email || "—"; byUser[u] = (byUser[u] || 0) + 1;
+      const h = new Date(new Date(r.checked_at).getTime() + 7 * 3600e3).getUTCHours(); byHour[h] = (byHour[h] || 0) + 1;
+      String(r.query || "").split(/\n/).map(s => s.trim()).filter(Boolean).forEach(line => {
+        const prefix = line.split("*")[0].trim().toUpperCase();
+        const lbl = codeToLabel[prefix] || prefix;
+        byPart[lbl] = (byPart[lbl] || 0) + 1;
+      });
+    });
+    const totalSN = ok + bad + nf;
+    const top = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
+    const hourTop = Object.entries(byHour).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([h, c]) => `${String(h).padStart(2, "0")}h (${c})`).join(" · ");
+    box.innerHTML = `<div class="hist-scope">${esc(label)} · ${rows.length} lượt · ${totalSN} S/N</div>
+      <div class="ana-kpis">
+        <div class="ana-kpi"><div class="n">${rows.length}</div><div class="l">Lượt kiểm</div></div>
+        <div class="ana-kpi"><div class="n">${totalSN}</div><div class="l">Tổng S/N</div></div>
+        <div class="ana-kpi ok"><div class="n">${ok}</div><div class="l">OK</div></div>
+        <div class="ana-kpi bad"><div class="n">${bad}</div><div class="l">CHƯA OK</div></div>
+        <div class="ana-kpi nf"><div class="n">${nf}</div><div class="l">Không thấy</div></div>
+      </div>
+      <div class="ana-cols">
+        ${anaList("Người kiểm nhiều nhất", top(byUser, 6))}
+        ${anaList("Part kiểm nhiều nhất", top(byPart, 6))}
+        <div class="ana-block"><h4>Giờ cao điểm</h4><div class="ana-row"><span>${hourTop || "—"}</span></div></div>
+      </div>`;
+  } catch (e) {
+    box.innerHTML = '<div class="hist-empty">Không tải được: ' + esc(e.message) + "</div>";
+  }
+}
+
 function isBadStatus(s) { return s === "OPEN_REVIEW" || s === "UNKNOWN"; }
 function headerHi(ok) { return ok === true ? " header-ok" : ok === false ? " header-bad" : ""; }
 function badgeHtml(ok, found) {
@@ -387,5 +455,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("scHistSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") loadHistory($("scHistSearch").value); });
   $("scHistClearBtn").addEventListener("click", () => { $("scHistSearch").value = ""; const d = $("scHistDate"); if (d) d.value = ""; loadHistory(); });
   { const d = $("scHistDate"); if (d) d.addEventListener("change", () => { $("scHistSearch").value = ""; loadHistory(d.value); }); }
+  { const ab = $("scAnalysisBtn"); if (ab) ab.addEventListener("click", () => {
+      const w = $("scAnalysisWrap");
+      if (w.style.display === "none" || !w.style.display) { w.style.display = "block"; loadAnalysis(); }
+      else w.style.display = "none";
+    }); }
+  { const ap = $("scAnaPeriod"); if (ap) ap.addEventListener("change", loadAnalysis); }
   try { const sb = await getSupabase(); const { data: { session } } = await sb.auth.getSession(); if (session) await enterIfAllowed(); } catch { /* ignore */ }
 });

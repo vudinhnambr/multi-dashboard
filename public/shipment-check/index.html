@@ -74,6 +74,19 @@
                 </div>
                 <div id="scHistory"></div>
               </div>
+
+              <button type="button" id="scAnalysisBtn" class="history-toggle" style="margin-top:10px">📊 Phân tích lịch sử</button>
+              <div id="scAnalysisWrap" style="display:none">
+                <div class="hist-search">
+                  <select id="scAnaPeriod" style="min-width:150px">
+                    <option value="week">Tuần này</option>
+                    <option value="month" selected>Tháng này</option>
+                    <option value="7">7 ngày qua</option>
+                    <option value="30">30 ngày qua</option>
+                  </select>
+                </div>
+                <div id="scAnalysis"></div>
+              </div>
             </div>
           </div>
         </div>
