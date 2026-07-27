@@ -333,58 +333,140 @@ function anaStart(period) {
 function anaList(title, arr) {
   return `<div class="ana-block"><h4>${title}</h4>${arr.length ? arr.map(([k, v]) => `<div class="ana-row"><span>${esc(k)}</span><b>${v}</b></div>`).join("") : '<div class="ana-row muted">—</div>'}</div>`;
 }
+const pct = (n, t) => t > 0 ? (Math.round(n / t * 1000) / 10) + "%" : "0%";
+// Tách S/N theo kết quả từ 1 lượt (best-effort; lượt cũ thiếu list thì suy theo số đếm)
+function classifyRow(query, result) {
+  const sns = String(query || "").split(/\n/).map(s => s.trim()).filter(Boolean);
+  const res = String(result || "").trim();
+  const out = { ok: [], bad: [], nf: [] };
+  const one = sns.length === 1 ? sns[0] : null;
+  if (/^OK$/i.test(res)) { if (one) out.ok.push(one); return out; }
+  if (/^CHƯA OK$/i.test(res)) { if (one) out.bad.push(one); return out; }
+  if (/^Không thấy$/i.test(res)) { if (one) out.nf.push(one); return out; }
+  const badM = res.match(/CHƯA OK\s*\(([^)]*)\)/i); out.bad = badM ? badM[1].split(",").map(s => s.trim()).filter(Boolean) : [];
+  const nfM = res.match(/không thấy:\s*(.+)$/i); out.nf = nfM ? nfM[1].split(",").map(s => s.trim()).filter(Boolean) : [];
+  const bset = new Set(out.bad), nset = new Set(out.nf);
+  sns.forEach(sn => { if (!bset.has(sn) && !nset.has(sn)) out.ok.push(sn); });
+  return out;
+}
+function numCounts(result) {
+  const res = String(result || "").trim();
+  if (/^OK$/i.test(res)) return { ok: 1, bad: 0, nf: 0 };
+  if (/^CHƯA OK$/i.test(res)) return { ok: 0, bad: 1, nf: 0 };
+  if (/^Không thấy$/i.test(res)) return { ok: 0, bad: 0, nf: 1 };
+  const mo = res.match(/:\s*(\d+)\s*OK/), mb = res.match(/(\d+)\s*CHƯA OK/), mn = res.match(/(\d+)\s*không thấy/i);
+  return { ok: mo ? +mo[1] : 0, bad: mb ? +mb[1] : 0, nf: mn ? +mn[1] : 0 };
+}
+const DOW_VN = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+let anaRows = [], anaLabel = "";
 async function loadAnalysis() {
   const box = $("scAnalysis"); box.innerHTML = '<div class="hist-empty">Đang tải...</div>';
   const period = $("scAnaPeriod").value;
   const { startISO, label } = anaStart(period);
+  anaLabel = label;
   try {
     const sb = await getSupabase();
     const { data, error } = await sb.from("shipment_check_log")
       .select("checked_at, user_email, query, result")
       .gte("checked_at", startISO).order("checked_at", { ascending: false }).limit(5000);
     if (error) throw error;
-    const rows = data || [];
-    let ok = 0, bad = 0, nf = 0;
-    const byUser = {}, byPart = {}, byHour = {};
+    const rows = data || []; anaRows = rows;
     const codeToLabel = {}; parts.forEach(p => { codeToLabel[String(p.code).toUpperCase()] = p.label; });
+    const partOf = (sn) => codeToLabel[String(sn).split("*")[0].trim().toUpperCase()] || String(sn).split("*")[0].trim().toUpperCase();
+
+    let ok = 0, bad = 0, nf = 0;
+    const byUser = {}, byHour = {}, byDow = {}, byWeek = {};
+    const byPartTot = {}, byPartBad = {}, byPartNf = {}, bySN = {}, nfSNs = {};
+    let morning = 0, afternoon = 0;
     rows.forEach(r => {
-      const res = String(r.result || "").trim();
-      if (/^OK$/i.test(res)) ok++;
-      else if (/^CHƯA OK$/i.test(res)) bad++;
-      else if (/^Không thấy$/i.test(res)) nf++;
-      else {
-        const mo = res.match(/:\s*(\d+)\s*OK/); if (mo) ok += +mo[1];
-        const mb = res.match(/(\d+)\s*CHƯA OK/); if (mb) bad += +mb[1];
-        const mn = res.match(/(\d+)\s*không thấy/i); if (mn) nf += +mn[1];
-      }
+      const c = numCounts(r.result); ok += c.ok; bad += c.bad; nf += c.nf;
       const u = r.user_email || "—"; byUser[u] = (byUser[u] || 0) + 1;
-      const h = new Date(new Date(r.checked_at).getTime() + 7 * 3600e3).getUTCHours(); byHour[h] = (byHour[h] || 0) + 1;
-      String(r.query || "").split(/\n/).map(s => s.trim()).filter(Boolean).forEach(line => {
-        const prefix = line.split("*")[0].trim().toUpperCase();
-        const lbl = codeToLabel[prefix] || prefix;
-        byPart[lbl] = (byPart[lbl] || 0) + 1;
+      const dVN = new Date(new Date(r.checked_at).getTime() + 7 * 3600e3);
+      const h = dVN.getUTCHours(); byHour[h] = (byHour[h] || 0) + 1;
+      (h < 12 ? morning++ : afternoon++);
+      byDow[dVN.getUTCDay()] = (byDow[dVN.getUTCDay()] || 0) + 1;
+      // tuần (thứ Hai) theo VN
+      const mon = new Date(dVN); mon.setUTCDate(dVN.getUTCDate() - ((dVN.getUTCDay() + 6) % 7));
+      const wk = `${String(mon.getUTCDate()).padStart(2, "0")}/${String(mon.getUTCMonth() + 1).padStart(2, "0")}`;
+      const w = byWeek[wk] || (byWeek[wk] = { key: mon.getTime(), luot: 0, ok: 0, bad: 0, nf: 0 });
+      w.luot++; w.ok += c.ok; w.bad += c.bad; w.nf += c.nf;
+      // theo part + S/N
+      const cl = classifyRow(r.query, r.result);
+      String(r.query || "").split(/\n/).map(s => s.trim()).filter(Boolean).forEach(sn => {
+        const lbl = partOf(sn); byPartTot[lbl] = (byPartTot[lbl] || 0) + 1;
+        bySN[sn] = (bySN[sn] || 0) + 1;
       });
+      cl.bad.forEach(sn => { byPartBad[partOf(sn)] = (byPartBad[partOf(sn)] || 0) + 1; });
+      cl.nf.forEach(sn => { byPartNf[partOf(sn)] = (byPartNf[partOf(sn)] || 0) + 1; nfSNs[sn] = (nfSNs[sn] || 0) + 1; });
     });
     const totalSN = ok + bad + nf;
     const top = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
-    const hourTop = Object.entries(byHour).sort((a, b) => b[1] - a[1]).slice(0, 3)
-      .map(([h, c]) => `${String(h).padStart(2, "0")}h (${c})`).join(" · ");
-    box.innerHTML = `<div class="hist-scope">${esc(label)} · ${rows.length} lượt · ${totalSN} S/N</div>
+    const hourTop = top(byHour, 3).map(([h, c]) => `${String(h).padStart(2, "0")}h (${c})`).join(" · ");
+
+    // (2) Xu hướng theo tuần
+    const weeks = Object.entries(byWeek).sort((a, b) => a[1].key - b[1].key);
+    const maxBadPct = Math.max(1, ...weeks.map(([, w]) => { const t = w.ok + w.bad + w.nf; return t ? w.bad / t * 100 : 0; }));
+    const weekRows = weeks.map(([wk, w]) => { const t = w.ok + w.bad + w.nf; const bp = t ? w.bad / t * 100 : 0;
+      return `<tr><td>${wk}</td><td>${w.luot}</td><td>${t}</td><td>${w.ok}</td><td class="c-bad">${w.bad}</td><td>${w.nf}</td>
+        <td><div class="ana-bar"><i style="width:${(bp / maxBadPct * 100).toFixed(0)}%"></i></div><span>${pct(w.bad, t)}</span></td></tr>`; }).join("");
+
+    // (3) Part tỷ lệ Chưa OK cao nhất (ưu tiên tỷ lệ, min 3 S/N)
+    const partRank = Object.keys(byPartTot).map(p => ({ p, tot: byPartTot[p], bad: byPartBad[p] || 0 }))
+      .filter(x => x.tot >= 1).sort((a, b) => (b.bad / b.tot) - (a.bad / a.tot) || b.bad - a.bad).slice(0, 8);
+    const partBadRows = partRank.map(x => `<tr><td>${esc(x.p)}</td><td>${x.tot}</td><td class="c-bad">${x.bad}</td><td>${pct(x.bad, x.tot)}</td></tr>`).join("");
+
+    // (4) Không thấy theo part + top S/N
+    const nfPartRows = top(byPartNf, 6).map(([p, c]) => `<div class="ana-row"><span>${esc(p)}</span><b>${c}</b></div>`).join("") || '<div class="ana-row muted">—</div>';
+    const nfSnTop = top(nfSNs, 8).map(([s, c]) => `<div class="ana-row"><span>${esc(s)}</span><b>${c > 1 ? c + "×" : ""}</b></div>`).join("") || '<div class="ana-row muted">—</div>';
+
+    // (5) S/N kiểm nhiều lần
+    const repeated = Object.entries(bySN).filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const repRows = repeated.length ? repeated.map(([s, c]) => `<div class="ana-row"><span>${esc(s)}</span><b>${c}×</b></div>`).join("") : '<div class="ana-row muted">Không có S/N nào kiểm ≥2 lần</div>';
+
+    // (6) Phân bố theo thứ + ca
+    const dowRows = [1,2,3,4,5,6,0].map(d => `<div class="ana-row"><span>${DOW_VN[d]}</span><b>${byDow[d] || 0}</b></div>`).join("");
+
+    box.innerHTML = `<div class="hist-scope" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span>${esc(label)} · ${rows.length} lượt · ${totalSN} S/N</span>
+        <button type="button" id="scAnaExport" class="ana-export">⬇ Xuất Excel</button></div>
       <div class="ana-kpis">
         <div class="ana-kpi"><div class="n">${rows.length}</div><div class="l">Lượt kiểm</div></div>
         <div class="ana-kpi"><div class="n">${totalSN}</div><div class="l">Tổng S/N</div></div>
-        <div class="ana-kpi ok"><div class="n">${ok}</div><div class="l">OK</div></div>
-        <div class="ana-kpi bad"><div class="n">${bad}</div><div class="l">CHƯA OK</div></div>
-        <div class="ana-kpi nf"><div class="n">${nf}</div><div class="l">Không thấy</div></div>
+        <div class="ana-kpi ok"><div class="n">${ok}</div><div class="l">OK · ${pct(ok, totalSN)}</div></div>
+        <div class="ana-kpi bad"><div class="n">${bad}</div><div class="l">CHƯA OK · ${pct(bad, totalSN)}</div></div>
+        <div class="ana-kpi nf"><div class="n">${nf}</div><div class="l">Không thấy · ${pct(nf, totalSN)}</div></div>
       </div>
+      <div class="ana-block"><h4>Xu hướng theo tuần (Thứ Hai)</h4>
+        <table class="ana-tbl"><thead><tr><th>Tuần</th><th>Lượt</th><th>S/N</th><th>OK</th><th>Chưa OK</th><th>Ko thấy</th><th>% Chưa OK</th></tr></thead>
+        <tbody>${weekRows || '<tr><td colspan="7" class="muted">—</td></tr>'}</tbody></table></div>
+      <div class="ana-block"><h4>Part có tỷ lệ Chưa OK cao</h4>
+        <table class="ana-tbl"><thead><tr><th>Part</th><th>S/N</th><th>Chưa OK</th><th>%</th></tr></thead>
+        <tbody>${partBadRows || '<tr><td colspan="4" class="muted">—</td></tr>'}</tbody></table></div>
       <div class="ana-cols">
         ${anaList("Người kiểm nhiều nhất", top(byUser, 6))}
-        ${anaList("Part kiểm nhiều nhất", top(byPart, 6))}
-        <div class="ana-block"><h4>Giờ cao điểm</h4><div class="ana-row"><span>${hourTop || "—"}</span></div></div>
+        ${anaList("Part kiểm nhiều nhất (số S/N)", top(byPartTot, 6))}
+        <div class="ana-block"><h4>Không thấy — theo Part</h4>${nfPartRows}</div>
+        <div class="ana-block"><h4>Không thấy — S/N</h4>${nfSnTop}</div>
+        <div class="ana-block"><h4>S/N kiểm nhiều lần (≥2)</h4>${repRows}</div>
+        <div class="ana-block"><h4>Phân bố theo thứ</h4>${dowRows}
+          <div class="ana-row" style="border-top:2px solid var(--border)"><span>Ca sáng / chiều</span><b>${morning} / ${afternoon}</b></div>
+          <div class="ana-row"><span>Giờ cao điểm</span><b>${hourTop || "—"}</b></div></div>
       </div>`;
+    const ex = $("scAnaExport"); if (ex) ex.addEventListener("click", exportAnalysis);
   } catch (e) {
     box.innerHTML = '<div class="hist-empty">Không tải được: ' + esc(e.message) + "</div>";
   }
+}
+// (9) Xuất Excel: các lượt trong kỳ (Thời điểm, Người, S/N, Kết quả)
+function exportAnalysis() {
+  const e = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const head = "<tr><th>Thời điểm</th><th>Người</th><th>S/N tra</th><th>Kết quả</th></tr>";
+  const body = (anaRows || []).map(r => `<tr><td>${e(new Date(r.checked_at).toLocaleString("vi-VN"))}</td><td>${e(r.user_email || "")}</td><td>${e(String(r.query || "").replace(/\n/g, " | "))}</td><td>${e(r.result || "")}</td></tr>`).join("");
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><h3>Shipment Check — ${e(anaLabel)}</h3><table border="1">${head}${body}</table></body></html>`;
+  const blob = new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob); const a = document.createElement("a");
+  a.href = url; a.download = "ShipmentCheck_" + (anaLabel.match(/\d{4}-\d{2}-\d{2}/) || ["export"])[0] + ".xls";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function isBadStatus(s) { return s === "OPEN_REVIEW" || s === "UNKNOWN"; }

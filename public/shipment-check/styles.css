@@ -530,6 +530,16 @@ table.hist td { padding: 6px 10px; border-top: 1px solid var(--border); color: v
 .ana-block h4 { margin: 0 0 6px; font-size: 13px; color: var(--primary-dark); }
 .ana-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 3px 0; border-top: 1px solid var(--border); }
 .ana-row.muted { color: var(--gray); }
+.ana-tbl { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+.ana-tbl th, .ana-tbl td { border-top: 1px solid var(--border); padding: 4px 6px; text-align: center; }
+.ana-tbl th { color: var(--gray); font-weight: 600; }
+.ana-tbl td:first-child, .ana-tbl th:first-child { text-align: left; }
+.ana-tbl td.c-bad { color: var(--red); font-weight: 700; }
+.ana-tbl .muted { color: var(--gray); }
+.ana-bar { display: inline-block; width: 54px; height: 7px; background: var(--red-soft); border-radius: 4px; overflow: hidden; vertical-align: middle; margin-right: 6px; }
+.ana-bar > i { display: block; height: 100%; background: var(--red); }
+.ana-export { padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--primary); color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; }
+.ana-export:hover { background: var(--primary-dark); }
 .hist-search input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .hist-search button { padding: 8px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
 .hist-search button:first-of-type { background: var(--primary); color: #fff; border-color: var(--primary); }
