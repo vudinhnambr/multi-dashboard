@@ -403,7 +403,7 @@ async function loadAnalysis() {
 
     let ok = 0, bad = 0, nf = 0;
     const byUser = {}, byHour = {}, byDow = {}, byWeek = {};
-    const byPartTot = {}, byPartBad = {}, byPartNf = {}, bySN = {}, nfSNs = {};
+    const byPartTot = {}, byPartBad = {}, byPartNf = {}, bySN = {}, nfSNs = {}, unmapped = {};
     let morning = 0, afternoon = 0;
     rows.forEach(r => {
       const c = numCounts(r.result); ok += c.ok; bad += c.bad; nf += c.nf;
@@ -421,7 +421,9 @@ async function loadAnalysis() {
       const cl = classifyRow(r.query, r.result);
       const snLines = String(r.query || "").split(/\n/).map(s => s.trim()).filter(Boolean);
       snLines.forEach(sn => {
-        const lbl = partOf(sn); if (lbl) byPartTot[lbl] = (byPartTot[lbl] || 0) + 1;
+        const lbl = partOf(sn);
+        if (lbl) byPartTot[lbl] = (byPartTot[lbl] || 0) + 1;
+        else unmapped[sn] = (unmapped[sn] || 0) + 1;
         bySN[sn] = (bySN[sn] || 0) + 1;
       });
       // Nếu mọi S/N trong lượt cùng 1 part -> dùng quy số đếm khi kết quả cũ không liệt kê từng S/N.
@@ -461,15 +463,28 @@ async function loadAnalysis() {
     // (3) Part tỷ lệ Chưa OK cao nhất (ưu tiên tỷ lệ, min 3 S/N)
     const partRank = Object.keys(byPartTot).map(p => ({ p, tot: byPartTot[p], bad: byPartBad[p] || 0 }))
       .filter(x => x.tot >= 1).sort((a, b) => (b.bad / b.tot) - (a.bad / a.tot) || b.bad - a.bad).slice(0, 8);
-    // Dòng "Khác / Chưa xác định": phần chênh so với KPI (S/N test lẻ, gõ thiếu mã, hoặc part ngoài top 8)
+    // Dòng "Các parts khác": phần chênh so với KPI (part ngoài top 8 + S/N không nhận diện được part)
     // -> để cột S/N và Chưa OK cộng lại khớp đúng tổng KPI.
     const shownTot = partRank.reduce((s, x) => s + x.tot, 0);
     const shownBad = partRank.reduce((s, x) => s + x.bad, 0);
     const otherTot = Math.max(0, totalSN - shownTot);
     const otherBad = Math.max(0, bad - shownBad);
+    const hasOther = otherTot > 0 || otherBad > 0;
+    // Chi tiết "Các parts khác": part ngoài top 8 + S/N không map được part nào
+    const shownSet = new Set(partRank.map(x => x.p));
+    const otherParts = Object.keys(byPartTot).filter(p => !shownSet.has(p))
+      .map(p => ({ p, tot: byPartTot[p], bad: byPartBad[p] || 0 })).sort((a, b) => b.tot - a.tot);
+    const unmappedList = Object.entries(unmapped).sort((a, b) => b[1] - a[1]);
+    let partBadRows = partRank.map(x => `<tr><td>${esc(x.p)}</td><td>${x.tot}</td><td class="c-bad">${x.bad}</td><td>${pct(x.bad, x.tot)}</td></tr>`).join("");
+    if (hasOther) {
+      const detail = `${otherParts.length ? `<div class="ana-other-sub"><b>Part khác (ngoài top 8):</b>${otherParts.map(o => `<div class="ana-row"><span>${esc(o.p)}</span><b>${o.tot} S/N${o.bad ? ` · ${o.bad} chưa OK` : ""}</b></div>`).join("")}</div>` : ""}` +
+        `${unmappedList.length ? `<div class="ana-other-sub"><b>S/N không nhận diện được part (${unmappedList.length}):</b>${unmappedList.map(([s, c]) => `<div class="ana-row"><span>${esc(s)}</span><b>${c > 1 ? c + "×" : ""}</b></div>`).join("")}</div>` : ""}` || '<span class="muted">—</span>';
+      partBadRows += `<tr class="muted"><td>Các parts khác <button type="button" id="anaOtherToggle" class="ana-mini-btn">▸ chi tiết</button></td><td>${otherTot}</td><td class="c-bad">${otherBad}</td><td>${pct(otherBad, otherTot)}</td></tr>` +
+        `<tr id="anaOtherDetail" style="display:none"><td colspan="4">${detail}</td></tr>`;
+    }
+    // Cho báo cáo PDF: dòng tổng hợp "Các parts khác"
     const partRankAll = partRank.slice();
-    if (otherTot > 0 || otherBad > 0) partRankAll.push({ p: "Khác / Chưa xác định", tot: otherTot, bad: otherBad, other: true });
-    const partBadRows = partRankAll.map(x => `<tr${x.other ? ' class="muted"' : ""}><td>${esc(x.p)}</td><td>${x.tot}</td><td class="c-bad">${x.bad}</td><td>${pct(x.bad, x.tot)}</td></tr>`).join("");
+    if (hasOther) partRankAll.push({ p: "Các parts khác", tot: otherTot, bad: otherBad, other: true });
 
     // (4) Không thấy theo part + top S/N
     const nfPartRows = top(byPartNf, 6).map(([p, c]) => `<div class="ana-row"><span>${esc(p)}</span><b>${c}</b></div>`).join("") || '<div class="ana-row muted">—</div>';
@@ -519,6 +534,12 @@ async function loadAnalysis() {
       </div>`;
     const ex = $("scAnaExport"); if (ex) ex.addEventListener("click", exportAnalysis);
     const pf = $("scAnaPdf"); if (pf) pf.addEventListener("click", exportShipmentPdf);
+    const ot = $("anaOtherToggle"); if (ot) ot.addEventListener("click", () => {
+      const d = $("anaOtherDetail"); if (!d) return;
+      const show = d.style.display === "none";
+      d.style.display = show ? "table-row" : "none";
+      ot.textContent = show ? "▾ ẩn chi tiết" : "▸ chi tiết";
+    });
   } catch (e) {
     box.innerHTML = '<div class="hist-empty">Không tải được: ' + esc(e.message) + "</div>";
   }
