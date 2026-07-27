@@ -419,12 +419,30 @@ async function loadAnalysis() {
       w.luot++; w.ok += c.ok; w.bad += c.bad; w.nf += c.nf;
       // theo part + S/N
       const cl = classifyRow(r.query, r.result);
-      String(r.query || "").split(/\n/).map(s => s.trim()).filter(Boolean).forEach(sn => {
+      const snLines = String(r.query || "").split(/\n/).map(s => s.trim()).filter(Boolean);
+      snLines.forEach(sn => {
         const lbl = partOf(sn); if (lbl) byPartTot[lbl] = (byPartTot[lbl] || 0) + 1;
         bySN[sn] = (bySN[sn] || 0) + 1;
       });
-      cl.bad.forEach(sn => { const lbl = partOf(sn); if (lbl) byPartBad[lbl] = (byPartBad[lbl] || 0) + 1; });
-      cl.nf.forEach(sn => { const lbl = partOf(sn); if (lbl) byPartNf[lbl] = (byPartNf[lbl] || 0) + 1; nfSNs[sn] = (nfSNs[sn] || 0) + 1; });
+      // Nếu mọi S/N trong lượt cùng 1 part -> dùng quy số đếm khi kết quả cũ không liệt kê từng S/N.
+      const distinctParts = new Set(snLines.map(partOf));
+      const singlePart = (distinctParts.size === 1 && !distinctParts.has(null)) ? [...distinctParts][0] : null;
+      // CHƯA OK: ưu tiên danh sách S/N chính xác; nếu kết quả cũ thiếu danh sách thì quy theo số đếm (khi cùng 1 part).
+      if (c.bad > 0) {
+        if (cl.bad.length === c.bad) {
+          cl.bad.forEach(sn => { const lbl = partOf(sn); if (lbl) byPartBad[lbl] = (byPartBad[lbl] || 0) + 1; });
+        } else if (singlePart) {
+          byPartBad[singlePart] = (byPartBad[singlePart] || 0) + c.bad;
+        }
+      }
+      // Không thấy: tương tự
+      if (c.nf > 0) {
+        if (cl.nf.length === c.nf) {
+          cl.nf.forEach(sn => { const lbl = partOf(sn); if (lbl) byPartNf[lbl] = (byPartNf[lbl] || 0) + 1; nfSNs[sn] = (nfSNs[sn] || 0) + 1; });
+        } else if (singlePart) {
+          byPartNf[singlePart] = (byPartNf[singlePart] || 0) + c.nf;
+        }
+      }
     });
     const totalSN = ok + bad + nf;
     const top = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
