@@ -385,7 +385,7 @@ async function loadAnalysis() {
     const partOf = (sn) => {
       const s = String(sn || "").trim().toUpperCase();
       for (const p of partsUp) { if (s.startsWith(p.code)) return p.label; }
-      return s.split("*")[0].replace(/[-*]\d+$/, "").trim() || s; // không khớp → tiền tố
+      return null; // không khớp part nào (vd S/N test lẻ) → không tính vào bảng Part
     };
 
     let ok = 0, bad = 0, nf = 0;
@@ -407,11 +407,11 @@ async function loadAnalysis() {
       // theo part + S/N
       const cl = classifyRow(r.query, r.result);
       String(r.query || "").split(/\n/).map(s => s.trim()).filter(Boolean).forEach(sn => {
-        const lbl = partOf(sn); byPartTot[lbl] = (byPartTot[lbl] || 0) + 1;
+        const lbl = partOf(sn); if (lbl) byPartTot[lbl] = (byPartTot[lbl] || 0) + 1;
         bySN[sn] = (bySN[sn] || 0) + 1;
       });
-      cl.bad.forEach(sn => { byPartBad[partOf(sn)] = (byPartBad[partOf(sn)] || 0) + 1; });
-      cl.nf.forEach(sn => { byPartNf[partOf(sn)] = (byPartNf[partOf(sn)] || 0) + 1; nfSNs[sn] = (nfSNs[sn] || 0) + 1; });
+      cl.bad.forEach(sn => { const lbl = partOf(sn); if (lbl) byPartBad[lbl] = (byPartBad[lbl] || 0) + 1; });
+      cl.nf.forEach(sn => { const lbl = partOf(sn); if (lbl) byPartNf[lbl] = (byPartNf[lbl] || 0) + 1; nfSNs[sn] = (nfSNs[sn] || 0) + 1; });
     });
     const totalSN = ok + bad + nf;
     const top = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
