@@ -384,6 +384,8 @@ async function loadAnalysis() {
   const { startISO, label } = anaStart(period);
   anaLabel = label;
   try {
+    // Đảm bảo danh sách part (mã assembly) đã nạp — nếu không, mọi S/N sẽ dồn vào "Khác".
+    if (!parts || !parts.length) { try { await loadParts(); } catch (_) {} }
     const sb = await getSupabase();
     const { data, error } = await sb.from("shipment_check_log")
       .select("checked_at, user_email, query, result")
