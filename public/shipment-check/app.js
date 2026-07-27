@@ -441,7 +441,15 @@ async function loadAnalysis() {
     // (3) Part tỷ lệ Chưa OK cao nhất (ưu tiên tỷ lệ, min 3 S/N)
     const partRank = Object.keys(byPartTot).map(p => ({ p, tot: byPartTot[p], bad: byPartBad[p] || 0 }))
       .filter(x => x.tot >= 1).sort((a, b) => (b.bad / b.tot) - (a.bad / a.tot) || b.bad - a.bad).slice(0, 8);
-    const partBadRows = partRank.map(x => `<tr><td>${esc(x.p)}</td><td>${x.tot}</td><td class="c-bad">${x.bad}</td><td>${pct(x.bad, x.tot)}</td></tr>`).join("");
+    // Dòng "Khác / Chưa xác định": phần chênh so với KPI (S/N test lẻ, gõ thiếu mã, hoặc part ngoài top 8)
+    // -> để cột S/N và Chưa OK cộng lại khớp đúng tổng KPI.
+    const shownTot = partRank.reduce((s, x) => s + x.tot, 0);
+    const shownBad = partRank.reduce((s, x) => s + x.bad, 0);
+    const otherTot = Math.max(0, totalSN - shownTot);
+    const otherBad = Math.max(0, bad - shownBad);
+    const partRankAll = partRank.slice();
+    if (otherTot > 0 || otherBad > 0) partRankAll.push({ p: "Khác / Chưa xác định", tot: otherTot, bad: otherBad, other: true });
+    const partBadRows = partRankAll.map(x => `<tr${x.other ? ' class="muted"' : ""}><td>${esc(x.p)}</td><td>${x.tot}</td><td class="c-bad">${x.bad}</td><td>${pct(x.bad, x.tot)}</td></tr>`).join("");
 
     // (4) Không thấy theo part + top S/N
     const nfPartRows = top(byPartNf, 6).map(([p, c]) => `<div class="ana-row"><span>${esc(p)}</span><b>${c}</b></div>`).join("") || '<div class="ana-row muted">—</div>';
@@ -459,7 +467,7 @@ async function loadAnalysis() {
       label, luot: rows.length, totalSN, ok, bad, nf,
       weeks: weeks.map(w => { const t = w.ok + w.bad + w.nf; const sun = new Date(w.mon.getTime() + 6 * 86400e3);
         return { lbl: `FW${isoWeekNum(w.mon)} (${fmtDM(w.mon)}~${fmtDM(sun)})`, luot: w.luot, t, ok: w.ok, bad: w.bad, nf: w.nf, bp: t ? Math.round(w.bad / t * 1000) / 10 : 0 }; }),
-      partRank, users: top(byUser, 10), partsTop: top(byPartTot, 10), nfParts: top(byPartNf, 10),
+      partRank: partRankAll, users: top(byUser, 10), partsTop: top(byPartTot, 10), nfParts: top(byPartNf, 10),
       dow: [1, 2, 3, 4, 5, 6, 0].map(d => [DOW_VN[d], byDow[d] || 0]),
       morning, afternoon, hourTop,
     };
