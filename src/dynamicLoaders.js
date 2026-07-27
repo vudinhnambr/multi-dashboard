@@ -31,6 +31,8 @@ async function fetchXlsx(id) {
   return XLSX.read(buf, { type: 'array' });
 }
 
+// Mốc áp dụng std MỚI (Combined ST). Ngày < mốc dùng std CŨ (PART_COL_STD hardcode).
+const CMM_STD_CUTOVER = '2026-07-25';
 // ISO week → 'FW01' … 'FW53'
 function isoWeek(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -217,8 +219,11 @@ export async function loadCmmWeeklyData() {
     const stepName = String(row[4] || '').trim().toLowerCase();
     const col = STEP_TO_COL[stepName];
     const key = normPart(rawPart);
-    const stepStd = dynStd[key];   // BẮT BUỘC lấy std từ Combined ST (không dùng bảng cứng)
-    if (!isITR && !stdError && !stepStd) unmatchedSet.add(getDisplayName(rawPart)); // part không khớp Combined ST
+    // Ngày >= mốc: std MỚI (Combined ST). Ngày < mốc: std CŨ (bảng cứng gốc).
+    const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const useNew = ymd >= CMM_STD_CUTOVER;
+    const stepStd = useNew ? dynStd[key] : PART_COL_STD[key];
+    if (!isITR && useNew && !stdError && !stepStd) unmatchedSet.add(getDisplayName(rawPart)); // part không khớp Combined ST
     const baseStd = (col !== undefined && stepStd && stepStd[col]) ? stepStd[col] : 0;
 
     // "Re-Check Time" (cột tìm theo tên tiêu đề)

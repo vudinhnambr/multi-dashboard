@@ -231,6 +231,12 @@ async function runCheck(refresh) {
 // ---- Nhật ký kiểm tra (ai + thời điểm + S/N + kết quả) ----
 function summarizeResults(json) {
   const rs = (json && json.results) || [];
+  // Chỉ 1 S/N: nêu rõ kết quả, không lặp lại số S/N (đã có ở cột S/N tra)
+  if (rs.length === 1) {
+    const r = rs[0];
+    if (!r.found) return "Không thấy";
+    return r.overallOk === false ? "CHƯA OK" : "OK";
+  }
   const okList = rs.filter(r => r.overallOk === true);
   const badList = rs.filter(r => r.overallOk === false);
   const notFound = rs.filter(r => !r.found);
@@ -257,6 +263,9 @@ async function logCheck(query, json) {
 function fmtResult(text) {
   if (!text) return { html: "", hasIssue: false };
   let hasIssue = false;
+  // Trường hợp 1 S/N: chỉ có chữ "CHƯA OK" / "Không thấy" (không kèm số) → tô đỏ cả dòng
+  const t = String(text).trim();
+  if (/^(CHƯA OK|Không thấy)$/i.test(t)) return { html: `<b class="hist-red">${esc(t)}</b>`, hasIssue: true };
   let html = esc(text)
     .replace(/(\d+)\s*CHƯA OK/g, (m, n) => { if (Number(n) > 0) { hasIssue = true; return `<b class="hist-red">${m}</b>`; } return m; })
     .replace(/(\d+)\s*không thấy/g, (m, n) => { if (Number(n) > 0) { hasIssue = true; return `<b class="hist-red">${m}</b>`; } return m; });
