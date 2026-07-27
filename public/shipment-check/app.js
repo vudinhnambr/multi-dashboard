@@ -272,6 +272,17 @@ function fmtResult(text) {
   return { html, hasIssue };
 }
 
+// Hiển thị gọn khi 1 S/N (kể cả lượt cũ đã lưu dạng dài): OK / CHƯA OK / Không thấy
+function displayResult(query, result) {
+  const sns = String(query || "").split(/\n/).map(s => s.trim()).filter(Boolean);
+  const res = String(result || "").trim();
+  if (sns.length !== 1) return res;
+  if (/^(OK|CHƯA OK|Không thấy)$/i.test(res)) return res;
+  const c = numCounts(res);
+  if (c.nf > 0) return "Không thấy";
+  if (c.bad > 0) return "CHƯA OK";
+  return "OK";
+}
 async function loadHistory(term) {
   const box = $("scHistory");
   box.innerHTML = '<div class="hist-empty">Đang tải...</div>';
@@ -306,7 +317,7 @@ async function loadHistory(term) {
     box.innerHTML = cap + '<table class="hist"><thead><tr>'
       + '<th>Thời điểm</th><th>Người</th><th>S/N tra</th><th>Kết quả</th></tr></thead><tbody>'
       + data.map(r => {
-          const bad = fmtResult(r.result || "");
+          const bad = fmtResult(displayResult(r.query, r.result));
           return `<tr class="${bad.hasIssue ? 'hist-bad' : ''}">
             <td class="ht-time">${esc(new Date(r.checked_at).toLocaleString("vi-VN"))}</td>
             <td class="ht-user">${esc(r.user_email || "")}</td>
