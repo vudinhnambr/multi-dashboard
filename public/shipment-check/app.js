@@ -397,7 +397,11 @@ async function loadAnalysis() {
       .filter(p => p.code).sort((a, b) => b.code.length - a.code.length);
     const partOf = (sn) => {
       const s = String(sn || "").trim().toUpperCase();
-      for (const p of partsUp) { if (s.startsWith(p.code)) return p.label; }
+      for (const p of partsUp) {
+        if (s.startsWith(p.code)) return p.label;
+        // S/N gõ thiếu tiền tố nhà máy "VN" (vd 15MW Yaw Ring: mã VNVESY1500001, gõ VESY1500001...)
+        if (p.code.startsWith("VN") && !p.code.startsWith("VN-") && s.startsWith(p.code.slice(2))) return p.label;
+      }
       return null; // không khớp part nào (vd S/N test lẻ) → không tính vào bảng Part
     };
 
