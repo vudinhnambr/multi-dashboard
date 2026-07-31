@@ -40,10 +40,10 @@ const TABS = [
 const OVERVIEW_TOKEN = import.meta.env.VITE_OVERVIEW_TOKEN || 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6';
 const OVERVIEW_SRC = '/overview/?key=' + encodeURIComponent(OVERVIEW_TOKEN);
 
-// Lấy tab từ hash (#cmm / #auto-mt / #supplier-ncr). Mặc định cmm.
+// Lấy tab từ hash (#overview / #cmm / #auto-mt ...). Mặc định overview.
 function tabFromHash() {
   const h = (window.location.hash || '').replace('#', '');
-  return TABS.some((t) => t.id === h) ? h : 'cmm';
+  return TABS.some((t) => t.id === h) ? h : 'overview';
 }
 
 // Cổng đăng nhập cho tab CMM — dùng Supabase Auth (giống Auto MT).
